@@ -1,0 +1,15 @@
+{
+    "PROJECT_CONFIGURATION_WINDOW_TITLE": "Project Configuration",
+    "PROJECT_CONFIGURATION_CREATE_PROJECT_TIP": "No project is opened\nUse menu bar to create or open a project!",
+    "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU": "Project",
+    "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN": "Open Project",
+    "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU": "Window",
+    "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU_RENDER_PREVIEW": "Render Preview",
+    "PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT": "Exit",
+    "PROJECT_CONFIGURATION_PROJECT_NAME_LABEL": "Project name",
+    "RENDER_PREVIEW_WINDOW_TITLE": "Render Preview",
+    "RENDER_PREVIEW_SETTINGS_HEADER": "Render preview settings",
+    "RENDER_PREVIEW_PREVIEW_SCALE": "Preview scale",
+    "RENDER_PREVIEW_RESOLUTIONS_LABEL": "Preview resolutions",
+    "RENDER_PREVIEW_PROJECT_REQUIRED_WARNING": "Render preview cannot be created because no project is opened!"
+}
