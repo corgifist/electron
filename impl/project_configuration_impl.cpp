@@ -5,12 +5,23 @@ using namespace Electron;
 
 extern "C" {
     ELECTRON_EXPORT void ProjectConfigurationRender(AppInstance* instance) {
+        static bool dockInitialized = false;
+
+        if (instance->isNativeWindow) {
+            UIDockSpaceOverViewport(UIGetViewport(), ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
+        }
+
         UISetNextWindowSize({640, 480}, ImGuiCond_Once);
-        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE"), instance)), ElectronSignal_CloseEditor, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar);
+        ImGuiWindowFlags dockFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar;
+        if (instance->isNativeWindow) {
+            dockFlags |= ImGuiWindowFlags_NoTitleBar;
+        }
+
+        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE"), instance)), ElectronSignal_CloseEditor, dockFlags);
             std::string projectTip = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_CREATE_PROJECT_TIP");
             ImVec2 windowSize = UIGetWindowSize();
             ImVec2 tipSize = UICalcTextSize(projectTip.c_str());
-        
+    
 
             if (UIBeginMenuBar()) {
                 if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU"))) {
@@ -49,11 +60,11 @@ extern "C" {
 
                 std::vector<int> sourceResolution = JSON_AS_TYPE(project.propertiesMap["ProjectResolution"], std::vector<int>);
                 std::vector<int> resolutionPtr = sourceResolution;
-                UIInputInt2("Resolution", resolutionPtr.data(), 0);
+                UIInputInt2(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESOLUTION_LABEL"), resolutionPtr.data(), 0);
                 project.propertiesMap["ProjectResolution"] = resolutionPtr;
 
                 std::vector<float> backgroundColor = JSON_AS_TYPE(project.propertiesMap["BackgroundColor"], std::vector<float>);
-                UIInputColor3("Background color", backgroundColor.data(), 0);
+                UIInputColor3(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_BACKGROUND_COLOR"), backgroundColor.data(), 0);
                 project.propertiesMap["BackgroundColor"] = backgroundColor;
 
                 UIEnd();

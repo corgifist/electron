@@ -226,6 +226,54 @@ void UIInputColor3(const char* label, float* color, ImGuiColorEditFlags flags) {
     ImGui::ColorEdit3(label, color, flags);
 }
 
+void UISetWindowSize(ImVec2 size, ImGuiCond cond) {
+    ImGui::SetWindowSize(size, cond);
+}
+
+void UISetWindowPos(ImVec2 pos, ImGuiCond cond) {
+    ImGui::SetWindowPos(pos, cond);
+}
+
+Electron::ElectronVector2f ElectronImplGetNativeWindowSize(void* instance) {
+    return ((Electron::AppInstance*) instance)->GetNativeWindowSize();
+}
+
+Electron::ElectronVector2f ElectronImplGetNativeWindowPos(void* instance) {
+    return ((Electron::AppInstance*) instance)->GetNativeWindowPos();
+}
+
+ImGuiDockNode* UIDockBuilderGetNode(ImGuiID id) {
+    return ImGui::DockBuilderGetNode(id);
+}
+
+ImGuiID UIGetWindowDockID() {
+    return ImGui::GetWindowDockID();
+}
+
+void UIDockBuilderSetNodeSize(ImGuiID id, ImVec2 size) {
+    ImGui::DockBuilderSetNodeSize(id, size);
+}
+
+ImGuiID UIDockSpaceOverViewport(const ImGuiViewport *viewport, ImGuiDockNodeFlags flags, const ImGuiWindowClass *window_class) {
+    return ImGui::DockSpaceOverViewport(viewport, flags, window_class);
+}
+
+void UISetNextWindowDockID(ImGuiID id, ImGuiCond cond) {
+    ImGui::SetNextWindowDockID(id, cond);
+}
+
+ImGuiID UIGetID(const char* name) {
+    return ImGui::GetID(name);
+}
+
+ImGuiID UIDockSpace(ImGuiID id, const ImVec2 &size, ImGuiDockNodeFlags flag, const ImGuiWindowClass *window_class) {
+    return ImGui::DockSpace(id, size, flag, window_class);
+}
+
+ImGuiViewport* UIGetViewport() {
+    return ImGui::GetMainViewport();
+}
+
 void ShortcutsImplCtrlWR(void* instance) {
     SHORTCUT(Ctrl_W_R)();
 }

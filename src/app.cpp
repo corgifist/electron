@@ -10,14 +10,17 @@ Electron::AppInstance::AppInstance() {
         throw std::runtime_error("cannot initialize glfw!");
     }
 
+    this->configMap = json_t::parse(std::fstream("config.json")); // config needs to be initialized ASAP
+    this->isNativeWindow = configMap["ViewportMethod"] == "native-window";
+
     glfwDefaultWindowHints();
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, isNativeWindow);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_VISIBLE, isNativeWindow);
 
-    this->displayHandle = glfwCreateWindow(2, 2, "Electron Host Window (You mustn't see it)", nullptr, nullptr);
+    this->displayHandle = glfwCreateWindow(isNativeWindow ? 1280 : 2, isNativeWindow ? 720 : 2, "Electron", nullptr, nullptr);
     if (this->displayHandle == nullptr) {
         throw std::runtime_error("cannot instantiate window!");
     }
@@ -34,10 +37,11 @@ Electron::AppInstance::AppInstance() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    if (!isNativeWindow) io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
+    ImGui::StyleColorsClassic();
     ImGuiStyle& style = ImGui::GetStyle();
     style.Colors[ImGuiCol_TitleBg] = ImVec4(0.1f, 0.1f, 0.1f, 1);
     style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.1f, 0.1f, 0.1f, 1);
@@ -63,12 +67,18 @@ void Electron::AppInstance::Run() {
         if (projectOpened) {
             project.SaveProject();
         }
+
+        std::ofstream configStream("config.json");
+        configStream << configMap.dump();
+
+        PixelBuffer::filtering = configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
+
         int displayWidth, displayHeight;
         glfwGetWindowSize(this->displayHandle, &displayWidth, &displayHeight);
         glViewport(0, 0, displayWidth, displayHeight);
 
         glfwPollEvents();
-        glClearColor(1, 1, 0, 1);
+        glClearColor(0, 0, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT);
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -136,6 +146,18 @@ void Electron::AppInstance::ExecuteSignal(ElectronSignal signal) {
     bool boolRef = false;
     int intRef = 0;
     ExecuteSignal(signal, 0, intRef, boolRef);
+}
+
+Electron::ElectronVector2f Electron::AppInstance::GetNativeWindowSize() {
+    int width, height;
+    glfwGetWindowSize(this->displayHandle, &width, &height);
+    return Electron::ElectronVector2f{width, height};
+}
+
+Electron::ElectronVector2f Electron::AppInstance::GetNativeWindowPos() {
+    int x, y;
+    glfwGetWindowPos(this->displayHandle, &x, &y);
+    return Electron::ElectronVector2f{x, y};
 }
 
 void Electron::ProjectMap::SaveProject() {

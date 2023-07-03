@@ -8,6 +8,7 @@
 #include "ImGui/imgui_impl_glfw.h"
 #include "ImGui/imgui_impl_opengl3.h"
 #include "ImGui/im_scoped.h"
+#include "ImGui/imgui_internal.h"
 
 #include "editor_core.h"
 #include "graphics_core.h"
@@ -50,11 +51,13 @@ namespace Electron {
         GLFWwindow* displayHandle;
         std::vector<ElectronUI*> content;
     public:
-        json_t localizationMap;
+        json_t localizationMap, configMap;
         GraphicsCore graphics;
         ProjectMap project;
         bool projectOpened;
+        bool isNativeWindow;
         Shortcuts shortcuts;
+        ImGuiID nativeWindowCentralDockID;
 
         ImFont* largeFont;
         
@@ -64,6 +67,9 @@ namespace Electron {
 
         void ExecuteSignal(ElectronSignal signal, int windowIndex, int& destroyWindowTarget, bool& exitEditor);
         void ExecuteSignal(ElectronSignal signal);
+
+        Electron::ElectronVector2f GetNativeWindowSize();
+        Electron::ElectronVector2f GetNativeWindowPos();
 
         void AddUIContent(ElectronUI* ui) {
             this->content.push_back(ui);

@@ -41,7 +41,7 @@ extern "C" {
         static int selectedResolutionVariant = 0;
 
         UISetNextWindowSize(ElectronVector2f{640, 480}, ImGuiCond_Once);
-        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE"), owner)), ElectronSignal_CloseWindow, ImGuiWindowFlags_NoCollapse);
+        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE"), owner)), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
             ImVec2 windowSize = UIGetWindowSize();
             ImVec2 availZone = UIGetAvailZone();
             if (!instance->projectOpened) {
@@ -60,11 +60,11 @@ extern "C" {
                 firstSetup = false;
             }
 
-            ElectronVector2f scaledPreviewSize = {renderBuffer.width, renderBuffer.height};
+            ElectronVector2f scaledPreviewSize = {resolutionVariants[0].width, resolutionVariants[0].height};
             if (availZone.x * 2.0f < scaledPreviewSize.x) {
                 scaledPreviewSize.x = availZone.x;
             } else {
-                float scaleFactor = availZone.x / scaledPreviewSize.x * 0.3f;
+                float scaleFactor = ((availZone.x / scaledPreviewSize.x * 0.1f) + (availZone.y / scaledPreviewSize.y * 0.1f)) / 2.0f;
                 scaledPreviewSize.x += scaledPreviewSize.x * scaleFactor;
                 scaledPreviewSize.y += scaledPreviewSize.y * scaleFactor;
             }
@@ -74,7 +74,6 @@ extern "C" {
 
             GraphicsImplCleanPreviewGPUTexture(instance);
             GraphicsImplRequestRenderWithinRegion(instance, RenderRequestMetadata{0, renderBuffer.width, 0, renderBuffer.height, 60, JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>)});
-            PixelBufferImplSetFiltering(GL_NEAREST);
             GraphicsImplBuildPreviewGPUTexture(instance);
             GLuint gpuTex = GraphicsImplGetPreviewGPUTexture(instance);
             
@@ -103,6 +102,11 @@ extern "C" {
         if (currentResolution.raw.x != renderBuffer.width || currentResolution.raw.y != renderBuffer.height) {
             GraphicsImplResizeRenderBuffer(instance, currentResolution.raw.x, currentResolution.raw.y);
         }
-        print(currentResolution.width << " " << currentResolution.height);
+        std::vector<int> projectResolution = JSON_AS_TYPE(instance->project.propertiesMap["ProjectResolution"], std::vector<int>);
+        if (resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1]) {
+            GraphicsImplResizeRenderBuffer(instance, projectResolution[0], projectResolution[1]);
+
+            RebuildPreviewResolutions(resolutionVariants, renderBuffer);
+        }
     }
 }

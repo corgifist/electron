@@ -1,11 +1,14 @@
 #pragma once
 
+#define IMGUI_DEFINE_MATH_OPERATORS
+
 #include "electron.h"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_stdlib.h"
 #include "editor_core.h"
 #include "graphics_core.h"
 #include "ImGuiFileDialog.h"
+#include "ImGui/imgui_internal.h"
 
 #define UI_EXPORT __declspec(dllexport) __stdcall
 
@@ -89,6 +92,22 @@ extern "C" {
     UI_EXPORT Electron::PixelBuffer GraphicsImplPixelBufferFromImage(void* instance, const char* filename);
 
     UI_EXPORT void UIInputColor3(const char* label, float* colors, ImGuiColorEditFlags flags);
+
+    UI_EXPORT void UISetWindowSize(ImVec2 size, ImGuiCond cond);
+    UI_EXPORT void UISetWindowPos(ImVec2 pos, ImGuiCond cond);
+
+    UI_EXPORT Electron::ElectronVector2f ElectronImplGetNativeWindowSize(void* instance);
+    UI_EXPORT Electron::ElectronVector2f ElectronImplGetNativeWindowPos(void* instance);
+
+    UI_EXPORT ImGuiDockNode* UIDockBuilderGetNode(ImGuiID id);
+    UI_EXPORT ImGuiID UIGetWindowDockID();
+    UI_EXPORT void UIDockBuilderSetNodeSize(ImGuiID id, ImVec2 size);
+
+    UI_EXPORT ImGuiID UIDockSpaceOverViewport(const ImGuiViewport *viewport, ImGuiDockNodeFlags flags, const ImGuiWindowClass *window_class);
+    UI_EXPORT void UISetNextWindowDockID(ImGuiID id, ImGuiCond cond);
+
+    UI_EXPORT ImGuiID UIGetID(const char* id);
+    UI_EXPORT ImGuiViewport* UIGetViewport();
 
     UI_EXPORT void ShortcutsImplCtrlWR(void* instance);
     UI_EXPORT void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap map);

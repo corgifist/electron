@@ -1,4 +1,5 @@
 #include "electron.h"
+#include "ImGui/imgui_internal.h"
 
 #define CSTR(str) str.c_str()
 
@@ -102,6 +103,22 @@ IMPLEMENT_UI_WRAPPER(FileDialogImplGetFilePath, (), (), (), const char*);
 IMPLEMENT_UI_VOID_WRAPPER(FileDialogImplClose, (), (), ());
 
 IMPLEMENT_UI_VOID_WRAPPER(UIInputColor3, (const char* label, float* colors, ImGuiColorEditFlags flags), (label, colors, flags), (const char*, float*, ImGuiColorEditFlags));
+
+IMPLEMENT_UI_VOID_WRAPPER(UISetWindowPos, (ImVec2 pos, ImGuiCond cond), (pos, cond), (ImVec2, ImGuiCond));
+IMPLEMENT_UI_VOID_WRAPPER(UISetWindowSize, (ImVec2 size, ImGuiCond cond), (size, cond), (ImVec2, ImGuiCond));
+
+IMPLEMENT_UI_WRAPPER(ElectronImplGetNativeWindowSize, (void* instance), (instance), (void*), Electron::ElectronVector2f);
+IMPLEMENT_UI_WRAPPER(ElectronImplGetNativeWindowPos, (void* instance), (instance), (void*), Electron::ElectronVector2f);
+
+IMPLEMENT_UI_WRAPPER(UIDockBuilderGetNode, (ImGuiID id), (id), (ImGuiID), ImGuiDockNode*);
+IMPLEMENT_UI_WRAPPER(UIGetWindowDockID, (), (), (), ImGuiID);
+IMPLEMENT_UI_VOID_WRAPPER(UIDockBuilderSetNodeSize, (ImGuiID id, ImVec2 size), (id, size), (ImGuiID, ImVec2));
+
+IMPLEMENT_UI_WRAPPER(UIDockSpaceOverViewport, (const ImGuiViewport *viewport, ImGuiDockNodeFlags flags, const ImGuiWindowClass *window_class), (viewport, flags, window_class), (const ImGuiViewport*, ImGuiDockNodeFlags, const ImGuiWindowClass*), ImGuiID);
+IMPLEMENT_UI_VOID_WRAPPER(UISetNextWindowDockID, (ImGuiID id, ImGuiCond cond), (id, cond), (ImGuiID, ImGuiCond));
+
+IMPLEMENT_UI_WRAPPER(UIGetID, (const char* string), (string), (const char*), ImGuiID);
+IMPLEMENT_UI_WRAPPER(UIGetViewport, (), (), (), ImGuiViewport*);
 
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWR, (void* instance), (instance), (void*));
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPO, (void* instance, Electron::ProjectMap map), (instance, map), (void*, Electron::ProjectMap));

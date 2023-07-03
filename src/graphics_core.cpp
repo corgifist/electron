@@ -67,6 +67,12 @@ void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
 
 void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
     this->renderBuffer.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1));
+
+    for (int x = metadata.beginX; x < metadata.endX; x++) {
+        for (int y = metadata.beginX; y < metadata.endY; y++) {
+            renderBuffer.SetPixel(x, y, Pixel{(float) x / (float) metadata.endX, (float) y / (float) metadata.endY, 1, 1});
+        }
+    }
 }
 
 void Electron::GraphicsCore::CleanPreviewGPUTexture() {
