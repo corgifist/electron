@@ -25,7 +25,6 @@ def compile_to_shared_library(cpp_file, compile_task):
 compile_task_list = get_all_files_with_ext("CMakeFiles/Electron.dir/src", "o")
 compile_task_list = list(filter(lambda x: 'ui_core' not in x, compile_task_list))
 compile_task_list = list(filter(lambda x: 'imgui' not in x, compile_task_list))
-compile_task_list = list(filter(lambda x: 'graphics' not in x, compile_task_list))
 compile_task_list = list(filter(lambda x: 'ImGui' not in x, compile_task_list))
 
 print(compile_task_list)

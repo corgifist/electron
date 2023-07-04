@@ -274,6 +274,26 @@ ImGuiViewport* UIGetViewport() {
     return ImGui::GetMainViewport();
 }
 
+bool UIBeginTabBar(const char* str_id, ImGuiTabBarFlags flags) {
+    return ImGui::BeginTabBar(str_id, flags);
+}
+
+void UIEndTabBar() {
+    ImGui::EndTabBar();
+}
+
+bool UIBeginTabItem(const char* str_id, bool* p_open, ImGuiTabItemFlags flags) {
+    return ImGui::BeginTabItem(str_id, p_open, flags);
+}
+
+void UIEndTabItem() {
+    ImGui::EndTabItem();
+}
+
+bool UIIsItemHovered() {
+    return ImGui::IsItemHovered();
+}
+
 void ShortcutsImplCtrlWR(void* instance) {
     SHORTCUT(Ctrl_W_R)();
 }

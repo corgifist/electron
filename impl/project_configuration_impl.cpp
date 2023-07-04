@@ -43,6 +43,8 @@ extern "C" {
                 UIEndMenuBar();
             }
 
+        if (UIBeginTabBar(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_CONFIGURATIONS"), 0)) {
+            if (UIBeginTabItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_PROJECT_CONFIGURATION"), nullptr, 0)) {
             if (instance->projectOpened) {
                 ProjectMap& project = instance->project;
                 std::string projectConfigurationTitle = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE");
@@ -66,16 +68,22 @@ extern "C" {
                 std::vector<float> backgroundColor = JSON_AS_TYPE(project.propertiesMap["BackgroundColor"], std::vector<float>);
                 UIInputColor3(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_BACKGROUND_COLOR"), backgroundColor.data(), 0);
                 project.propertiesMap["BackgroundColor"] = backgroundColor;
-
-                UIEnd();
-                return;
             }
 
-            UISetCursorPos(ImVec2{
-                windowSize.x / 2.0f - tipSize.x / 2.0f,
-                windowSize.y / 2.0f - tipSize.y / 2.0f
-            });
-            UIText(projectTip.c_str());
+            if (!instance->projectOpened) {
+                UISetCursorPos(ImVec2{
+                    windowSize.x / 2.0f - tipSize.x / 2.0f,
+                    windowSize.y / 2.0f - tipSize.y / 2.0f
+                });
+                UIText(projectTip.c_str());
+            }
+            UIEndTabItem();
+            }
+            if (UIBeginTabItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_CONFIGURATION"), nullptr, 0)) {
+            UIEndTabItem();
+            }
+            UIEndTabBar();
+        }
         UIEnd();
 
         if (FileDialogImplDisplay("OpenProjectDialog")) {

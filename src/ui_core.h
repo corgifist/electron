@@ -103,11 +103,18 @@ extern "C" {
     UI_EXPORT ImGuiID UIGetWindowDockID();
     UI_EXPORT void UIDockBuilderSetNodeSize(ImGuiID id, ImVec2 size);
 
-    UI_EXPORT ImGuiID UIDockSpaceOverViewport(const ImGuiViewport *viewport, ImGuiDockNodeFlags flags, const ImGuiWindowClass *window_class);
+    UI_EXPORT ImGuiID UIDockSpaceOverViewport(const ImGuiViewport* viewport, ImGuiDockNodeFlags flags, const ImGuiWindowClass* window_class);
     UI_EXPORT void UISetNextWindowDockID(ImGuiID id, ImGuiCond cond);
 
     UI_EXPORT ImGuiID UIGetID(const char* id);
     UI_EXPORT ImGuiViewport* UIGetViewport();
+
+    UI_EXPORT bool UIBeginTabBar(const char* str_id, ImGuiTabBarFlags flags);
+    UI_EXPORT void UIEndTabBar();
+    UI_EXPORT bool UIBeginTabItem(const char* str_id, bool* p_open, ImGuiTabItemFlags flags);
+    UI_EXPORT void UIEndTabItem();
+
+    UI_EXPORT bool UIIsItemHovered();
 
     UI_EXPORT void ShortcutsImplCtrlWR(void* instance);
     UI_EXPORT void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap map);

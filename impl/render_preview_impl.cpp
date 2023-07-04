@@ -40,6 +40,9 @@ extern "C" {
         static bool firstSetup = true;
         static int selectedResolutionVariant = 0;
 
+        static float previewRenderFrame = 0; // hardcoded for now
+        static float previewRenderLength = 60;
+
         UISetNextWindowSize(ElectronVector2f{640, 480}, ImGuiCond_Once);
         UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE"), owner)), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
             ImVec2 windowSize = UIGetWindowSize();

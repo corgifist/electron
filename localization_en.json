@@ -1,5 +1,8 @@
 {
-    "PROJECT_CONFIGURATION_WINDOW_TITLE": "Project Configuration",
+    "PROJECT_CONFIGURATION_WINDOW_TITLE": "Configuration Dock",
+    "PROJECT_CONFIGURATION_PROJECT_CONFIGURATION": "Project Configuration",
+    "PROJECT_CONFIGURATION_EDITOR_CONFIGURATION": "Editor Configuration",
+    "PROJECT_CONFIGURATION_CONFIGURATIONS": "Configurations",
     "PROJECT_CONFIGURATION_CREATE_PROJECT_TIP": "No project is opened\nUse menu bar to create or open a project!",
     "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU": "Project",
     "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN": "Open Project",
