@@ -20,18 +20,15 @@ namespace Electron {
         int beginX, endX;
         int beginY, endY;
 
-        int frame;
-
         std::vector<float> backgroundColor;
 
         RenderRequestMetadata() {}
 
-        RenderRequestMetadata(int beginX, int endX, int beginY, int endY, int frame, std::vector<float> backgroundColor) {
+        RenderRequestMetadata(int beginX, int endX, int beginY, int endY, std::vector<float> backgroundColor) {
             this->beginX = beginX;
             this->endX = endX;
             this->beginY = beginY;
             this->endY = endY;
-            this->frame = frame;
 
             this->backgroundColor = backgroundColor;
         }
@@ -62,6 +59,8 @@ namespace Electron {
         PixelBuffer renderBuffer;
         GLuint previousRenderBufferTexture;
         GLuint renderBufferTexture;
+
+        int renderFrame;
         
         GraphicsCore();
 

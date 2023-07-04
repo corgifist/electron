@@ -64,19 +64,18 @@ extern "C" {
             }
 
             ElectronVector2f scaledPreviewSize = {resolutionVariants[0].width, resolutionVariants[0].height};
-            if (availZone.x * 2.0f < scaledPreviewSize.x) {
-                scaledPreviewSize.x = availZone.x;
-            } else {
-                float scaleFactor = ((availZone.x / scaledPreviewSize.x * 0.1f) + (availZone.y / scaledPreviewSize.y * 0.1f)) / 2.0f;
-                scaledPreviewSize.x += scaledPreviewSize.x * scaleFactor;
-                scaledPreviewSize.y += scaledPreviewSize.y * scaleFactor;
-            }
+
+            float scaleFactor = ((availZone.x / scaledPreviewSize.x * 0.1f) + (availZone.y / scaledPreviewSize.y * 0.1f)) / 2.0f;
+            scaledPreviewSize.x += scaledPreviewSize.x * scaleFactor;
+            scaledPreviewSize.y += scaledPreviewSize.y * scaleFactor;
             scaledPreviewSize.x *= previewScale;
             scaledPreviewSize.y *= previewScale;
 
 
             GraphicsImplCleanPreviewGPUTexture(instance);
-            GraphicsImplRequestRenderWithinRegion(instance, RenderRequestMetadata{0, renderBuffer.width, 0, renderBuffer.height, 60, JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>)});
+
+            instance->graphics.renderFrame = 30;
+            GraphicsImplRequestRenderWithinRegion(instance, RenderRequestMetadata{0, renderBuffer.width, 0, renderBuffer.height, JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>)});
             GraphicsImplBuildPreviewGPUTexture(instance);
             GLuint gpuTex = GraphicsImplGetPreviewGPUTexture(instance);
             
@@ -86,7 +85,7 @@ extern "C" {
             UISeparator();
             UISpacing();
             if (UICollapsingHeader(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_SETTINGS_HEADER"))) {
-                UISliderFloat(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_PREVIEW_SCALE"), &previewScale, 0.5f, 2.0f, "%0.1f", 0);
+                UISliderFloat(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_PREVIEW_SCALE"), &previewScale, 0.1f, 2.0f, "%0.1f", 0);
                 if (UIBeginCombo(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_RESOLUTIONS_LABEL"), resolutionVariants[selectedResolutionVariant].repr.c_str())) {
                     for (int n = 0; n < 9; n++) {
                         bool resolutionSelected = (n == selectedResolutionVariant);

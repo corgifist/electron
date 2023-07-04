@@ -17,7 +17,7 @@ extern "C" {
             dockFlags |= ImGuiWindowFlags_NoTitleBar;
         }
 
-        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE"), instance)), ElectronSignal_CloseEditor, dockFlags);
+        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE"), instance)), instance->isNativeWindow ? ElectronSignal_None : ElectronSignal_CloseEditor, dockFlags);
             std::string projectTip = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_CREATE_PROJECT_TIP");
             ImVec2 windowSize = UIGetWindowSize();
             ImVec2 tipSize = UICalcTextSize(projectTip.c_str());
@@ -47,7 +47,7 @@ extern "C" {
             if (UIBeginTabItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_PROJECT_CONFIGURATION"), nullptr, 0)) {
             if (instance->projectOpened) {
                 ProjectMap& project = instance->project;
-                std::string projectConfigurationTitle = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE");
+                std::string projectConfigurationTitle = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_PROJECT_CONFIGURATION");
 
                 UIPushFont(instance->largeFont);
                     ImVec2 titleSize = UICalcTextSize(CSTR(projectConfigurationTitle));
