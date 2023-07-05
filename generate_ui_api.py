@@ -6,7 +6,7 @@ BEGIN_UI_API = '''
 #include "electron.h"
 #include "ImGui/imgui_internal.h"
 
-#define CSTR(str) str.c_str()
+#define CSTR(str) (str).c_str()
 
 #define IMPLEMENT_UI_WRAPPER(ui_proc_name, args_signature, call_signature, typedef_args, fn_type) \
     typedef fn_type (__stdcall *ui_proc_name ## _T) typedef_args; \

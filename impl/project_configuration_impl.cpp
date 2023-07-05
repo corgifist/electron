@@ -80,6 +80,57 @@ extern "C" {
             UIEndTabItem();
             }
             if (UIBeginTabItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_CONFIGURATION"), nullptr, 0)) {
+                UIPushFont(instance->largeFont);
+                    std::string editorConfigurationString = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_CONFIGURATION");
+                    ImVec2 editorConfigurationTextSize = UICalcTextSize(CSTR(editorConfigurationString));
+                    UISetCursorX(windowSize.x / 2.0f - editorConfigurationTextSize.x / 2.0f);
+                    UIText(CSTR(editorConfigurationString));
+                UIPopFont();
+                UISeparator();
+                
+                bool usingNativeWindow = JSON_AS_TYPE(instance->configMap["ViewportMethod"], std::string) == "native-window";
+                static std::string viewportMethods[] = {
+                    ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_VIEWPORT"),
+                    ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_NATIVE_WINDOW")
+                };
+                static int selectedViewportMethod = usingNativeWindow ? 1 : 0;
+
+                if (UIBeginCombo(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_CONFIGURATION_VIEWPORT_METHOD"), CSTR(viewportMethods[selectedViewportMethod]))) {
+                    for (int i = 0; i < 2; i++) {
+                        bool methodSelected = (i == selectedViewportMethod);
+                        if (UISelectable(CSTR(viewportMethods[i]), methodSelected)) {
+                            selectedViewportMethod = i;
+                        }
+                        if (methodSelected) UISetItemFocusDefault();
+                    }
+                    UIEndCombo();
+                }
+                if (UIIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                    UISetTooltip(CSTR(std::string("* ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED")));
+                }
+                instance->configMap["ViewportMethod"] = selectedViewportMethod == 0 ? "viewport" : "native-window";
+
+                bool usingLinearFiltering = JSON_AS_TYPE(instance->configMap["TextureFiltering"], std::string) == "linear";
+                static std::string textureFilters[] = {
+                    ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_LINEAR"),
+                    ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_NEAREST")
+                };
+                static int selectedTextureFiltering = usingLinearFiltering ? 0 : 1;
+                if (UIBeginCombo(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_TEXTURE_FILTERING"), CSTR(textureFilters[selectedTextureFiltering]))) {
+                    for (int i = 0; i < 2; i++) {
+                        bool filterSelected = (i == selectedTextureFiltering);
+                        if (UISelectable(CSTR(textureFilters[i]), filterSelected)) {
+                            selectedTextureFiltering = i;
+                        }
+                        if (filterSelected) UISetItemFocusDefault();
+                    }
+                    UIEndCombo();
+                }
+                if (UIIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                    UISetTooltip(CSTR(std::string("* ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED")));
+                }
+                instance->configMap["TextureFiltering"] = selectedTextureFiltering == 0 ? "linear" : "nearest";
+
             UIEndTabItem();
             }
             UIEndTabBar();

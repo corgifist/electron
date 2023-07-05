@@ -60,7 +60,7 @@ namespace Electron {
         GLuint previousRenderBufferTexture;
         GLuint renderBufferTexture;
 
-        int renderFrame;
+        int renderFrame, renderLength, renderFramerate;
         
         GraphicsCore();
 

@@ -40,8 +40,7 @@ extern "C" {
         static bool firstSetup = true;
         static int selectedResolutionVariant = 0;
 
-        static float previewRenderFrame = 0; // hardcoded for now
-        static float previewRenderLength = 60;
+        static int internalFrameIndex = 0;
 
         UISetNextWindowSize(ElectronVector2f{640, 480}, ImGuiCond_Once);
         UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE"), owner)), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
@@ -74,13 +73,16 @@ extern "C" {
 
             GraphicsImplCleanPreviewGPUTexture(instance);
 
-            instance->graphics.renderFrame = 30;
+            instance->graphics.renderLength = 60;
+            instance->graphics.renderFramerate = 30;
             GraphicsImplRequestRenderWithinRegion(instance, RenderRequestMetadata{0, renderBuffer.width, 0, renderBuffer.height, JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>)});
             GraphicsImplBuildPreviewGPUTexture(instance);
             GLuint gpuTex = GraphicsImplGetPreviewGPUTexture(instance);
             
             UISetCursorX(windowSize.x / 2.0f - scaledPreviewSize.x / 2.0f);
             UIImage(gpuTex, scaledPreviewSize);
+            float translatedTimelineValue = (float) instance->graphics.renderFrame / (float) instance->graphics.renderFramerate;
+            UISliderFloat("##", &translatedTimelineValue, 0, (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate, "%.1f", 0);
             UISpacing();
             UISeparator();
             UISpacing();
@@ -110,5 +112,6 @@ extern "C" {
 
             RebuildPreviewResolutions(resolutionVariants, renderBuffer);
         }
+        internalFrameIndex++;
     }
 }

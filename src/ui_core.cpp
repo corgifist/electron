@@ -1,11 +1,13 @@
 #include "ui_core.h"
 
-float UIExportTest() {
+#define HEADER_TARGET
+
+HEADER_TARGET float UIExportTest() {
     print("Hello, Export!");
     return 3.14;
 }
 
-void UIBegin(const char* name, Electron::ElectronSignal signal, ImGuiWindowFlags flags) {
+HEADER_TARGET void UIBegin(const char* name, Electron::ElectronSignal signal, ImGuiWindowFlags flags) {
     if (signal == Electron::ElectronSignal_None) {
         ImGui::Begin(name, nullptr, flags);
     } else {
@@ -20,288 +22,308 @@ void UIBegin(const char* name, Electron::ElectronSignal signal, ImGuiWindowFlags
     }
 }
 
-void UIBeginFlagless(const char* name, Electron::ElectronSignal signal) {
+HEADER_TARGET void UIBeginFlagless(const char* name, Electron::ElectronSignal signal) {
     UIBegin(name, signal, 0);
 }
 
-void UIText(const char* text) {
+HEADER_TARGET void UIText(const char* text) {
     ImGui::Text(text);
 }
 
-void UIEnd() {
+HEADER_TARGET void UIEnd() {
     ImGui::End();
 }
 
-ImVec2 UICalcTextSize(const char* text) {
+HEADER_TARGET ImVec2 UICalcTextSize(const char* text) {
     return ImGui::CalcTextSize(text);
 }
 
-ImVec2 UIGetWindowSize() {
+HEADER_TARGET ImVec2 UIGetWindowSize() {
     return ImGui::GetWindowSize();
 }
 
-void UISetCursorPos(ImVec2 cursor) {
+HEADER_TARGET void UISetCursorPos(ImVec2 cursor) {
     ImGui::SetCursorPos(cursor);
 }
 
-void UISetCursorX(float x) {
+HEADER_TARGET void UISetCursorX(float x) {
     ImGui::SetCursorPosX(x);
 }
 
-void UISetCursorY(float y) {
+HEADER_TARGET void UISetCursorY(float y) {
     ImGui::SetCursorPosY(y);
 }
 
-bool UIBeginMainMenuBar() {
+HEADER_TARGET bool UIBeginMainMenuBar() {
     return ImGui::BeginMainMenuBar();
 }
 
-void UIEndMainMenuBar() {
+HEADER_TARGET void UIEndMainMenuBar() {
     ImGui::EndMainMenuBar();
 }
 
-bool UIBeginMenu(const char* menu) {
+HEADER_TARGET bool UIBeginMenu(const char* menu) {
     return ImGui::BeginMenu(menu);
 }
 
-void UIEndMenu() {
+HEADER_TARGET void UIEndMenu() {
     return ImGui::EndMenu();
 }
 
-bool UIMenuItem(const char* menu, const char* shortcut) {
+HEADER_TARGET bool UIMenuItem(const char* menu, const char* shortcut) {
     return ImGui::MenuItem(menu, shortcut);
 }
 
-bool UIMenuItemShortcutless(const char* menu) {
+HEADER_TARGET bool UIMenuItemShortcutless(const char* menu) {
     return ImGui::MenuItem(menu);
 }
 
-bool UIBeginMenuBar() {
+HEADER_TARGET bool UIBeginMenuBar() {
     return ImGui::BeginMenuBar();
 }
 
-void UIEndMenuBar() {
+HEADER_TARGET void UIEndMenuBar() {
     ImGui::EndMenuBar();
 }
 
-void UIPushID(void* ptr) {
+HEADER_TARGET void UIPushID(void* ptr) {
     ImGui::PushID(ptr);
 }
 
-void UIPopID() {
+HEADER_TARGET void UIPopID() {
     ImGui::PopID();
 }
 
-void UIImage(GLuint texture, Electron::ElectronVector2f size) {
+HEADER_TARGET void UIImage(GLuint texture, Electron::ElectronVector2f size) {
     ImGui::Image((void*)(intptr_t) texture, ImVec2{size.x, size.y});
 }
 
-void UISliderFloat(const char* label, float* value, float min, float max, const char* format, ImGuiSliderFlags flags) {
+HEADER_TARGET void UISliderFloat(const char* label, float* value, float min, float max, const char* format, ImGuiSliderFlags flags) {
     ImGui::SliderFloat(label, value, min, max, format, flags);
 }
 
-void UISeparator() {
+HEADER_TARGET void UISeparator() {
     ImGui::Separator();
 }
 
-void UISpacing() {
+HEADER_TARGET void UISpacing() {
     ImGui::Spacing();
 }
 
-bool UICollapsingHeader(const char* name) {
+HEADER_TARGET bool UICollapsingHeader(const char* name) {
     return ImGui::CollapsingHeader(name);
 }
 
-void UISetNextWindowSize(Electron::ElectronVector2f size, ImGuiCond_ cond) {
+HEADER_TARGET void UISetNextWindowSize(Electron::ElectronVector2f size, ImGuiCond_ cond) {
     ImGui::SetNextWindowSize(ImVec2{size.x, size.y}, cond);
 }
 
-void UIPushFont(ImFont* font) {
+HEADER_TARGET void UIPushFont(ImFont* font) {
     ImGui::PushFont(font);
 }
 
-void UIPopFont() {
+HEADER_TARGET void UIPopFont() {
     ImGui::PopFont();
 }
 
-void ElectronImplThrow(Electron::ElectronSignal signal) {
+HEADER_TARGET void ElectronImplThrow(Electron::ElectronSignal signal) {
     throw signal;
 }
 
-void ElectronImplDirectSignal(void* instance, Electron::ElectronSignal signal) {
+HEADER_TARGET void ElectronImplDirectSignal(void* instance, Electron::ElectronSignal signal) {
     int ref;
     bool bRef;
     ((Electron::AppInstance*) instance)->ExecuteSignal(signal, ref, ref, bRef);
 }
 
-void GraphicsImplRequestRenderWithinRegion(void* instance, Electron::RenderRequestMetadata metadata) {
+HEADER_TARGET void GraphicsImplRequestRenderWithinRegion(void* instance, Electron::RenderRequestMetadata metadata) {
     ((Electron::AppInstance*) instance)->graphics.RequestRenderWithinRegion(metadata);
 }
 
-GLuint PixelBufferImplBuildGPUTexture(Electron::PixelBuffer& buffer) {
+HEADER_TARGET GLuint PixelBufferImplBuildGPUTexture(Electron::PixelBuffer& buffer) {
     return buffer.BuildGPUTexture();
 }
 
-void GraphicsImplCleanPreviewGPUTexture(void* instance) {
+HEADER_TARGET void GraphicsImplCleanPreviewGPUTexture(void* instance) {
     ((Electron::AppInstance*) instance)->graphics.CleanPreviewGPUTexture();
 }
 
-void GraphicsImplBuildPreviewGPUTexture(void* instance) {
+HEADER_TARGET void GraphicsImplBuildPreviewGPUTexture(void* instance) {
     ((Electron::AppInstance*) instance)->graphics.BuildPreviewGPUTexture();
 }
 
-GLuint GraphicsImplGetPreviewGPUTexture(void* instance) {
+HEADER_TARGET GLuint GraphicsImplGetPreviewGPUTexture(void* instance) {
     return ((Electron::AppInstance*) instance)->graphics.renderBufferTexture;
 }
 
-void PixelBufferImplSetFiltering(int filtering) {
+HEADER_TARGET void PixelBufferImplSetFiltering(int filtering) {
     Electron::PixelBuffer::filtering = filtering;
 }
 
-ImVec2 UIGetAvailZone() {
+HEADER_TARGET ImVec2 UIGetAvailZone() {
     return ImGui::GetContentRegionAvail();
 }
 
-bool UIBeginCombo(const char* label, const char* option) {
+HEADER_TARGET bool UIBeginCombo(const char* label, const char* option) {
     return ImGui::BeginCombo(label, option);
 }
 
-void UIEndCombo() {
+HEADER_TARGET void UIEndCombo() {
     ImGui::EndCombo();
 }
 
-bool UISelectable(const char* text, bool& selected) {
+HEADER_TARGET bool UISelectable(const char* text, bool& selected) {
     return ImGui::Selectable(text, &selected);
 }
 
-void UISetItemFocusDefault() {
+HEADER_TARGET void UISetItemFocusDefault() {
     ImGui::SetItemDefaultFocus();
 }
 
-void GraphicsImplResizeRenderBuffer(void* instance, int width, int height) {
+HEADER_TARGET void GraphicsImplResizeRenderBuffer(void* instance, int width, int height) {
     ((Electron::AppInstance*) instance)->graphics.ResizeRenderBuffer(width, height);
 }
 
-void FileDialogImplOpenDialog(const char* internalName, const char* title, const char* extensions, const char* initialPath) {
+HEADER_TARGET void FileDialogImplOpenDialog(const char* internalName, const char* title, const char* extensions, const char* initialPath) {
     ImGuiFileDialog::Instance()->OpenDialog(internalName, title, extensions, initialPath);
 }
 
-bool FileDialogImplDisplay(const char* internalName) {
+HEADER_TARGET bool FileDialogImplDisplay(const char* internalName) {
     return ImGuiFileDialog::Instance()->Display(internalName);
 }
 
-bool FileDialogImplIsOK() {
+HEADER_TARGET bool FileDialogImplIsOK() {
     return ImGuiFileDialog::Instance()->IsOk();
 }
 
-const char* FileDialogImplGetFilePathName() {
+HEADER_TARGET const char* FileDialogImplGetFilePathName() {
     return ImGuiFileDialog::Instance()->GetFilePathName().c_str();
 }
 
-const char* FileDialogImplGetFilePath() {
+HEADER_TARGET const char* FileDialogImplGetFilePath() {
     return ImGuiFileDialog::Instance()->GetCurrentFileName().c_str();
 }
 
-void FileDialogImplClose() {
+HEADER_TARGET void FileDialogImplClose() {
     ImGuiFileDialog::Instance()->Close();
 }
 
-void UIInputField(const char* label, std::string* string, ImGuiInputTextFlags flags) {
+HEADER_TARGET void UIInputField(const char* label, std::string* string, ImGuiInputTextFlags flags) {
     ImGui::InputText(label, string, flags);
 }
 
-void UIInputInt2(const char* label, int* ptr, ImGuiInputTextFlags flags) {
+HEADER_TARGET void UIInputInt2(const char* label, int* ptr, ImGuiInputTextFlags flags) {
     ImGui::InputInt2(label, ptr, flags);
 }
 
-Electron::PixelBuffer GraphicsImplPixelBufferFromImage(void* instance, const char* filename) {
+HEADER_TARGET Electron::PixelBuffer GraphicsImplPixelBufferFromImage(void* instance, const char* filename) {
     return ((Electron::AppInstance*) instance)->graphics.CreateBufferFromImage(filename);
 }
 
-std::string ParentString(const char* string) {
+HEADER_TARGET std::string ParentString(const char* string) {
     return std::string(string);
 }
 
-void UIInputColor3(const char* label, float* color, ImGuiColorEditFlags flags) {
+HEADER_TARGET void UIInputColor3(const char* label, float* color, ImGuiColorEditFlags flags) {
     ImGui::ColorEdit3(label, color, flags);
 }
 
-void UISetWindowSize(ImVec2 size, ImGuiCond cond) {
+HEADER_TARGET void UISetWindowSize(ImVec2 size, ImGuiCond cond) {
     ImGui::SetWindowSize(size, cond);
 }
 
-void UISetWindowPos(ImVec2 pos, ImGuiCond cond) {
+HEADER_TARGET void UISetWindowPos(ImVec2 pos, ImGuiCond cond) {
     ImGui::SetWindowPos(pos, cond);
 }
 
-Electron::ElectronVector2f ElectronImplGetNativeWindowSize(void* instance) {
+HEADER_TARGET Electron::ElectronVector2f ElectronImplGetNativeWindowSize(void* instance) {
     return ((Electron::AppInstance*) instance)->GetNativeWindowSize();
 }
 
-Electron::ElectronVector2f ElectronImplGetNativeWindowPos(void* instance) {
+HEADER_TARGET Electron::ElectronVector2f ElectronImplGetNativeWindowPos(void* instance) {
     return ((Electron::AppInstance*) instance)->GetNativeWindowPos();
 }
 
-ImGuiDockNode* UIDockBuilderGetNode(ImGuiID id) {
+HEADER_TARGET ImGuiDockNode* UIDockBuilderGetNode(ImGuiID id) {
     return ImGui::DockBuilderGetNode(id);
 }
 
-ImGuiID UIGetWindowDockID() {
+HEADER_TARGET ImGuiID UIGetWindowDockID() {
     return ImGui::GetWindowDockID();
 }
 
-void UIDockBuilderSetNodeSize(ImGuiID id, ImVec2 size) {
+HEADER_TARGET void UIDockBuilderSetNodeSize(ImGuiID id, ImVec2 size) {
     ImGui::DockBuilderSetNodeSize(id, size);
 }
 
-ImGuiID UIDockSpaceOverViewport(const ImGuiViewport *viewport, ImGuiDockNodeFlags flags, const ImGuiWindowClass *window_class) {
+HEADER_TARGET ImGuiID UIDockSpaceOverViewport(const ImGuiViewport* viewport, ImGuiDockNodeFlags flags, const ImGuiWindowClass* window_class) {
     return ImGui::DockSpaceOverViewport(viewport, flags, window_class);
 }
 
-void UISetNextWindowDockID(ImGuiID id, ImGuiCond cond) {
+HEADER_TARGET void UISetNextWindowDockID(ImGuiID id, ImGuiCond cond) {
     ImGui::SetNextWindowDockID(id, cond);
 }
 
-ImGuiID UIGetID(const char* name) {
+HEADER_TARGET ImGuiID UIGetID(const char* name) {
     return ImGui::GetID(name);
 }
 
-ImGuiID UIDockSpace(ImGuiID id, const ImVec2 &size, ImGuiDockNodeFlags flag, const ImGuiWindowClass *window_class) {
+HEADER_TARGET ImGuiID UIDockSpace(ImGuiID id, const ImVec2& size, ImGuiDockNodeFlags flag, const ImGuiWindowClass* window_class) {
     return ImGui::DockSpace(id, size, flag, window_class);
 }
 
-ImGuiViewport* UIGetViewport() {
+HEADER_TARGET ImGuiViewport* UIGetViewport() {
     return ImGui::GetMainViewport();
 }
 
-bool UIBeginTabBar(const char* str_id, ImGuiTabBarFlags flags) {
+HEADER_TARGET bool UIBeginTabBar(const char* str_id, ImGuiTabBarFlags flags) {
     return ImGui::BeginTabBar(str_id, flags);
 }
 
-void UIEndTabBar() {
+HEADER_TARGET void UIEndTabBar() {
     ImGui::EndTabBar();
 }
 
-bool UIBeginTabItem(const char* str_id, bool* p_open, ImGuiTabItemFlags flags) {
+HEADER_TARGET bool UIBeginTabItem(const char* str_id, bool* p_open, ImGuiTabItemFlags flags) {
     return ImGui::BeginTabItem(str_id, p_open, flags);
 }
 
-void UIEndTabItem() {
+HEADER_TARGET void UIEndTabItem() {
     ImGui::EndTabItem();
 }
 
-bool UIIsItemHovered() {
-    return ImGui::IsItemHovered();
+HEADER_TARGET bool UIIsItemHovered(ImGuiHoveredFlags flags) {
+    return ImGui::IsItemHovered(flags);
 }
 
-void ShortcutsImplCtrlWR(void* instance) {
+HEADER_TARGET void UIPushItemWidth(float width) {
+    ImGui::PushItemWidth(width);
+}
+
+HEADER_TARGET void UIPopItemWidth() {
+    ImGui::PopItemWidth();
+}
+
+HEADER_TARGET void UICheckbox(const char* label, bool* v) {
+    ImGui::Checkbox(label, v);
+}
+
+HEADER_TARGET void UISameLine() {
+    ImGui::SameLine();
+}
+
+HEADER_TARGET void UISetTooltip(const char* tooltip) {
+    ImGui::SetTooltip(tooltip);
+}
+
+HEADER_TARGET void ShortcutsImplCtrlWR(void* instance) {
     SHORTCUT(Ctrl_W_R)();
 }
 
-void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap projectMap) {
+HEADER_TARGET void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap projectMap) {
     SHORTCUT(Ctrl_P_O)(projectMap);
 }
 
-void ShortcutsImplCtrlPE(void* instance) {
+HEADER_TARGET void ShortcutsImplCtrlPE(void* instance) {
     SHORTCUT(Ctrl_P_E)();
 }
