@@ -126,10 +126,20 @@ extern "C" {
                     }
                     UIEndCombo();
                 }
-                if (UIIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-                    UISetTooltip(CSTR(std::string("* ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED")));
-                }
+
                 instance->configMap["TextureFiltering"] = selectedTextureFiltering == 0 ? "linear" : "nearest";
+                
+                int timelinePrescision = JSON_AS_TYPE(instance->configMap["RenderPreviewTimelinePrescision"], int);
+                timelinePrescision = std::clamp(timelinePrescision, 0, 1000);
+                UIInputInt(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RENDER_PREVIEW_TIMELINE_PRESCISION"), &timelinePrescision, 1, 100, 0);
+                instance->configMap["RenderPreviewTimelinePrescision"] = timelinePrescision;
+
+                bool resizeInterpolation = JSON_AS_TYPE(instance->configMap["ResizeInterpolation"], bool);
+                UICheckbox(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESIZE_INTERPOLATION"), &resizeInterpolation);
+                instance->configMap["ResizeInterpolation"] = resizeInterpolation;
+                if (UIIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                    UISetTooltip(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_SMOOTHNESS_DECREASE"));
+                }
 
             UIEndTabItem();
             }

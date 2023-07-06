@@ -18,6 +18,12 @@ static std::string ElectronImplTag(const char* name, void* ptr) {
 }
 
 
+static float lerp(float a, float b, float f)
+{
+    return a * (1.0 - f) + (b * f);
+}
+
+
 
 IMPLEMENT_UI_WRAPPER(UIExportTest, (), (), (), float)
 IMPLEMENT_UI_VOID_WRAPPER(UIBegin, (const char* name,Electron::ElectronSignal signal,ImGuiWindowFlags flags), (name ,signal ,flags), (const char* ,Electron::ElectronSignal ,ImGuiWindowFlags))
@@ -93,6 +99,7 @@ IMPLEMENT_UI_VOID_WRAPPER(UIPushItemWidth, (float width), (width), (float))
 IMPLEMENT_UI_VOID_WRAPPER(UIPopItemWidth, (), (), ())
 IMPLEMENT_UI_VOID_WRAPPER(UICheckbox, (const char* label,bool* v), (label ,v), (const char* ,bool*))
 IMPLEMENT_UI_VOID_WRAPPER(UISameLine, (), (), ())
+IMPLEMENT_UI_VOID_WRAPPER(UIInputInt, (const char* label,int* ptr,int step,int step_fast,ImGuiInputTextFlags flags), (label ,ptr ,step ,step_fast ,flags), (const char* ,int* ,int ,int ,ImGuiInputTextFlags))
 IMPLEMENT_UI_VOID_WRAPPER(UISetTooltip, (const char* tooltip), (tooltip), (const char*))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWR, (void* instance), (instance), (void*))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPO, (void* instance,Electron::ProjectMap projectMap), (instance ,projectMap), (void* ,Electron::ProjectMap))

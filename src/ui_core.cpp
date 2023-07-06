@@ -312,6 +312,10 @@ HEADER_TARGET void UISameLine() {
     ImGui::SameLine();
 }
 
+HEADER_TARGET void UIInputInt(const char* label, int* ptr, int step, int step_fast, ImGuiInputTextFlags flags) {
+    ImGui::InputInt(label, ptr, step, step_fast, flags);
+}
+
 HEADER_TARGET void UISetTooltip(const char* tooltip) {
     ImGui::SetTooltip(tooltip);
 }

@@ -18,6 +18,7 @@ UI_CORE_HEADER_BEGIN = '''
 #define UI_EXPORT __declspec(dllexport) __stdcall
 
 #define SHORTCUT(shortcut) ((Electron::AppInstance*) instance)->shortcuts. shortcut
+
 extern "C" {
 '''
 

@@ -40,6 +40,7 @@ Electron::AppInstance::AppInstance() {
     if (!isNativeWindow) io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
+    io.WantSaveIniSettings = false;
 
     ImGui::StyleColorsClassic();
     ImGuiStyle& style = ImGui::GetStyle();

@@ -54,6 +54,14 @@ namespace Electron {
         GLuint BuildGPUTexture();
     };
 
+    class RenderBuffer {
+    public:
+        PixelBuffer color;
+        PixelBuffer uv;
+
+        RenderBuffer(int width, int height);
+    };
+
     class GraphicsCore {
     public:
         PixelBuffer renderBuffer;

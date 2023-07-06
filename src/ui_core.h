@@ -14,6 +14,7 @@
 #define UI_EXPORT __declspec(dllexport) __stdcall
 
 #define SHORTCUT(shortcut) ((Electron::AppInstance*) instance)->shortcuts. shortcut
+
 extern "C" {
 
 
@@ -91,6 +92,7 @@ UI_EXPORT  void UIPushItemWidth(float width) ;
 UI_EXPORT  void UIPopItemWidth() ;
 UI_EXPORT  void UICheckbox(const char* label, bool* v) ;
 UI_EXPORT  void UISameLine() ;
+UI_EXPORT  void UIInputInt(const char* label, int* ptr, int step, int step_fast, ImGuiInputTextFlags flags) ;
 UI_EXPORT  void UISetTooltip(const char* tooltip) ;
 UI_EXPORT  void ShortcutsImplCtrlWR(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap projectMap) ;

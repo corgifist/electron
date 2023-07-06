@@ -1,8 +1,7 @@
 @echo off
 taskkill /IM Electron.exe
 rm Electron.exe
-python generate_ui_core_header.py src/ui_core.h
-python generate_ui_api.py src/ui_api.h
+call generate_headers.bat
 cmake .
 make
 python gen_batch.py project_configuration_impl

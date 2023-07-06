@@ -42,6 +42,13 @@ extern "C" {
 
         static int internalFrameIndex = 0;
 
+        static ImVec2 targetResizeResolution{};
+        static ImVec2 beginResizeResolution{};
+        static float reiszeLerpPercentage = 0;
+        static bool beginInterpolation = false;
+
+        bool resizeLerpEnabled = JSON_AS_TYPE(instance->configMap["ResizeInterpolation"], bool);
+
         UISetNextWindowSize(ElectronVector2f{640, 480}, ImGuiCond_Once);
         UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE"), owner)), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
             ImVec2 windowSize = UIGetWindowSize();
@@ -82,7 +89,10 @@ extern "C" {
             UISetCursorX(windowSize.x / 2.0f - scaledPreviewSize.x / 2.0f);
             UIImage(gpuTex, scaledPreviewSize);
             float translatedTimelineValue = (float) instance->graphics.renderFrame / (float) instance->graphics.renderFramerate;
-            UISliderFloat("##", &translatedTimelineValue, 0, (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate, "%.1f", 0);
+            UIPushItemWidth(windowSize.x * 0.95f);
+                UISliderFloat("##", &translatedTimelineValue, 0, (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate, CSTR(std::string("%0.") + std::to_string(JSON_AS_TYPE(instance->configMap["RenderPreviewTimelinePrescision"], int)) + "f"), 0);
+            UIPopItemWidth();
+            instance->graphics.renderFrame = (float) instance->graphics.renderFramerate * translatedTimelineValue;
             UISpacing();
             UISeparator();
             UISpacing();
@@ -92,6 +102,14 @@ extern "C" {
                     for (int n = 0; n < 9; n++) {
                         bool resolutionSelected = (n == selectedResolutionVariant);
                         if (UISelectable(resolutionVariants[n].repr.c_str(), resolutionSelected)) {
+                            if (resizeLerpEnabled) {
+                                ResolutionVariant currentVariant = resolutionVariants[selectedResolutionVariant];
+                                beginResizeResolution = ImVec2{currentVariant.width, currentVariant.height};
+                                selectedResolutionVariant = n;
+                                currentVariant = resolutionVariants[selectedResolutionVariant];
+                                targetResizeResolution = ImVec2{currentVariant.width, currentVariant.height};
+                                beginInterpolation = true;
+                            } 
                             selectedResolutionVariant = n;
                         }
                         if (resolutionSelected) UISetItemFocusDefault();
@@ -103,9 +121,25 @@ extern "C" {
         UIEnd();
 
         ResolutionVariant currentResolution = resolutionVariants[selectedResolutionVariant];
-        if (currentResolution.raw.x != renderBuffer.width || currentResolution.raw.y != renderBuffer.height) {
-            GraphicsImplResizeRenderBuffer(instance, currentResolution.raw.x, currentResolution.raw.y);
+        if (!resizeLerpEnabled) {
+            if (currentResolution.raw.x != renderBuffer.width || currentResolution.raw.y != renderBuffer.height) {
+                GraphicsImplResizeRenderBuffer(instance, currentResolution.raw.x, currentResolution.raw.y);
+            }
+        } else {
+            if (beginInterpolation) {
+                if (reiszeLerpPercentage >= 1.0f) {
+                    beginInterpolation = false;
+                    reiszeLerpPercentage = 0;
+                } else {
+                    ImVec2 interpolatedResolution = {lerp(beginResizeResolution.x, targetResizeResolution.x, reiszeLerpPercentage), 
+                                                     lerp(beginResizeResolution.y, targetResizeResolution.y, reiszeLerpPercentage)};
+                    print(interpolatedResolution.x << " " << interpolatedResolution.y);
+                    GraphicsImplResizeRenderBuffer(instance, interpolatedResolution.x, interpolatedResolution.y);
+                    reiszeLerpPercentage += 0.05f;
+                }
+            }
         }
+        
         std::vector<int> projectResolution = JSON_AS_TYPE(instance->project.propertiesMap["ProjectResolution"], std::vector<int>);
         if (resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1]) {
             GraphicsImplResizeRenderBuffer(instance, projectResolution[0], projectResolution[1]);

@@ -38,6 +38,12 @@ static std::string ElectronImplTag(const char* name, void* ptr) {
     return temp;
 }
 
+
+static float lerp(float a, float b, float f)
+{
+    return a * (1.0 - f) + (b * f);
+}
+
 '''
 
 class ArgSignature:
