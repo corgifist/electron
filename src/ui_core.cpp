@@ -320,6 +320,10 @@ HEADER_TARGET void UISetTooltip(const char* tooltip) {
     ImGui::SetTooltip(tooltip);
 }
 
+HEADER_TARGET Electron::PixelBuffer& GraphicsImplGetPreviewBufferByOutputType(void* instance) {
+    return ((Electron::AppInstance*) instance)->graphics.GetPreviewBufferByOutputType();
+}
+
 HEADER_TARGET void ShortcutsImplCtrlWR(void* instance) {
     SHORTCUT(Ctrl_W_R)();
 }

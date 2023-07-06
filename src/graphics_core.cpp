@@ -59,23 +59,27 @@ void Electron::PixelBuffer::FillColor(Pixel pixel) {
 Electron::RenderBuffer::RenderBuffer(int width, int height) {
     this->color = PixelBuffer(width, height);
     this->uv = PixelBuffer(width, height);
+    this->depth = PixelBuffer(width, height);
 }
 
 Electron::GraphicsCore::GraphicsCore() {
     this->previousRenderBufferTexture = -1;
     this->renderBufferTexture = -1;
+
+    this->outputBufferType = PreviewOutputBufferType_Color;
 }
 
 void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
-    this->renderBuffer = PixelBuffer(width, height);
+    this->renderBuffer = RenderBuffer(width, height);
 }
 
 void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
-    this->renderBuffer.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1));
+    this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1));
+    this->renderBuffer.depth.FillColor(Pixel(0, 0, 0, 1));
 
     for (int x = metadata.beginX; x < metadata.endX; x++) {
         for (int y = metadata.beginX; y < metadata.endY; y++) {
-            renderBuffer.SetPixel(x, y, Pixel{(float) x / (float) metadata.endX, (float) y / (float) metadata.endY, 1, 1});
+            renderBuffer.uv.SetPixel(x, y, Pixel{(float) x / (float) metadata.endX, (float) y / (float) metadata.endY, 1, 1});
         }
     }
 }
@@ -88,7 +92,16 @@ void Electron::GraphicsCore::CleanPreviewGPUTexture() {
 
 void Electron::GraphicsCore::BuildPreviewGPUTexture() {
     previousRenderBufferTexture = renderBufferTexture;
-    renderBufferTexture = renderBuffer.BuildGPUTexture();
+    renderBufferTexture = GetPreviewBufferByOutputType().BuildGPUTexture();
+}
+
+Electron::PixelBuffer& Electron::GraphicsCore::GetPreviewBufferByOutputType() {
+    switch (outputBufferType) {
+        case PreviewOutputBufferType_Color: return renderBuffer.color;
+        case PreviewOutputBufferType_Depth: return renderBuffer.depth;
+        case PreviewOutputBufferType_UV: return renderBuffer.uv;
+    }
+    return renderBuffer.uv;
 }
 
 Electron::PixelBuffer Electron::GraphicsCore::CreateBufferFromImage(const char* filename) {

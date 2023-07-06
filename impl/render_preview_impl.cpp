@@ -62,7 +62,7 @@ extern "C" {
                 UIEnd();
                 return;
             }
-            PixelBuffer& renderBuffer = instance->graphics.renderBuffer;
+            PixelBuffer& renderBuffer = GraphicsImplGetPreviewBufferByOutputType(instance);
 
             if (firstSetup) {
                 RebuildPreviewResolutions(resolutionVariants, renderBuffer);
@@ -116,6 +116,28 @@ extern "C" {
                     }
                     UIEndCombo();
                 }
+
+                static std::string outputBufferTypes[] = {
+                    ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_COLOR_BUFFER"),
+                    ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_UV_BUFFER"),
+                    ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_DEPTH_BUFFER")
+                };
+                static PreviewOutputBufferType rawBufferTypes[] = {
+                    PreviewOutputBufferType_Color,
+                    PreviewOutputBufferType_UV,
+                    PreviewOutputBufferType_Depth
+                };
+                static int selectedOutputBufferType = 0;
+                if (UIBeginCombo(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_OUTPUT_BUFFER_TYPE"), CSTR(outputBufferTypes[selectedOutputBufferType]))) {
+                    for (int i = 0; i < 3; i++) {
+                        bool bufferTypeSelected = i == selectedOutputBufferType;
+                        if (UISelectable(CSTR(outputBufferTypes[i]), bufferTypeSelected))
+                            selectedOutputBufferType = i;
+                        if (bufferTypeSelected) UISetItemFocusDefault();
+                    }
+                    UIEndCombo();
+                }
+                instance->graphics.outputBufferType = rawBufferTypes[selectedOutputBufferType];
             }
             UISeparator();
         UIEnd();

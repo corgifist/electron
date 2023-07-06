@@ -94,6 +94,7 @@ UI_EXPORT  void UICheckbox(const char* label, bool* v) ;
 UI_EXPORT  void UISameLine() ;
 UI_EXPORT  void UIInputInt(const char* label, int* ptr, int step, int step_fast, ImGuiInputTextFlags flags) ;
 UI_EXPORT  void UISetTooltip(const char* tooltip) ;
+UI_EXPORT  Electron::PixelBuffer& GraphicsImplGetPreviewBufferByOutputType(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlWR(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap projectMap) ;
 UI_EXPORT  void ShortcutsImplCtrlPE(void* instance) ;

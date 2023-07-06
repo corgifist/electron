@@ -3,6 +3,13 @@
 #include "electron.h"
 
 namespace Electron {
+
+    enum PreviewOutputBufferType {
+        PreviewOutputBufferType_Color,
+        PreviewOutputBufferType_UV,
+        PreviewOutputBufferType_Depth
+    };
+
     struct Pixel {
         float r, g, b, a;
 
@@ -58,13 +65,16 @@ namespace Electron {
     public:
         PixelBuffer color;
         PixelBuffer uv;
+        PixelBuffer depth;
 
         RenderBuffer(int width, int height);
+        RenderBuffer() = default;
     };
 
     class GraphicsCore {
     public:
-        PixelBuffer renderBuffer;
+        RenderBuffer renderBuffer;
+        PreviewOutputBufferType outputBufferType;
         GLuint previousRenderBufferTexture;
         GLuint renderBufferTexture;
 
@@ -76,6 +86,7 @@ namespace Electron {
         void ResizeRenderBuffer(int width, int height);
         void CleanPreviewGPUTexture();
         void BuildPreviewGPUTexture();
+        PixelBuffer& GetPreviewBufferByOutputType();
 
         PixelBuffer CreateBufferFromImage(const char* filename);
     };

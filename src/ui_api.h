@@ -101,6 +101,7 @@ IMPLEMENT_UI_VOID_WRAPPER(UICheckbox, (const char* label,bool* v), (label ,v), (
 IMPLEMENT_UI_VOID_WRAPPER(UISameLine, (), (), ())
 IMPLEMENT_UI_VOID_WRAPPER(UIInputInt, (const char* label,int* ptr,int step,int step_fast,ImGuiInputTextFlags flags), (label ,ptr ,step ,step_fast ,flags), (const char* ,int* ,int ,int ,ImGuiInputTextFlags))
 IMPLEMENT_UI_VOID_WRAPPER(UISetTooltip, (const char* tooltip), (tooltip), (const char*))
+IMPLEMENT_UI_WRAPPER(GraphicsImplGetPreviewBufferByOutputType, (void* instance), (instance), (void*), Electron::PixelBuffer&)
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWR, (void* instance), (instance), (void*))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPO, (void* instance,Electron::ProjectMap projectMap), (instance ,projectMap), (void* ,Electron::ProjectMap))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPE, (void* instance), (instance), (void*))
