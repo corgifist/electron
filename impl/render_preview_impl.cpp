@@ -89,8 +89,9 @@ extern "C" {
             UISetCursorX(windowSize.x / 2.0f - scaledPreviewSize.x / 2.0f);
             UIImage(gpuTex, scaledPreviewSize);
             float translatedTimelineValue = (float) instance->graphics.renderFrame / (float) instance->graphics.renderFramerate;
-            UIPushItemWidth(windowSize.x * 0.95f);
-                UISliderFloat("##", &translatedTimelineValue, 0, (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate, CSTR(std::string("%0.") + std::to_string(JSON_AS_TYPE(instance->configMap["RenderPreviewTimelinePrescision"], int)) + "f"), 0);
+            float translatedRenderLength = (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate;
+            UIPushItemWidth(windowSize.x * 0.96f);
+                UISliderFloat("##", &translatedTimelineValue, 0, translatedRenderLength, CSTR(std::string("%0.") + std::to_string(JSON_AS_TYPE(instance->configMap["RenderPreviewTimelinePrescision"], int)) + "f"), 0);
             UIPopItemWidth();
             instance->graphics.renderFrame = (float) instance->graphics.renderFramerate * translatedTimelineValue;
             UISpacing();
@@ -153,8 +154,8 @@ extern "C" {
                     beginInterpolation = false;
                     reiszeLerpPercentage = 0;
                 } else {
-                    ImVec2 interpolatedResolution = {lerp(beginResizeResolution.x, targetResizeResolution.x, reiszeLerpPercentage), 
-                                                     lerp(beginResizeResolution.y, targetResizeResolution.y, reiszeLerpPercentage)};
+                    ImVec2 interpolatedResolution = {ui_lerp(beginResizeResolution.x, targetResizeResolution.x, reiszeLerpPercentage), 
+                                                     ui_lerp(beginResizeResolution.y, targetResizeResolution.y, reiszeLerpPercentage)};
                     print(interpolatedResolution.x << " " << interpolatedResolution.y);
                     GraphicsImplResizeRenderBuffer(instance, interpolatedResolution.x, interpolatedResolution.y);
                     reiszeLerpPercentage += 0.05f;

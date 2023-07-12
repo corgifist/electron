@@ -7,10 +7,9 @@
 #include <stdexcept>
 #include <vector>
 #include <fstream>
-#include <windows.h>
-#include <tchar.h>
 #include <functional>
 #include <any>
+#include <cmath>
 
 #include "GLEW/include/GL/glew.h"
 

@@ -11,8 +11,11 @@
 #include "ImGuiFileDialog.h"
 #include "ImGui/imgui_internal.h"
 
-#define UI_EXPORT __declspec(dllexport) __stdcall
-
+#if defined(WIN32) || defined(WIN64)
+    #define UI_EXPORT __declspec(dllexport) __stdcall
+#else
+    #define UI_EXPORT
+#endif
 #define SHORTCUT(shortcut) ((Electron::AppInstance*) instance)->shortcuts. shortcut
 
 extern "C" {
@@ -63,8 +66,8 @@ UI_EXPORT  void GraphicsImplResizeRenderBuffer(void* instance, int width, int he
 UI_EXPORT  void FileDialogImplOpenDialog(const char* internalName, const char* title, const char* extensions, const char* initialPath) ;
 UI_EXPORT  bool FileDialogImplDisplay(const char* internalName) ;
 UI_EXPORT  bool FileDialogImplIsOK() ;
-UI_EXPORT  const char* FileDialogImplGetFilePathName() ;
-UI_EXPORT  const char* FileDialogImplGetFilePath() ;
+UI_EXPORT  std::string FileDialogImplGetFilePathName() ;
+UI_EXPORT  std::string FileDialogImplGetFilePath() ;
 UI_EXPORT  void FileDialogImplClose() ;
 UI_EXPORT  void UIInputField(const char* label, std::string* string, ImGuiInputTextFlags flags) ;
 UI_EXPORT  void UIInputInt2(const char* label, int* ptr, ImGuiInputTextFlags flags) ;
@@ -95,6 +98,8 @@ UI_EXPORT  void UISameLine() ;
 UI_EXPORT  void UIInputInt(const char* label, int* ptr, int step, int step_fast, ImGuiInputTextFlags flags) ;
 UI_EXPORT  void UISetTooltip(const char* tooltip) ;
 UI_EXPORT  Electron::PixelBuffer& GraphicsImplGetPreviewBufferByOutputType(void* instance) ;
+UI_EXPORT  bool UIBeginTooltip() ;
+UI_EXPORT  void UIEndTooltip() ;
 UI_EXPORT  void ShortcutsImplCtrlWR(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap projectMap) ;
 UI_EXPORT  void ShortcutsImplCtrlPE(void* instance) ;

@@ -1,6 +1,7 @@
 #include "app.h"
 
 static void electronGlfwError(int id, const char* description) {
+    print("GLFW_ERROR_ID: " << id);
     print("GLFW_ERROR: " << description);
 }
 
@@ -65,6 +66,7 @@ Electron::AppInstance::AppInstance() {
 
 void Electron::AppInstance::Run() {
     while (!glfwWindowShouldClose(this->displayHandle)) {
+        ImGuiIO& io = ImGui::GetIO();
         if (projectOpened) {
             project.SaveProject();
         }
@@ -105,8 +107,10 @@ void Electron::AppInstance::Run() {
         ImGui::Render();
         ImGui::EndFrame();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+        }
         glfwMakeContextCurrent(this->displayHandle);
         glfwSwapBuffers(this->displayHandle);
     }

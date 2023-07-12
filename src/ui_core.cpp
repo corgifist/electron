@@ -196,12 +196,12 @@ HEADER_TARGET bool FileDialogImplIsOK() {
     return ImGuiFileDialog::Instance()->IsOk();
 }
 
-HEADER_TARGET const char* FileDialogImplGetFilePathName() {
-    return ImGuiFileDialog::Instance()->GetFilePathName().c_str();
+HEADER_TARGET std::string FileDialogImplGetFilePathName() {
+    return ImGuiFileDialog::Instance()->GetFilePathName();
 }
 
-HEADER_TARGET const char* FileDialogImplGetFilePath() {
-    return ImGuiFileDialog::Instance()->GetCurrentFileName().c_str();
+HEADER_TARGET std::string FileDialogImplGetFilePath() {
+    return ImGuiFileDialog::Instance()->GetCurrentFileName();
 }
 
 HEADER_TARGET void FileDialogImplClose() {
@@ -322,6 +322,14 @@ HEADER_TARGET void UISetTooltip(const char* tooltip) {
 
 HEADER_TARGET Electron::PixelBuffer& GraphicsImplGetPreviewBufferByOutputType(void* instance) {
     return ((Electron::AppInstance*) instance)->graphics.GetPreviewBufferByOutputType();
+}
+
+HEADER_TARGET bool UIBeginTooltip() {
+    return ImGui::BeginTooltip();
+}
+
+HEADER_TARGET void UIEndTooltip() {
+    ImGui::EndTooltip();
 }
 
 HEADER_TARGET void ShortcutsImplCtrlWR(void* instance) {

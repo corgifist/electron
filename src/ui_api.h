@@ -4,11 +4,11 @@
 
 #define CSTR(str) (str).c_str()
 
-#define IMPLEMENT_UI_WRAPPER(ui_proc_name, args_signature, call_signature, typedef_args, fn_type)     typedef fn_type (__stdcall *ui_proc_name ## _T) typedef_args;     fn_type ui_proc_name args_signature {         HINSTANCE implLib = IMPL_LIBRARY;         if (!implLib) throw std::runtime_error(std::string("failed to load impl library in ui wrapper ") + #ui_proc_name);         ui_proc_name ## _T proc = (ui_proc_name ## _T) GetProcAddress(implLib, #ui_proc_name);         if (!proc) throw std::runtime_error(std::string("failed to load proc from impl library in ui wrapper ") + #ui_proc_name);         fn_type ret_val = proc call_signature;         return ret_val;     }
+#define IMPLEMENT_UI_WRAPPER(ui_proc_name, args_signature, call_signature, typedef_args, fn_type)     typedef fn_type (*ui_proc_name ## _T) typedef_args;     fn_type ui_proc_name args_signature {         ui_proc_name ## _T proc = IMPL_LIBRARY.get_function<fn_type typedef_args>(#ui_proc_name);         if (!proc) throw std::runtime_error(std::string("failed to load proc from impl library in ui wrapper ") + #ui_proc_name);         fn_type ret_val = proc call_signature;         return ret_val;     }
 
-#define IMPLEMENT_UI_VOID_WRAPPER(ui_proc_name, args_signature, call_signature, typedef_args)     typedef void (__stdcall *ui_proc_name ## _T) typedef_args;     void ui_proc_name args_signature {         HINSTANCE implLib = IMPL_LIBRARY;         if (!implLib) throw std::runtime_error(std::string("failed to load impl library in ui wrapper ") + #ui_proc_name);         ui_proc_name ## _T proc = (ui_proc_name ## _T) GetProcAddress(implLib, #ui_proc_name);         if (!proc) throw std::runtime_error(std::string("failed to load proc from impl library in ui wrapper ") + #ui_proc_name);         proc call_signature;     }
+#define IMPLEMENT_UI_VOID_WRAPPER(ui_proc_name, args_signature, call_signature, typedef_args)     typedef void (*ui_proc_name ## _T) typedef_args;     void ui_proc_name args_signature {         ui_proc_name ## _T proc = IMPL_LIBRARY.get_function<void typedef_args>(#ui_proc_name);         if (!proc) throw std::runtime_error(std::string("failed to load proc from impl library in ui wrapper ") + #ui_proc_name);         proc call_signature;     }
 
-static HINSTANCE IMPL_LIBRARY = GetModuleHandle(NULL);
+static dylib IMPL_LIBRARY = dylib();
 
 static std::string ElectronImplTag(const char* name, void* ptr) {
     std::string temp = name;
@@ -17,8 +17,7 @@ static std::string ElectronImplTag(const char* name, void* ptr) {
     return temp;
 }
 
-
-static float lerp(float a, float b, float f)
+static float ui_lerp(float a, float b, float f)
 {
     return a * (1.0 - f) + (b * f);
 }
@@ -70,8 +69,8 @@ IMPLEMENT_UI_VOID_WRAPPER(GraphicsImplResizeRenderBuffer, (void* instance,int wi
 IMPLEMENT_UI_VOID_WRAPPER(FileDialogImplOpenDialog, (const char* internalName,const char* title,const char* extensions,const char* initialPath), (internalName ,title ,extensions ,initialPath), (const char* ,const char* ,const char* ,const char*))
 IMPLEMENT_UI_WRAPPER(FileDialogImplDisplay, (const char* internalName), (internalName), (const char*), bool)
 IMPLEMENT_UI_WRAPPER(FileDialogImplIsOK, (), (), (), bool)
-IMPLEMENT_UI_WRAPPER(FileDialogImplGetFilePathName, (), (), (), const char*)
-IMPLEMENT_UI_WRAPPER(FileDialogImplGetFilePath, (), (), (), const char*)
+IMPLEMENT_UI_WRAPPER(FileDialogImplGetFilePathName, (), (), (), std::string)
+IMPLEMENT_UI_WRAPPER(FileDialogImplGetFilePath, (), (), (), std::string)
 IMPLEMENT_UI_VOID_WRAPPER(FileDialogImplClose, (), (), ())
 IMPLEMENT_UI_VOID_WRAPPER(UIInputField, (const char* label,std::string* string,ImGuiInputTextFlags flags), (label ,string ,flags), (const char* ,std::string* ,ImGuiInputTextFlags))
 IMPLEMENT_UI_VOID_WRAPPER(UIInputInt2, (const char* label,int* ptr,ImGuiInputTextFlags flags), (label ,ptr ,flags), (const char* ,int* ,ImGuiInputTextFlags))
@@ -102,6 +101,8 @@ IMPLEMENT_UI_VOID_WRAPPER(UISameLine, (), (), ())
 IMPLEMENT_UI_VOID_WRAPPER(UIInputInt, (const char* label,int* ptr,int step,int step_fast,ImGuiInputTextFlags flags), (label ,ptr ,step ,step_fast ,flags), (const char* ,int* ,int ,int ,ImGuiInputTextFlags))
 IMPLEMENT_UI_VOID_WRAPPER(UISetTooltip, (const char* tooltip), (tooltip), (const char*))
 IMPLEMENT_UI_WRAPPER(GraphicsImplGetPreviewBufferByOutputType, (void* instance), (instance), (void*), Electron::PixelBuffer&)
+IMPLEMENT_UI_WRAPPER(UIBeginTooltip, (), (), (), bool)
+IMPLEMENT_UI_VOID_WRAPPER(UIEndTooltip, (), (), ())
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWR, (void* instance), (instance), (void*))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPO, (void* instance,Electron::ProjectMap projectMap), (instance ,projectMap), (void* ,Electron::ProjectMap))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPE, (void* instance), (instance), (void*))

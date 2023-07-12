@@ -1,9 +1,15 @@
 #pragma once
 
 #include "electron.h"
+#include "dylib.hpp"
 
-#define ELECTRON_EXPORT __declspec(dllexport) __stdcall
-#define ELECTRON_IMPORT __declspec(dllimport)
+#if defined(WIN32) || defined(WIN64)
+    #define ELECTRON_EXPORT __declspec(dllexport) __stdcall
+    #define ELECTRON_IMPORT __declspec(dllimport)
+#else
+    #define ELECTRON_EXPORT
+    #define ELECTRON_IMPORT
+#endif
 
 namespace Electron {
 
@@ -16,14 +22,14 @@ namespace Electron {
     };
 
 
-    typedef void (__stdcall *Electron_ImplF)(AppInstance*);
-    typedef void (__stdcall *Electron_RenderPreviewImplF)(AppInstance*, RenderPreview*);
+    typedef void (*Electron_ImplF)(AppInstance*);
+    typedef void (*Electron_RenderPreviewImplF)(AppInstance*, RenderPreview*);
 
     class ProjectConfiguration : public ElectronUI {
     private:
         bool pOpen;
 
-        HINSTANCE impl;
+        dylib implLibrary;
         Electron_ImplF implFunction;
 
     public:
@@ -35,7 +41,7 @@ namespace Electron {
 
     class RenderPreview : public ElectronUI {
     private:
-        HINSTANCE impl;
+        dylib implLibrary;
         Electron_RenderPreviewImplF implFunction;
 
     public:

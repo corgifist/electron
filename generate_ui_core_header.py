@@ -15,8 +15,11 @@ UI_CORE_HEADER_BEGIN = '''
 #include "ImGuiFileDialog.h"
 #include "ImGui/imgui_internal.h"
 
-#define UI_EXPORT __declspec(dllexport) __stdcall
-
+#if defined(WIN32) || defined(WIN64)
+    #define UI_EXPORT __declspec(dllexport) __stdcall
+#else
+    #define UI_EXPORT
+#endif
 #define SHORTCUT(shortcut) ((Electron::AppInstance*) instance)->shortcuts. shortcut
 
 extern "C" {

@@ -66,6 +66,10 @@ Electron::GraphicsCore::GraphicsCore() {
     this->previousRenderBufferTexture = -1;
     this->renderBufferTexture = -1;
 
+    this->renderFrame = 0;
+    this->renderFramerate = 60; // default render framerate
+    this->renderLength = 0;
+
     this->outputBufferType = PreviewOutputBufferType_Color;
 }
 

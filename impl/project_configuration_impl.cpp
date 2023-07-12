@@ -105,8 +105,11 @@ extern "C" {
                     }
                     UIEndCombo();
                 }
-                if (UIIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-                    UISetTooltip(CSTR(std::string("* ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED")));
+                if (UIIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && UIBeginTooltip()) {
+                    UIText(CSTR(std::string("* ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED")));
+                    if (selectedViewportMethod == 0) 
+                        UIText(CSTR("* " + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_SYSTEMWIDE_PERFORMANCE_DROP"))));
+                    UIEndTooltip();
                 }
                 instance->configMap["ViewportMethod"] = selectedViewportMethod == 0 ? "viewport" : "native-window";
 

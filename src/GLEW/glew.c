@@ -52,7 +52,7 @@
 #  endif
 #  include "include/GL/wglew.h"
 #elif !defined(__ANDROID__) && !defined(__native_client__) && !defined(__HAIKU__) && (!defined(__APPLE__) || defined(GLEW_APPLE_GLX))
-#  include <GL/glxew.h>
+#  include "include/GL/glxew.h"
 #endif
 
 #include <stddef.h>  /* For size_t */
