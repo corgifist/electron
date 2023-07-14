@@ -13,8 +13,6 @@
 #include "editor_core.h"
 #include "graphics_core.h"
 
-#include "json.hpp"
-
 #include "shortcuts.h"
 
 #define ELECTRON_JSON_TO_STRING(x) 
@@ -28,8 +26,6 @@
 #endif
 
 namespace Electron {
-
-    typedef nlohmann::json json_t;
 
     class ElectronUI;
     class AppInstance;

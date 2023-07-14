@@ -1,3 +1,3 @@
-g++ -c impl/render_preview_impl.cpp -I src/ -g -fPIC -m64 -DELECTRON_IMPLEMENTATION_MODE -std=c++20
-g++ -shared -o librender_preview_impl.so render_preview_impl.o  -lstdc++ -dl -fPIC -g -L. -m64
-rm render_preview_impl.o
+g++ -c impl/rect2d_layer.cpp -I src/ -g -fPIC -m64 -DELECTRON_IMPLEMENTATION_MODE -std=c++20
+g++ -shared -o librect2d_layer.so rect2d_layer.o  -lstdc++ -dl -fPIC -g -L. -m64
+rm rect2d_layer.o

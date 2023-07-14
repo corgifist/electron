@@ -32,10 +32,10 @@ GLuint Electron::PixelBuffer::BuildGPUTexture() {
         for (int y = 0; y < this->height; y++) {
             int index = (x + y * width) * 4;
             Pixel pixel = GetPixel(x, y);
-            textureConversion[index + 0] = (uint8_t) (pixel.r * 255);
-            textureConversion[index + 1] = (uint8_t) (pixel.g * 255);
-            textureConversion[index + 2] = (uint8_t) (pixel.b * 255);
-            textureConversion[index + 3] = (uint8_t) (pixel.a * 255);
+            textureConversion[index + 0] = (uint8_t) (std::clamp(pixel.r, 0.0f, 1.0f)* 255);
+            textureConversion[index + 1] = (uint8_t) (std::clamp(pixel.g, 0.0f, 1.0f) * 255);
+            textureConversion[index + 2] = (uint8_t) (std::clamp(pixel.b, 0.0f, 1.0f) * 255);
+            textureConversion[index + 3] = (uint8_t) (std::clamp(pixel.a, 0.0f, 1.0f) * 255);
         }
     }
 
@@ -62,6 +62,24 @@ Electron::RenderBuffer::RenderBuffer(int width, int height) {
     this->depth = PixelBuffer(width, height);
 }
 
+Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
+    this->layerLibrary = layerLibrary;
+    this->layerImplementation = dylib("layers", layerLibrary);
+
+    this->beginFrame = 0;
+    this->endFrame = 0;
+    this->frameOffset = 0;
+
+    this->layerProcedure = layerImplementation.get_function<void(RenderLayer*)>("LayerRender");
+    if (!layerProcedure) throw std::runtime_error("bad layer procedure!");
+}
+
+void Electron::RenderLayer::Render(GraphicsCore* graphics) {
+    this->graphicsOwner = graphics;
+    if (std::clamp(graphics->renderFrame, beginFrame, endFrame) == graphics->renderFrame)
+        layerProcedure(this);
+}
+
 Electron::GraphicsCore::GraphicsCore() {
     this->previousRenderBufferTexture = -1;
     this->renderBufferTexture = -1;
@@ -71,6 +89,12 @@ Electron::GraphicsCore::GraphicsCore() {
     this->renderLength = 0;
 
     this->outputBufferType = PreviewOutputBufferType_Color;
+
+    RenderLayer sampleRect("rect2d_layer");
+    sampleRect.beginFrame = 0;
+    sampleRect.endFrame = 60;
+
+    this->layers.push_back(sampleRect);
 }
 
 void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
@@ -79,12 +103,36 @@ void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
 
 void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
     this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1));
-    this->renderBuffer.depth.FillColor(Pixel(0, 0, 0, 1));
+    this->renderBuffer.depth.FillColor(Pixel(1000000, 0, 0, 1));
+    this->renderBuffer.uv.FillColor(Pixel(0, 0, 0, 1));
+    
 
-    for (int x = metadata.beginX; x < metadata.endX; x++) {
-        for (int y = metadata.beginX; y < metadata.endY; y++) {
-            renderBuffer.uv.SetPixel(x, y, Pixel{(float) x / (float) metadata.endX, (float) y / (float) metadata.endY, 1, 1});
+    for (RenderLayer& layer : layers) {
+        RenderBuffer originalRenderBuffer = this->renderBuffer;
+        RenderBuffer temporaryRenderBuffer(originalRenderBuffer.color.width, originalRenderBuffer.color.height);
+        temporaryRenderBuffer.color.FillColor(Pixel(0, 0, 0, 0));
+        temporaryRenderBuffer.depth.FillColor(Pixel(100000000, 0, 0, 1));
+        temporaryRenderBuffer.uv.FillColor(Pixel(0, 0, 0, 1));
+        this->renderBuffer = temporaryRenderBuffer;
+        layer.Render(this);
+        temporaryRenderBuffer = this->renderBuffer;
+
+        this->renderBuffer = originalRenderBuffer;
+        for (int x = 0; x < temporaryRenderBuffer.color.width; x++) {
+            for (int y = 0; y < temporaryRenderBuffer.color.height; y++) {
+                float renderedDepth = temporaryRenderBuffer.depth.GetPixel(x, y).r;
+                float accumulatedDepth = originalRenderBuffer.depth.GetPixel(x, y).r;
+                Pixel colorPixel = temporaryRenderBuffer.color.GetPixel(x, y);
+                Pixel uvPixel = temporaryRenderBuffer.uv.GetPixel(x, y);
+                if (colorPixel.a == 0.0) continue;
+                if (renderedDepth <= accumulatedDepth) {
+                    renderBuffer.depth.SetPixel(x, y, Pixel(renderedDepth, 0, 0, 1));
+                    renderBuffer.color.SetPixel(x, y, colorPixel);
+                    renderBuffer.uv.SetPixel(x, y, uvPixel);
+                }
+            }
         }
+
     }
 }
 

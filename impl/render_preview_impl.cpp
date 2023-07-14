@@ -82,7 +82,9 @@ extern "C" {
 
             instance->graphics.renderLength = 60;
             instance->graphics.renderFramerate = 30;
-            GraphicsImplRequestRenderWithinRegion(instance, RenderRequestMetadata{0, renderBuffer.width, 0, renderBuffer.height, JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>)});
+            RenderRequestMetadata metadata;
+            metadata.backgroundColor = JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>);
+            GraphicsImplRequestRenderWithinRegion(instance, metadata);
             GraphicsImplBuildPreviewGPUTexture(instance);
             GLuint gpuTex = GraphicsImplGetPreviewGPUTexture(instance);
             

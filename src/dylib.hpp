@@ -88,9 +88,13 @@ public:
     public:
         explicit symbol_error(const std::string &message) : exception(message) {}
     };
-
-    dylib(const dylib&) = delete;
-    dylib& operator=(const dylib&) = delete;
+    dylib(const dylib& lib) {
+        this->m_handle = lib.m_handle;
+    };
+    dylib& operator=(const dylib& lib) {
+        this->m_handle = lib.m_handle;
+        return *this;
+    }
 
     dylib(dylib &&other) noexcept : m_handle(other.m_handle) {
         other.m_handle = nullptr;

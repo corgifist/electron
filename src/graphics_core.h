@@ -1,6 +1,7 @@
 #pragma once
 
 #include "electron.h"
+#include "dylib.hpp"
 
 namespace Electron {
 
@@ -9,6 +10,9 @@ namespace Electron {
         PreviewOutputBufferType_UV,
         PreviewOutputBufferType_Depth
     };
+
+    class GraphicsCore;
+    class RenderLayer;
 
     struct Pixel {
         float r, g, b, a;
@@ -24,22 +28,11 @@ namespace Electron {
     };
 
     struct RenderRequestMetadata {
-        int beginX, endX;
-        int beginY, endY;
-
         std::vector<float> backgroundColor;
 
         RenderRequestMetadata() {}
-
-        RenderRequestMetadata(int beginX, int endX, int beginY, int endY, std::vector<float> backgroundColor) {
-            this->beginX = beginX;
-            this->endX = endX;
-            this->beginY = beginY;
-            this->endY = endY;
-
-            this->backgroundColor = backgroundColor;
-        }
     };
+
 
     class PixelBuffer {
     private:
@@ -71,12 +64,32 @@ namespace Electron {
         RenderBuffer() = default;
     };
 
+    typedef void (*Electron_LayerImplF)(RenderLayer*);
+
+
+    class RenderLayer {
+    public:
+        int beginFrame, endFrame, frameOffset;
+        dylib layerImplementation;
+        std::string layerLibrary;
+        json_t properties;
+        Electron_LayerImplF layerProcedure;
+        GraphicsCore* graphicsOwner;
+        bool initialized;
+
+        RenderLayer(std::string layerLibrary); 
+        RenderLayer() = default;
+
+        void Render(GraphicsCore* graphics);
+    };
+
     class GraphicsCore {
     public:
         RenderBuffer renderBuffer;
         PreviewOutputBufferType outputBufferType;
         GLuint previousRenderBufferTexture;
         GLuint renderBufferTexture;
+        std::vector<RenderLayer> layers;
 
         int renderFrame, renderLength, renderFramerate;
         

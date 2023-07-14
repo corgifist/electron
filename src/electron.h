@@ -10,12 +10,19 @@
 #include <functional>
 #include <any>
 #include <cmath>
+#include <filesystem>
+#include <regex>
+#include "json.hpp"
+#include "glm/glm.hpp"
 
 #include "GLEW/include/GL/glew.h"
 
 #define print(expr) std::cout << expr << std::endl
 
 namespace Electron {
+
+    typedef nlohmann::json json_t;
+
     typedef enum {
         ElectronSignal_CloseEditor,
         ElectronSignal_CloseWindow,

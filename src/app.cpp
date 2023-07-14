@@ -10,6 +10,7 @@ Electron::AppInstance::AppInstance() {
     if (!glfwInit()) {
         throw std::runtime_error("cannot initialize glfw!");
     }
+    RenderLayer::RequestLayerImplementations();
 
     this->configMap = json_t::parse(std::fstream("config.json")); // config needs to be initialized ASAP
     this->isNativeWindow = configMap["ViewportMethod"] == "native-window";
@@ -43,12 +44,14 @@ Electron::AppInstance::AppInstance() {
     io.ConfigWindowsMoveFromTitleBarOnly = true;
     io.WantSaveIniSettings = false;
 
-    ImGui::StyleColorsClassic();
+    ImGui::StyleColorsLight();
+    /* 
     ImGuiStyle& style = ImGui::GetStyle();
     style.Colors[ImGuiCol_TitleBg] = ImVec4(0.1f, 0.1f, 0.1f, 1);
     style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.1f, 0.1f, 0.1f, 1);
     style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.08f, 0.08f, 0.08f, 1);
     style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.1f, 0.1f, 0.1f, 1);
+    */
 
     io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, 16.0f);
     this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, 32.0f);
@@ -62,6 +65,7 @@ Electron::AppInstance::AppInstance() {
 
     this->graphics.ResizeRenderBuffer(128, 128);
     this->shortcuts.owner = this;
+
 }
 
 void Electron::AppInstance::Run() {
@@ -76,9 +80,11 @@ void Electron::AppInstance::Run() {
 
         PixelBuffer::filtering = configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
 
-        int displayWidth, displayHeight;
-        glfwGetWindowSize(this->displayHandle, &displayWidth, &displayHeight);
-        glViewport(0, 0, displayWidth, displayHeight);
+        if (isNativeWindow) {
+            int displayWidth, displayHeight;
+            glfwGetWindowSize(this->displayHandle, &displayWidth, &displayHeight);
+            glViewport(0, 0, displayWidth, displayHeight);
+        }
 
         glfwPollEvents();
         glClearColor(0, 0, 0, 1);
