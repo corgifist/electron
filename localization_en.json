@@ -31,5 +31,6 @@
     "RENDER_PREVIEW_OUTPUT_BUFFER_TYPE": "Render preview output buffer type",
     "RENDER_PREVIEW_COLOR_BUFFER": "Color buffer",
     "RENDER_PREVIEW_DEPTH_BUFFER": "Depth buffer",
-    "RENDER_PREVIEW_UV_BUFFER": "UV buffer"
+    "RENDER_PREVIEW_UV_BUFFER": "UV buffer",
+    "RENDER_PREVIEW_PROFILING": "Render profiling"
 }

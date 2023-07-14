@@ -2,7 +2,6 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "electron.h"
 #include "electron_font.h"
-#include "GLFW/glfw3.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_glfw.h"

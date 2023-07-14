@@ -3,6 +3,8 @@
 
 int Electron::PixelBuffer::filtering = GL_LINEAR;
 
+static std::unordered_map<std::string, dylib> dylibRegistry{};
+
 Electron::PixelBuffer::PixelBuffer(int width, int height) {
     this->pixels = std::vector<Pixel>(width * height);
     this->width = width;
@@ -64,13 +66,19 @@ Electron::RenderBuffer::RenderBuffer(int width, int height) {
 
 Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     this->layerLibrary = layerLibrary;
-    this->layerImplementation = dylib("layers", layerLibrary);
+    print("Loading dylib " + layerLibrary);
 
     this->beginFrame = 0;
     this->endFrame = 0;
     this->frameOffset = 0;
 
-    this->layerProcedure = layerImplementation.get_function<void(RenderLayer*)>("LayerRender");
+    dylib* implementation = nullptr;
+    if (dylibRegistry.find(layerLibrary) == dylibRegistry.end()) {
+        dylibRegistry[layerLibrary] = dylib("layers", layerLibrary);
+    }   
+    implementation = &dylibRegistry[layerLibrary];
+    this->layerProcedure = implementation->get_function<void(RenderLayer*)>("LayerRender");
+    this->layerPublicName = implementation->get_variable<std::string>("LayerName");
     if (!layerProcedure) throw std::runtime_error("bad layer procedure!");
 }
 
@@ -102,17 +110,19 @@ void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
 }
 
 void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
+    layersRenderTime.clear();
     this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1));
-    this->renderBuffer.depth.FillColor(Pixel(1000000, 0, 0, 1));
+    this->renderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 1));
     this->renderBuffer.uv.FillColor(Pixel(0, 0, 0, 1));
     
 
     for (RenderLayer& layer : layers) {
+        float first = glfwGetTime();
         RenderBuffer originalRenderBuffer = this->renderBuffer;
         RenderBuffer temporaryRenderBuffer(originalRenderBuffer.color.width, originalRenderBuffer.color.height);
         temporaryRenderBuffer.color.FillColor(Pixel(0, 0, 0, 0));
-        temporaryRenderBuffer.depth.FillColor(Pixel(100000000, 0, 0, 1));
-        temporaryRenderBuffer.uv.FillColor(Pixel(0, 0, 0, 1));
+        temporaryRenderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 0));
+        temporaryRenderBuffer.uv.FillColor(Pixel(0, 0, 0, 0));
         this->renderBuffer = temporaryRenderBuffer;
         layer.Render(this);
         temporaryRenderBuffer = this->renderBuffer;
@@ -124,15 +134,16 @@ void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata met
                 float accumulatedDepth = originalRenderBuffer.depth.GetPixel(x, y).r;
                 Pixel colorPixel = temporaryRenderBuffer.color.GetPixel(x, y);
                 Pixel uvPixel = temporaryRenderBuffer.uv.GetPixel(x, y);
-                if (colorPixel.a == 0.0) continue;
-                if (renderedDepth <= accumulatedDepth) {
+                if (colorPixel.a == 0.0f) continue;
+                if (renderedDepth <= accumulatedDepth || temporaryRenderBuffer.depth.GetPixel(x, y).a != 0.0f) {
                     renderBuffer.depth.SetPixel(x, y, Pixel(renderedDepth, 0, 0, 1));
                     renderBuffer.color.SetPixel(x, y, colorPixel);
                     renderBuffer.uv.SetPixel(x, y, uvPixel);
                 }
             }
         }
-
+        float second = glfwGetTime();
+        layersRenderTime.push_back(second - first);
     }
 }
 

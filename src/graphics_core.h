@@ -2,6 +2,9 @@
 
 #include "electron.h"
 #include "dylib.hpp"
+#include "time.h"
+
+#define MAX_DEPTH 100000000
 
 namespace Electron {
 
@@ -68,17 +71,22 @@ namespace Electron {
 
 
     class RenderLayer {
+    private:
+        dylib layerImplementation;
     public:
         int beginFrame, endFrame, frameOffset;
-        dylib layerImplementation;
         std::string layerLibrary;
         json_t properties;
         Electron_LayerImplF layerProcedure;
         GraphicsCore* graphicsOwner;
         bool initialized;
+        std::string layerPublicName;
+
 
         RenderLayer(std::string layerLibrary); 
-        RenderLayer() = default;
+        RenderLayer() {};
+
+        ~RenderLayer() {};
 
         void Render(GraphicsCore* graphics);
     };
@@ -90,6 +98,7 @@ namespace Electron {
         GLuint previousRenderBufferTexture;
         GLuint renderBufferTexture;
         std::vector<RenderLayer> layers;
+        std::vector<float> layersRenderTime;
 
         int renderFrame, renderLength, renderFramerate;
         

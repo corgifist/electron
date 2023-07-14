@@ -20,7 +20,7 @@ def compile_to_object_file(cpp_file):
 
 def compile_to_shared_library(cpp_file, compile_task):
     acc = CPP_COMPILER
-    acc += f" -shared -o {'lib' if LIBRARY_EXTENSION == 'so' else ''}{cpp_file}.{LIBRARY_EXTENSION} {cpp_file}.o {'-lopengl32' if LIBRARY_EXTENSION == '.dll' else ''} -lstdc++ -dl -fPIC -g -L. -m64"
+    acc += f" -shared -o {'lib' if LIBRARY_EXTENSION == 'so' else ''}{cpp_file}.{LIBRARY_EXTENSION} {cpp_file}.o {'-lopengl32' if LIBRARY_EXTENSION == '.dll' else ''} -lstdc++ -ldl -fPIC -g -L. -m64"
     return acc
 
 

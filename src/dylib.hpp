@@ -21,7 +21,7 @@
 #include <filesystem>
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64))
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
@@ -29,7 +29,7 @@
 #include <dlfcn.h>
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64))
 #define DYLIB_WIN_MAC_OTHER(win_def, mac_def, other_def) win_def
 #define DYLIB_WIN_OTHER(win_def, other_def) win_def
 #elif defined(__APPLE__)
@@ -88,13 +88,9 @@ public:
     public:
         explicit symbol_error(const std::string &message) : exception(message) {}
     };
-    dylib(const dylib& lib) {
-        this->m_handle = lib.m_handle;
-    };
-    dylib& operator=(const dylib& lib) {
-        this->m_handle = lib.m_handle;
-        return *this;
-    }
+
+    dylib(const dylib&) = default;
+    dylib& operator=(const dylib&) = default;
 
     dylib(dylib &&other) noexcept : m_handle(other.m_handle) {
         other.m_handle = nullptr;
@@ -127,7 +123,7 @@ public:
         if (decorations)
             final_name = filename_components::prefix + final_name + filename_components::suffix;
 
-        if (final_path != "" && final_path.find_last_of('/') != final_path.size() - 1)
+        if (!final_path.empty() && final_path.find_last_of('/') != final_path.size() - 1)
             final_path += '/';
 
         m_handle = open((final_path + final_name).c_str());
@@ -166,8 +162,9 @@ public:
     dylib() {
         m_handle = open(NULL);
 
-        if (!m_handle)
-            throw load_error("Could load parent executable API " + get_error_description());
+        if (!m_handle) {
+            throw std::runtime_error("cannot load executable api!");
+        }
     }
 
     ~dylib() {
@@ -213,7 +210,14 @@ public:
      */
     template<typename T>
     T *get_function(const char *symbol_name) const {
+#if (defined(__GNUC__) && __GNUC__ >= 8)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
         return reinterpret_cast<T *>(get_symbol(symbol_name));
+#if (defined(__GNUC__) && __GNUC__ >= 8)
+#pragma GCC diagnostic pop
+#endif
     }
 
     template<typename T>
@@ -271,10 +275,10 @@ protected:
     native_handle_type m_handle{nullptr};
 
     static native_handle_type open(const char *path) noexcept {
-#if defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64))
         return LoadLibraryA(path);
 #else
-        return dlopen(path, RTLD_NOW);
+        return dlopen(path, RTLD_NOW | RTLD_LOCAL);
 #endif
     }
 
@@ -287,7 +291,7 @@ protected:
     }
 
     static std::string get_error_description() noexcept {
-#if defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64))
         constexpr const size_t buf_size = 512;
         auto error_code = GetLastError();
         if (!error_code)

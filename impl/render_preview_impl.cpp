@@ -143,6 +143,12 @@ extern "C" {
                 instance->graphics.outputBufferType = rawBufferTypes[selectedOutputBufferType];
             }
             UISeparator();
+            UIText(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_PROFILING")) + ":"));
+            for (int i = 0; i < instance->graphics.layers.size(); i++) {
+                RenderLayer& layer = instance->graphics.layers[i];
+                float renderTime = instance->graphics.layersRenderTime[i];
+                UIText(CSTR(layer.layerPublicName + "<" + std::to_string(i) + ">: " + std::to_string(renderTime)));
+            }
         UIEnd();
 
         ResolutionVariant currentResolution = resolutionVariants[selectedResolutionVariant];

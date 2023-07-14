@@ -10,7 +10,6 @@ Electron::AppInstance::AppInstance() {
     if (!glfwInit()) {
         throw std::runtime_error("cannot initialize glfw!");
     }
-    RenderLayer::RequestLayerImplementations();
 
     this->configMap = json_t::parse(std::fstream("config.json")); // config needs to be initialized ASAP
     this->isNativeWindow = configMap["ViewportMethod"] == "native-window";
