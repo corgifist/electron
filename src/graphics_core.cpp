@@ -130,13 +130,14 @@ void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata met
         this->renderBuffer = originalRenderBuffer;
         for (int x = 0; x < temporaryRenderBuffer.color.width; x++) {
             for (int y = 0; y < temporaryRenderBuffer.color.height; y++) {
-                float renderedDepth = temporaryRenderBuffer.depth.GetPixel(x, y).r;
-                float accumulatedDepth = originalRenderBuffer.depth.GetPixel(x, y).r;
                 Pixel colorPixel = temporaryRenderBuffer.color.GetPixel(x, y);
                 Pixel uvPixel = temporaryRenderBuffer.uv.GetPixel(x, y);
+                Pixel depthPixel = temporaryRenderBuffer.depth.GetPixel(x, y);
+                float renderedDepth = depthPixel.r;
+                float accumulatedDepth = originalRenderBuffer.depth.GetPixel(x, y).r;
                 if (colorPixel.a == 0.0f) continue;
-                if (renderedDepth <= accumulatedDepth || temporaryRenderBuffer.depth.GetPixel(x, y).a != 0.0f) {
-                    renderBuffer.depth.SetPixel(x, y, Pixel(renderedDepth, 0, 0, 1));
+                if (renderedDepth <= accumulatedDepth || depthPixel.a == 0.0f) {
+                    if (depthPixel.a != 0.0f) renderBuffer.depth.SetPixel(x, y, Pixel(renderedDepth, 0, 0, 1));
                     renderBuffer.color.SetPixel(x, y, colorPixel);
                     renderBuffer.uv.SetPixel(x, y, uvPixel);
                 }

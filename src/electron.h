@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <regex>
 #include "json.hpp"
+#define GLM_FORCE_SWIZZLE
 #include "glm/glm.hpp"
 
 #include "GLEW/include/GL/glew.h"

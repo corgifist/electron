@@ -22,9 +22,9 @@ struct ResolutionVariant {
 
 extern "C" {
 
-    void RebuildPreviewResolutions(ResolutionVariant* resolutionVariants, PixelBuffer& renderBuffer) {
-        ImVec2 fractSize{renderBuffer.width / 10.0f, renderBuffer.height / 10.0f};
-        ImVec2 sizeAcc{renderBuffer.width, renderBuffer.height};
+    void RebuildPreviewResolutions(ResolutionVariant* resolutionVariants, ImVec2 newResolution) {
+        ImVec2 fractSize = newResolution / 10.0f;
+        ImVec2 sizeAcc = newResolution;
 
         for (int i = 0; i < 9; i++) {
             ResolutionVariant variant{sizeAcc.x, sizeAcc.y};
@@ -46,6 +46,7 @@ extern "C" {
         static ImVec2 beginResizeResolution{};
         static float reiszeLerpPercentage = 0;
         static bool beginInterpolation = false;
+        static bool rebuildResolutions = false;
 
         bool resizeLerpEnabled = JSON_AS_TYPE(instance->configMap["ResizeInterpolation"], bool);
 
@@ -65,7 +66,7 @@ extern "C" {
             PixelBuffer& renderBuffer = GraphicsImplGetPreviewBufferByOutputType(instance);
 
             if (firstSetup) {
-                RebuildPreviewResolutions(resolutionVariants, renderBuffer);
+                RebuildPreviewResolutions(resolutionVariants, {renderBuffer.width, renderBuffer.height});
                 firstSetup = false;
             }
 
@@ -160,6 +161,7 @@ extern "C" {
             if (beginInterpolation) {
                 if (reiszeLerpPercentage >= 1.0f) {
                     beginInterpolation = false;
+                    rebuildResolutions = false;
                     reiszeLerpPercentage = 0;
                 } else {
                     ImVec2 interpolatedResolution = {ui_lerp(beginResizeResolution.x, targetResizeResolution.x, reiszeLerpPercentage), 
@@ -172,10 +174,13 @@ extern "C" {
         }
         
         std::vector<int> projectResolution = JSON_AS_TYPE(instance->project.propertiesMap["ProjectResolution"], std::vector<int>);
-        if (resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1]) {
+        if ((resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1]) && !beginInterpolation) {
             GraphicsImplResizeRenderBuffer(instance, projectResolution[0], projectResolution[1]);
 
-            RebuildPreviewResolutions(resolutionVariants, renderBuffer);
+            RebuildPreviewResolutions(resolutionVariants, {projectResolution[0], projectResolution[1]});
+
+            ResolutionVariant selectedVariant = resolutionVariants[selectedResolutionVariant];
+            GraphicsImplResizeRenderBuffer(instance, selectedVariant.width, selectedVariant.height);
         }
         internalFrameIndex++;
     }
