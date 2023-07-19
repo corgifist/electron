@@ -11,7 +11,11 @@ Electron::AppInstance::AppInstance() {
         throw std::runtime_error("cannot initialize glfw!");
     }
 
-    this->configMap = json_t::parse(std::fstream("config.json")); // config needs to be initialized ASAP
+    try {
+        this->configMap = json_t::parse(std::fstream("config.json")); // config needs to be initialized ASAP
+    } catch (json_t::parse_error& ex) {
+        RestoreBadConfig();
+    }
     this->isNativeWindow = configMap["ViewportMethod"] == "native-window";
 
     glfwDefaultWindowHints();
@@ -95,6 +99,23 @@ void Electron::AppInstance::Run() {
 
         int windowIndex = 0;
         int destroyWindowTarget = -1;
+        if (showBadConfigMessage) {
+            ImGui::Begin(ELECTRON_GET_LOCALIZATION(this, "CORRUPTED_CONFIG_MESSAGE_TITLE"), nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_AlwaysAutoResize);
+                ImGui::FocusWindow(ImGui::GetCurrentWindow());
+                std::string configMessage = ELECTRON_GET_LOCALIZATION(this, "CORRUPTED_CONFIG_MESSAGE_MESSAGE");
+                ImVec2 messageSize = ImGui::CalcTextSize(configMessage.c_str());
+                ImVec2 windowSize = ImGui::GetWindowSize();
+                ImGui::SetCursorPosX(windowSize.x / 2.0f - messageSize.x / 2.0f);
+                ImGui::Text(configMessage.c_str());
+
+                ImGuiStyle& style = ImGui::GetStyle();
+                std::string okString = "OK";
+                ImVec2 okSize = ImGui::CalcTextSize(okString.c_str());
+                if (ButtonCenteredOnLine(okString.c_str())) {
+                    showBadConfigMessage = false;
+                }
+            ImGui::End();
+        }
         for (auto& window : this->content) {
             bool exitEditor = false;
             try {
@@ -158,6 +179,15 @@ void Electron::AppInstance::ExecuteSignal(ElectronSignal signal) {
     ExecuteSignal(signal, 0, intRef, boolRef);
 }
 
+void Electron::AppInstance::RestoreBadConfig() {
+    this->configMap["RenderPreviewTimelinePrescision"] = 2;
+    this->configMap["ResizeInterpolation"] = true;
+    this->configMap["TextureFiltering"] = "nearest";
+    this->configMap["ViewportMethod"] = "native-window";
+
+    this->showBadConfigMessage = true;
+}
+
 Electron::ElectronVector2f Electron::AppInstance::GetNativeWindowSize() {
     int width, height;
     glfwGetWindowSize(this->displayHandle, &width, &height);
@@ -168,6 +198,19 @@ Electron::ElectronVector2f Electron::AppInstance::GetNativeWindowPos() {
     int x, y;
     glfwGetWindowPos(this->displayHandle, &x, &y);
     return Electron::ElectronVector2f{x, y};
+}
+
+bool Electron::AppInstance::ButtonCenteredOnLine(const char* label, float alignment) {
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    float size = ImGui::CalcTextSize(label).x + style.FramePadding.x * 2.0f;
+    float avail = ImGui::GetContentRegionAvail().x;
+
+    float off = (avail - size) * alignment;
+    if (off > 0.0f)
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
+
+    return ImGui::Button(label);
 }
 
 void Electron::ProjectMap::SaveProject() {

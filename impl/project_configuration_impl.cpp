@@ -11,12 +11,17 @@ extern "C" {
             UIDockSpaceOverViewport(UIGetViewport(), ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
         }
 
-        UISetNextWindowSize({640, 480}, ImGuiCond_Once);
         ImGuiWindowFlags dockFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar;
         if (instance->isNativeWindow) {
             dockFlags |= ImGuiWindowFlags_NoTitleBar;
-        }
 
+            ImVec2 displaySize = UIGetDisplaySize();
+            UISetNextWindowPos({0, 0}, ImGuiCond_Once);
+            UISetNextWindowSize(displaySize, ImGuiCond_Once);
+        } else {
+            UISetNextWindowSize({640, 480}, ImGuiCond_Once);
+        }
+ 
         UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE"), instance)), instance->isNativeWindow ? ElectronSignal_None : ElectronSignal_CloseEditor, dockFlags);
             std::string projectTip = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_CREATE_PROJECT_TIP");
             ImVec2 windowSize = UIGetWindowSize();

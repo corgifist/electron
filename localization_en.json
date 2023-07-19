@@ -32,5 +32,9 @@
     "RENDER_PREVIEW_COLOR_BUFFER": "Color buffer",
     "RENDER_PREVIEW_DEPTH_BUFFER": "Depth buffer",
     "RENDER_PREVIEW_UV_BUFFER": "UV buffer",
-    "RENDER_PREVIEW_PROFILING": "Render profiling"
+    "RENDER_PREVIEW_PROFILING": "Render profiling",
+    "RENDER_PREVIEW_PLAY": "Play",
+    "RENDER_PREVIEW_PAUSE": "Pause",
+    "CORRUPTED_CONFIG_MESSAGE_TITLE": "Config was factory reset",
+    "CORRUPTED_CONFIG_MESSAGE_MESSAGE": "Your previous config was corrupted or empty,\nso it was reset to the default settings"
 }

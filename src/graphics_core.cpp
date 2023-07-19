@@ -88,6 +88,70 @@ void Electron::RenderLayer::Render(GraphicsCore* graphics) {
         layerProcedure(this);
 }
 
+Electron::json_t Electron::RenderLayer::InterpolateProperty(json_t keyframes) {
+    int targetKeyframeIndex = -1;
+    int keyframesLength = keyframes.size();
+    int renderViewTime = graphicsOwner->renderFrame - beginFrame;
+    GeneralizedPropertyType propertyType = keyframes.at(0);
+    
+    for (int i = 1; i < keyframesLength; i++) {
+        int keyframeTimestamp = JSON_AS_TYPE(keyframes.at(i).at(0), int);
+        if (renderViewTime <= keyframeTimestamp) {
+            targetKeyframeIndex = i;
+            break;
+        }
+    }
+
+    // Make sure to keep last keyframe's value
+    if (targetKeyframeIndex == -1) {
+        return ExtractExactValue(keyframes.at(keyframesLength - 1));
+    }
+
+    // Set initial transformation position
+    if (targetKeyframeIndex == 1) {
+        return ExtractExactValue(keyframes.at(1));
+    } 
+
+    json_t beginKeyframeValue = ExtractExactValue(keyframes.at(targetKeyframeIndex - 1));
+    json_t endKeyframeValue = ExtractExactValue(keyframes.at(targetKeyframeIndex));
+    json_t interpolatedValue = {};
+
+    float keyframeFrame = keyframes.at(targetKeyframeIndex).at(0);
+    float interpolationPercentage = 0;
+    if (targetKeyframeIndex == 1) {
+        interpolationPercentage = renderViewTime / keyframeFrame;
+    } else {
+        float previousFrame = keyframes.at(targetKeyframeIndex - 1).at(0);
+        interpolationPercentage = (renderViewTime - previousFrame) / (keyframeFrame - previousFrame);
+    }
+
+    switch (propertyType) {
+        // Vector interpolation
+        case GeneralizedPropertyType::Vec2:
+        case GeneralizedPropertyType::Vec3: {
+            if (beginKeyframeValue.size() != endKeyframeValue.size()) {
+                throw std::runtime_error("malformed interpolation targets (vector size mismatch)");
+            }
+            for (int i = 0; i < beginKeyframeValue.size(); i++) {
+                float beginFloat = beginKeyframeValue.at(i);
+                float endFloat = endKeyframeValue.at(i);
+                interpolatedValue.push_back(glm::mix(beginFloat, endFloat, interpolationPercentage));
+            }
+            break;
+        }
+    }
+
+    return interpolatedValue;
+}
+
+Electron::json_t Electron::RenderLayer::ExtractExactValue(json_t property) {
+    std::vector<json_t> acc{};
+    for (int i = 1; i < property.size(); i++) {
+        acc.push_back(property.at(i));
+    }
+    return acc;
+}
+
 Electron::GraphicsCore::GraphicsCore() {
     this->previousRenderBufferTexture = -1;
     this->renderBufferTexture = -1;
@@ -98,7 +162,7 @@ Electron::GraphicsCore::GraphicsCore() {
 
     this->outputBufferType = PreviewOutputBufferType_Color;
 
-    RenderLayer sampleRect("rect2d_layer");
+    RenderLayer sampleRect("sdf2d_layer");
     sampleRect.beginFrame = 0;
     sampleRect.endFrame = 60;
 

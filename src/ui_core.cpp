@@ -94,8 +94,8 @@ HEADER_TARGET void UIPopID() {
     ImGui::PopID();
 }
 
-HEADER_TARGET void UIImage(GLuint texture, Electron::ElectronVector2f size) {
-    ImGui::Image((void*)(intptr_t) texture, ImVec2{size.x, size.y});
+HEADER_TARGET void UIImage(GLuint texture, ImVec2 size) {
+    ImGui::Image((void*)(intptr_t) texture, size);
 }
 
 HEADER_TARGET void UISliderFloat(const char* label, float* value, float min, float max, const char* format, ImGuiSliderFlags flags) {
@@ -114,8 +114,8 @@ HEADER_TARGET bool UICollapsingHeader(const char* name) {
     return ImGui::CollapsingHeader(name);
 }
 
-HEADER_TARGET void UISetNextWindowSize(Electron::ElectronVector2f size, ImGuiCond_ cond) {
-    ImGui::SetNextWindowSize(ImVec2{size.x, size.y}, cond);
+HEADER_TARGET void UISetNextWindowSize(ImVec2 size, ImGuiCond_ cond) {
+    ImGui::SetNextWindowSize(size, cond);
 }
 
 HEADER_TARGET void UIPushFont(ImFont* font) {
@@ -330,6 +330,18 @@ HEADER_TARGET bool UIBeginTooltip() {
 
 HEADER_TARGET void UIEndTooltip() {
     ImGui::EndTooltip();
+}
+
+HEADER_TARGET void UISetNextWindowPos(ImVec2 size, ImGuiCond cond) {
+    ImGui::SetNextWindowSize(size, cond);
+}
+
+HEADER_TARGET bool UIButton(const char* text) {
+    return ImGui::Button(text);
+}
+
+HEADER_TARGET ImVec2 UIGetDisplaySize() {
+    return ImGui::GetIO().DisplaySize;
 }
 
 HEADER_TARGET void ShortcutsImplCtrlWR(void* instance) {

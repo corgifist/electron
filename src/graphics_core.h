@@ -14,6 +14,10 @@ namespace Electron {
         PreviewOutputBufferType_Depth
     };
 
+    enum class GeneralizedPropertyType {
+        Vec3, Vec2
+    };
+
     class GraphicsCore;
     class RenderLayer;
 
@@ -89,6 +93,8 @@ namespace Electron {
         ~RenderLayer() {};
 
         void Render(GraphicsCore* graphics);
+        json_t InterpolateProperty(json_t property);
+        json_t ExtractExactValue(json_t property);
     };
 
     class GraphicsCore {

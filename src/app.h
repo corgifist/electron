@@ -16,7 +16,6 @@
 
 #define ELECTRON_JSON_TO_STRING(x) 
 #define ELECTRON_GET_LOCALIZATION(instance, localization) (((instance->localizationMap[localization]).template get<std::string>()).c_str())
-#define JSON_AS_TYPE(x, type) x.template get<type>()
 
 #ifdef ELECTRON_IMPLEMENTATION_MODE
     #define DIRECT_SIGNAL(instance, signal) ElectronImplDirectSignal(instance, signal)
@@ -51,6 +50,7 @@ namespace Electron {
         ProjectMap project;
         bool projectOpened;
         bool isNativeWindow;
+        bool showBadConfigMessage;
         Shortcuts shortcuts;
         ImGuiID nativeWindowCentralDockID;
 
@@ -63,11 +63,15 @@ namespace Electron {
         void ExecuteSignal(ElectronSignal signal, int windowIndex, int& destroyWindowTarget, bool& exitEditor);
         void ExecuteSignal(ElectronSignal signal);
 
+        void RestoreBadConfig();
+
         Electron::ElectronVector2f GetNativeWindowSize();
         Electron::ElectronVector2f GetNativeWindowPos();
 
         void AddUIContent(ElectronUI* ui) {
             this->content.push_back(ui);
         }
+    private:
+        bool ButtonCenteredOnLine(const char* label, float alignment = 0.5f);
     };
 }

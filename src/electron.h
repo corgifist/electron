@@ -20,6 +20,9 @@
 #include "GLFW/glfw3.h"
 
 #define print(expr) std::cout << expr << std::endl
+#define JSON_AS_TYPE(x, type) x.template get<type>()
+
+#define DUMP_VAR(var) print(#var << " = " << (var))
 
 namespace Electron {
 

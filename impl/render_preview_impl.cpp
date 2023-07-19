@@ -50,7 +50,9 @@ extern "C" {
 
         bool resizeLerpEnabled = JSON_AS_TYPE(instance->configMap["ResizeInterpolation"], bool);
 
-        UISetNextWindowSize(ElectronVector2f{640, 480}, ImGuiCond_Once);
+        static bool playing = false;
+
+        UISetNextWindowSize({640, 480}, ImGuiCond_Once);
         UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE"), owner)), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
             ImVec2 windowSize = UIGetWindowSize();
             ImVec2 availZone = UIGetAvailZone();
@@ -70,7 +72,7 @@ extern "C" {
                 firstSetup = false;
             }
 
-            ElectronVector2f scaledPreviewSize = {resolutionVariants[0].width, resolutionVariants[0].height};
+            ImVec2 scaledPreviewSize = {resolutionVariants[0].width, resolutionVariants[0].height};
 
             float scaleFactor = ((availZone.x / scaledPreviewSize.x * 0.1f) + (availZone.y / scaledPreviewSize.y * 0.1f)) / 2.0f;
             scaledPreviewSize.x += scaledPreviewSize.x * scaleFactor;
@@ -93,6 +95,15 @@ extern "C" {
             UIImage(gpuTex, scaledPreviewSize);
             float translatedTimelineValue = (float) instance->graphics.renderFrame / (float) instance->graphics.renderFramerate;
             float translatedRenderLength = (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate;
+            
+            if (playing) {
+                print("Incrementing");
+                translatedTimelineValue += glm::ceil(1 / instance->graphics.renderFramerate);
+            }
+
+            if (UIButton(ELECTRON_GET_LOCALIZATION(instance, playing ? "RENDER_PREVIEW_PAUSE" : "RENDER_PREVIEW_PLAY"))) {
+                playing = !playing;
+            }
             UIPushItemWidth(windowSize.x * 0.96f);
                 UISliderFloat("##", &translatedTimelineValue, 0, translatedRenderLength, CSTR(std::string("%0.") + std::to_string(JSON_AS_TYPE(instance->configMap["RenderPreviewTimelinePrescision"], int)) + "f"), 0);
             UIPopItemWidth();
@@ -150,6 +161,7 @@ extern "C" {
                 float renderTime = instance->graphics.layersRenderTime[i];
                 UIText(CSTR(layer.layerPublicName + "<" + std::to_string(i) + ">: " + std::to_string(renderTime)));
             }
+            UISpacing();
         UIEnd();
 
         ResolutionVariant currentResolution = resolutionVariants[selectedResolutionVariant];

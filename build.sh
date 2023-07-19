@@ -10,6 +10,7 @@ compile_layer() {
 
 pkill Electron
 rm Electron
+rm *.so
 ./generate_headers.sh
 cmake . -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 make
@@ -17,6 +18,6 @@ make
 gen_batch project_configuration_impl
 gen_batch render_preview_impl
 
-compile_layer rect2d_layer
+compile_layer sdf2d_layer
 
 ./Electron
