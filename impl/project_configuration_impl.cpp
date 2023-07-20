@@ -17,7 +17,7 @@ extern "C" {
 
             ImVec2 displaySize = UIGetDisplaySize();
             UISetNextWindowPos({0, 0}, ImGuiCond_Once);
-            UISetNextWindowSize(displaySize, ImGuiCond_Once);
+            UISetNextWindowSize({640, 480}, ImGuiCond_Once);
         } else {
             UISetNextWindowSize({640, 480}, ImGuiCond_Once);
         }

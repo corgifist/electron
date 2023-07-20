@@ -106,7 +106,8 @@ namespace Electron {
         std::vector<RenderLayer> layers;
         std::vector<float> layersRenderTime;
 
-        int renderFrame, renderLength, renderFramerate;
+        float renderFrame;
+        int renderLength, renderFramerate;
         
         GraphicsCore();
 

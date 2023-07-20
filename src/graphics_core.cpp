@@ -84,7 +84,7 @@ Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
 
 void Electron::RenderLayer::Render(GraphicsCore* graphics) {
     this->graphicsOwner = graphics;
-    if (std::clamp(graphics->renderFrame, beginFrame, endFrame) == graphics->renderFrame)
+    if (std::clamp((int) graphics->renderFrame, beginFrame, endFrame) == (int) graphics->renderFrame)
         layerProcedure(this);
 }
 

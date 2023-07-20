@@ -68,6 +68,8 @@ namespace Electron {
         Electron::ElectronVector2f GetNativeWindowSize();
         Electron::ElectronVector2f GetNativeWindowPos();
 
+        void SetupImGuiStyle();
+
         void AddUIContent(ElectronUI* ui) {
             this->content.push_back(ui);
         }

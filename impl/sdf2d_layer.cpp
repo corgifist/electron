@@ -10,6 +10,13 @@ extern "C" {
 
     ELECTRON_EXPORT std::string LayerName = "SDF2D";
 
+    vec2 Coordinate_Normalize(vec2& tex_coord, vec2 fragment_coordinate, vec2 resolution) {
+        tex_coord = fragment_coordinate / resolution;
+        vec2 normalized_coordinate = tex_coord * 2.0f - 1.0f;
+
+        return normalized_coordinate * max(vec2(1.0f), resolution / resolution.yx());
+    }
+
     void LayerInitialize(RenderLayer* owner) {
         owner->properties["Position"] = {
             GeneralizedPropertyType::Vec2,
@@ -65,7 +72,7 @@ extern "C" {
 
                 if (dist < 0.0) {
                     rbo->color.SetPixel(x, y, Pixel(color.r, color.g, color.b, 1));
-                    rbo->uv.SetPixel(x, y, Pixel(p.x, p.y, 0, 1));
+                    rbo->uv.SetPixel(x, y, Pixel(uv.x, uv.y, 0, 1));
                 }
             }
         }

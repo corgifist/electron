@@ -93,12 +93,19 @@ extern "C" {
             
             UISetCursorX(windowSize.x / 2.0f - scaledPreviewSize.x / 2.0f);
             UIImage(gpuTex, scaledPreviewSize);
+            
             float translatedTimelineValue = (float) instance->graphics.renderFrame / (float) instance->graphics.renderFramerate;
             float translatedRenderLength = (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate;
             
             if (playing) {
-                print("Incrementing");
-                translatedTimelineValue += glm::ceil(1 / instance->graphics.renderFramerate);
+                if (instance->graphics.renderFrame >= instance->graphics.renderLength) {
+                    if (false) {
+                        instance->graphics.renderFrame = 0.0f;
+                    } else playing = false;
+                } else {
+                    if (instance->graphics.renderFrame < instance->graphics.renderLength)
+                        translatedTimelineValue += (1.0f / 60.0f) * (60.0f / instance->graphics.renderFramerate);
+                }
             }
 
             if (UIButton(ELECTRON_GET_LOCALIZATION(instance, playing ? "RENDER_PREVIEW_PAUSE" : "RENDER_PREVIEW_PLAY"))) {
