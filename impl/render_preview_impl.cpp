@@ -51,6 +51,7 @@ extern "C" {
         bool resizeLerpEnabled = JSON_AS_TYPE(instance->configMap["ResizeInterpolation"], bool);
 
         static bool playing = false;
+        static bool looping = false;
 
         UISetNextWindowSize({640, 480}, ImGuiCond_Once);
         UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE"), owner)), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
@@ -97,10 +98,12 @@ extern "C" {
             float translatedTimelineValue = (float) instance->graphics.renderFrame / (float) instance->graphics.renderFramerate;
             float translatedRenderLength = (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate;
             
+            DUMP_VAR(instance->graphics.renderFrame);
+            DUMP_VAR(instance->graphics.renderLength);
             if (playing) {
-                if (instance->graphics.renderFrame >= instance->graphics.renderLength) {
-                    if (false) {
-                        instance->graphics.renderFrame = 0.0f;
+                if ((int) instance->graphics.renderFrame >= instance->graphics.renderLength) {
+                    if (looping) {
+                        translatedTimelineValue = 0.0f;
                     } else playing = false;
                 } else {
                     if (instance->graphics.renderFrame < instance->graphics.renderLength)
@@ -111,6 +114,8 @@ extern "C" {
             if (UIButton(ELECTRON_GET_LOCALIZATION(instance, playing ? "RENDER_PREVIEW_PAUSE" : "RENDER_PREVIEW_PLAY"))) {
                 playing = !playing;
             }
+            UISameLine();
+            UICheckbox(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_LOOP_PLAYBACK"), &looping);
             UIPushItemWidth(windowSize.x * 0.96f);
                 UISliderFloat("##", &translatedTimelineValue, 0, translatedRenderLength, CSTR(std::string("%0.") + std::to_string(JSON_AS_TYPE(instance->configMap["RenderPreviewTimelinePrescision"], int)) + "f"), 0);
             UIPopItemWidth();
