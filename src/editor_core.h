@@ -16,6 +16,17 @@ namespace Electron {
     class AppInstance;
     class RenderPreview;
 
+    struct ImplDylibs {
+        static dylib ProjectConfigurationDylib;
+        static dylib RenderPreviewDylib;
+    };
+
+
+    static void InitializeDylibs() {
+        ImplDylibs::ProjectConfigurationDylib = dylib(".", "project_configuration_impl");
+        ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
+    }
+
     class ElectronUI {
     public:
         virtual void Render(AppInstance* owner) = 0;
@@ -29,7 +40,6 @@ namespace Electron {
     private:
         bool pOpen;
 
-        dylib implLibrary;
         Electron_ImplF implFunction;
 
     public:
@@ -41,13 +51,20 @@ namespace Electron {
 
     class RenderPreview : public ElectronUI {
     private:
-        dylib implLibrary;
         Electron_RenderPreviewImplF implFunction;
 
     public:
         RenderPreview();
         ~RenderPreview();
 
+        void Render(AppInstance* instance);
+    };
+
+    class LayerProperties : public ElectronUI {
+    private:
+        Electron_ImplF impl;
+    
+    public:
         void Render(AppInstance* instance);
     };
 }

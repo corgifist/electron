@@ -1,11 +1,9 @@
 #include "editor_core.h"
 
+dylib Electron::ImplDylibs::ProjectConfigurationDylib{};
 
 Electron::ProjectConfiguration::ProjectConfiguration() {
-    this->implLibrary = dylib(".", "project_configuration_impl");
-
-    this->implFunction = implLibrary.get_function<void(AppInstance*)>("ProjectConfigurationRender");
-
+    this->implFunction = ImplDylibs::ProjectConfigurationDylib.get_function<void(AppInstance*)>("ProjectConfigurationRender");
 }
 
 Electron::ProjectConfiguration::~ProjectConfiguration() {

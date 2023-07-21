@@ -86,6 +86,7 @@ namespace Electron {
         GraphicsCore* graphicsOwner;
         bool initialized;
         std::string layerPublicName;
+        float renderTime;
 
 
         RenderLayer(std::string layerLibrary); 
@@ -105,7 +106,6 @@ namespace Electron {
         GLuint previousRenderBufferTexture;
         GLuint renderBufferTexture;
         std::vector<RenderLayer> layers;
-        std::vector<float> layersRenderTime;
 
         float renderFrame;
         int renderLength, renderFramerate;

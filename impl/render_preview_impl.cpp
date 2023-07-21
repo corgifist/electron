@@ -90,8 +90,8 @@ extern "C" {
             metadata.backgroundColor = JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>);
             metadata.beginX = 0;
             metadata.beginY = 0;
-            metadata.endX = renderBuffer.width / 2;
-            metadata.endY = renderBuffer.height / 2;
+            metadata.endX = renderBuffer.width;
+            metadata.endY = renderBuffer.height;
             GraphicsImplRequestRenderWithinRegion(instance, metadata);
             GraphicsImplBuildPreviewGPUTexture(instance);
             GLuint gpuTex = GraphicsImplGetPreviewGPUTexture(instance);
@@ -172,7 +172,7 @@ extern "C" {
             UIText(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_PROFILING")) + ":"));
             for (int i = 0; i < instance->graphics.layers.size(); i++) {
                 RenderLayer& layer = instance->graphics.layers[i];
-                float renderTime = instance->graphics.layersRenderTime[i];
+                float renderTime = instance->graphics.layers[i].renderTime;
                 UIText(CSTR(layer.layerPublicName + "<" + std::to_string(i) + ">: " + std::to_string(renderTime)));
             }
             UISpacing();
@@ -192,7 +192,6 @@ extern "C" {
                 } else {
                     ImVec2 interpolatedResolution = {ui_lerp(beginResizeResolution.x, targetResizeResolution.x, reiszeLerpPercentage), 
                                                      ui_lerp(beginResizeResolution.y, targetResizeResolution.y, reiszeLerpPercentage)};
-                    print(interpolatedResolution.x << " " << interpolatedResolution.y);
                     GraphicsImplResizeRenderBuffer(instance, interpolatedResolution.x, interpolatedResolution.y);
                     reiszeLerpPercentage += 0.05f;
                 }

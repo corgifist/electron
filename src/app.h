@@ -53,6 +53,7 @@ namespace Electron {
         bool showBadConfigMessage;
         Shortcuts shortcuts;
         ImGuiID nativeWindowCentralDockID;
+        int selectedRenderLayer;
 
         ImFont* largeFont;
         

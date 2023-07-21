@@ -6,6 +6,8 @@ static void electronGlfwError(int id, const char* description) {
 }
 
 Electron::AppInstance::AppInstance() {
+    this->selectedRenderLayer = -1;
+
     glfwSetErrorCallback(electronGlfwError);
     if (!glfwInit()) {
         throw std::runtime_error("cannot initialize glfw!");
@@ -61,6 +63,8 @@ Electron::AppInstance::AppInstance() {
     this->graphics.ResizeRenderBuffer(128, 128);
     this->shortcuts.owner = this;
 
+
+    InitializeDylibs();
 }
 
 void Electron::AppInstance::Run() {
@@ -108,7 +112,9 @@ void Electron::AppInstance::Run() {
                 }
             ImGui::End();
         }
-        for (auto& window : this->content) {
+
+        std::vector<ElectronUI*> uiCopy = this->content;
+        for (auto& window : uiCopy) {
             bool exitEditor = false;
             try {
                 window->Render(this);

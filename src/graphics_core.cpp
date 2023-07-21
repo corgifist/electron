@@ -174,7 +174,6 @@ void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
 }
 
 void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
-    layersRenderTime.clear();
     this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1), metadata);
     this->renderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 1), metadata);
     this->renderBuffer.uv.FillColor(Pixel(0, 0, 0, 1), metadata);
@@ -208,7 +207,7 @@ void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata met
             }
         }
         float second = glfwGetTime();
-        layersRenderTime.push_back(second - first);
+        layer.renderTime = second - first;
     }
 }
 

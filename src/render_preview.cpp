@@ -1,8 +1,9 @@
 #include "editor_core.h"
 
+dylib Electron::ImplDylibs::RenderPreviewDylib{};
+
 Electron::RenderPreview::RenderPreview() {
-    this->implLibrary = dylib(".", "render_preview_impl");
-    this->implFunction = implLibrary.get_function<void(AppInstance*, RenderPreview*)>("RenderPreviewRender");
+    this->implFunction = ImplDylibs::RenderPreviewDylib.get_function<void(AppInstance*, RenderPreview*)>("RenderPreviewRender");
 }
 
 Electron::RenderPreview::~RenderPreview() {
