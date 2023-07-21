@@ -35,6 +35,7 @@ namespace Electron {
     };
 
     struct RenderRequestMetadata {
+        int beginX, endX, beginY, endY;
         std::vector<float> backgroundColor;
 
         RenderRequestMetadata() {}
@@ -56,7 +57,7 @@ namespace Electron {
         void SetPixel(int x, int y, Pixel);
         Pixel GetPixel(int x, int y);
 
-        void FillColor(Pixel pixel);
+        void FillColor(Pixel pixel, RenderRequestMetadata metadata);
 
         GLuint BuildGPUTexture();
     };
@@ -71,7 +72,7 @@ namespace Electron {
         RenderBuffer() = default;
     };
 
-    typedef void (*Electron_LayerImplF)(RenderLayer*);
+    typedef void (*Electron_LayerImplF)(RenderLayer*, RenderRequestMetadata);
 
 
     class RenderLayer {
@@ -92,7 +93,7 @@ namespace Electron {
 
         ~RenderLayer() {};
 
-        void Render(GraphicsCore* graphics);
+        void Render(GraphicsCore* graphics, RenderRequestMetadata metadata);
         json_t InterpolateProperty(json_t property);
         json_t ExtractExactValue(json_t property);
     };

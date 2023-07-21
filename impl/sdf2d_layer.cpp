@@ -37,7 +37,7 @@ extern "C" {
         };
     }
 
-    ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
+    ELECTRON_EXPORT void LayerRender(RenderLayer* owner, RenderRequestMetadata metadata) {
         if (!owner->initialized) {
             LayerInitialize(owner);
             owner->initialized = true;
@@ -55,8 +55,8 @@ extern "C" {
         }
 
         RenderBuffer* rbo = &owner->graphicsOwner->renderBuffer;
-        for (int x = 0; x < rbo->color.width; x++) {
-            for (int y = 0; y < rbo->color.height; y++) {
+        for (int x = metadata.beginX; x < metadata.endX; x++) {
+            for (int y = metadata.beginY; y < metadata.endY; y++) {
                 vec2 uv = {(float) x / (float) rbo->color.width, (float) y / (float) rbo->color.height};
                 vec2 fragCoord = {x, y};
                 vec2 iResolution = {rbo->color.width, rbo->color.height};

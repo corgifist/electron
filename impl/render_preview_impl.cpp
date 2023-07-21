@@ -88,6 +88,10 @@ extern "C" {
             instance->graphics.renderFramerate = 30;
             RenderRequestMetadata metadata;
             metadata.backgroundColor = JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>);
+            metadata.beginX = 0;
+            metadata.beginY = 0;
+            metadata.endX = renderBuffer.width / 2;
+            metadata.endY = renderBuffer.height / 2;
             GraphicsImplRequestRenderWithinRegion(instance, metadata);
             GraphicsImplBuildPreviewGPUTexture(instance);
             GLuint gpuTex = GraphicsImplGetPreviewGPUTexture(instance);
@@ -98,8 +102,6 @@ extern "C" {
             float translatedTimelineValue = (float) instance->graphics.renderFrame / (float) instance->graphics.renderFramerate;
             float translatedRenderLength = (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate;
             
-            DUMP_VAR(instance->graphics.renderFrame);
-            DUMP_VAR(instance->graphics.renderLength);
             if (playing) {
                 if ((int) instance->graphics.renderFrame >= instance->graphics.renderLength) {
                     if (looping) {

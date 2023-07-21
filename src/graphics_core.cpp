@@ -50,9 +50,9 @@ GLuint Electron::PixelBuffer::BuildGPUTexture() {
     return id;
 }
 
-void Electron::PixelBuffer::FillColor(Pixel pixel) {
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < height; y++) {
+void Electron::PixelBuffer::FillColor(Pixel pixel, RenderRequestMetadata metadata) {
+    for (int x = metadata.beginX; x < metadata.endX; x++) {
+        for (int y = metadata.beginY; y < metadata.endY; y++) {
             SetPixel(x, y, pixel);
         }
     }
@@ -77,15 +77,15 @@ Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
         dylibRegistry[layerLibrary] = dylib("layers", layerLibrary);
     }   
     implementation = &dylibRegistry[layerLibrary];
-    this->layerProcedure = implementation->get_function<void(RenderLayer*)>("LayerRender");
+    this->layerProcedure = implementation->get_function<void(RenderLayer*, RenderRequestMetadata)>("LayerRender");
     this->layerPublicName = implementation->get_variable<std::string>("LayerName");
     if (!layerProcedure) throw std::runtime_error("bad layer procedure!");
 }
 
-void Electron::RenderLayer::Render(GraphicsCore* graphics) {
+void Electron::RenderLayer::Render(GraphicsCore* graphics, RenderRequestMetadata metadata) {
     this->graphicsOwner = graphics;
     if (std::clamp((int) graphics->renderFrame, beginFrame, endFrame) == (int) graphics->renderFrame)
-        layerProcedure(this);
+        layerProcedure(this, metadata);
 }
 
 Electron::json_t Electron::RenderLayer::InterpolateProperty(json_t keyframes) {
@@ -175,20 +175,20 @@ void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
 
 void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
     layersRenderTime.clear();
-    this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1));
-    this->renderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 1));
-    this->renderBuffer.uv.FillColor(Pixel(0, 0, 0, 1));
+    this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1), metadata);
+    this->renderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 1), metadata);
+    this->renderBuffer.uv.FillColor(Pixel(0, 0, 0, 1), metadata);
     
 
     for (RenderLayer& layer : layers) {
         float first = glfwGetTime();
         RenderBuffer originalRenderBuffer = this->renderBuffer;
         RenderBuffer temporaryRenderBuffer(originalRenderBuffer.color.width, originalRenderBuffer.color.height);
-        temporaryRenderBuffer.color.FillColor(Pixel(0, 0, 0, 0));
-        temporaryRenderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 0));
-        temporaryRenderBuffer.uv.FillColor(Pixel(0, 0, 0, 0));
+        temporaryRenderBuffer.color.FillColor(Pixel(0, 0, 0, 0), metadata);
+        temporaryRenderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 0), metadata);
+        temporaryRenderBuffer.uv.FillColor(Pixel(0, 0, 0, 0), metadata);
         this->renderBuffer = temporaryRenderBuffer;
-        layer.Render(this);
+        layer.Render(this, metadata);
         temporaryRenderBuffer = this->renderBuffer;
 
         this->renderBuffer = originalRenderBuffer;
