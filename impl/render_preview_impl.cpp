@@ -70,8 +70,17 @@ extern "C" {
 
             if (firstSetup) {
                 RebuildPreviewResolutions(resolutionVariants, {renderBuffer.width, renderBuffer.height});
+                looping = JSON_AS_TYPE(instance->project.propertiesMap["LoopPlayback"], bool);
+                instance->graphics.renderFrame = JSON_AS_TYPE(instance->project.propertiesMap["TimelineValue"], int);
+                selectedResolutionVariant = JSON_AS_TYPE(instance->project.propertiesMap["PreviewResolution"], int);
+                previewScale = JSON_AS_TYPE(instance->project.propertiesMap["RenderPreviewScale"], float);
                 firstSetup = false;
             }
+
+            instance->project.propertiesMap["LoopPlayback"] = looping;
+            instance->project.propertiesMap["TimelineValue"] = instance->graphics.renderFrame;
+            instance->project.propertiesMap["PreviewResolution"] = selectedResolutionVariant;
+            instance->project.propertiesMap["RenderPreviewScale"] = previewScale;
 
             ImVec2 scaledPreviewSize = {resolutionVariants[0].width, resolutionVariants[0].height};
 

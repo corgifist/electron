@@ -1,5 +1,9 @@
 #include "app.h"
 
+bool Electron::Rect::contains(Electron::Point p) {
+    return p.x >= x && p.y >= y && p.x <= x + w && p.y <= y + h;
+}
+
 int main() {
 
     try {

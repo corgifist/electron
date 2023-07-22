@@ -15,6 +15,7 @@
 #include "json.hpp"
 #define GLM_FORCE_SWIZZLE
 #include "glm/glm.hpp"
+#include "glm/gtx/matrix_transform_2d.hpp"
 
 #include "GLEW/include/GL/glew.h"
 #include "GLFW/glfw3.h"
@@ -46,5 +47,31 @@ namespace Electron {
         }
 
         ElectronVector2f() {}
+    };
+
+    struct Point {
+        float x, y;
+
+        Point(float x, float y) {
+            this->x = x;
+            this->y = y;
+        }
+
+        Point() {}
+    };
+
+    struct Rect {
+        float x, y, w, h;
+    
+        Rect(float x, float y, float w, float h) {
+            this->x = x;
+            this->y = y;
+            this->w = w;
+            this->h = h;
+        }
+
+        Rect() {}
+
+        bool contains(Point p);
     };
 }

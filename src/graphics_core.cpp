@@ -127,6 +127,10 @@ Electron::json_t Electron::RenderLayer::InterpolateProperty(json_t keyframes) {
 
     switch (propertyType) {
         // Vector interpolation
+        case GeneralizedPropertyType::Float: {
+            interpolatedValue.push_back(glm::mix(beginKeyframeValue.at(0), endKeyframeValue.at(0), interpolationPercentage));
+            break;
+        }
         case GeneralizedPropertyType::Vec2:
         case GeneralizedPropertyType::Vec3: {
             if (beginKeyframeValue.size() != endKeyframeValue.size()) {
