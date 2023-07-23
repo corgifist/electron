@@ -6,7 +6,7 @@ static void electronGlfwError(int id, const char* description) {
 }
 
 Electron::AppInstance::AppInstance() {
-    this->selectedRenderLayer = -1;
+    this->selectedRenderLayer = 0;
 
     glfwSetErrorCallback(electronGlfwError);
     if (!glfwInit()) {

@@ -34,7 +34,7 @@ extern "C" {
                         FileDialogImplOpenDialog("OpenProjectDialog", "Open project", nullptr, ".");
                     }
                     UISeparator();
-                    if (UIMenuItem("Reload editor", "")) {
+                    if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "RELOAD_APPLICATION"), "")) {
                         UIEndMenu();
                         UIEndMenuBar();
                         UIEnd();
