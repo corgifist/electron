@@ -27,6 +27,11 @@ namespace Electron {
         ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
     }
 
+    static void DestroyDylibs() {
+        ImplDylibs::ProjectConfigurationDylib = dylib();
+        ImplDylibs::RenderPreviewDylib = dylib();
+    }
+
     class ElectronUI {
     public:
         virtual void Render(AppInstance* owner) = 0;
@@ -65,6 +70,8 @@ namespace Electron {
         Electron_ImplF impl;
     
     public:
+        LayerProperties() {}
+
         void Render(AppInstance* instance);
     };
 }

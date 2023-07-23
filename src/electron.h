@@ -33,10 +33,15 @@ namespace Electron {
         ElectronSignal_CloseEditor,
         ElectronSignal_CloseWindow,
         ElectronSignal_SpawnRenderPreview,
+        ElectronSignal_SpawnLayerProperties,
+        ElectronSignal_ReloadSystem,
         ElectronSignal_A,
         ElectronSignal_B,
         ElectronSignal_None
     } ElectronSignal;
+
+
+    std::string exec(const char* cmd);
 
     struct ElectronVector2f {
         float x, y;

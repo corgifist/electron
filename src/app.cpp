@@ -18,6 +18,7 @@ Electron::AppInstance::AppInstance() {
     } catch (json_t::parse_error& ex) {
         RestoreBadConfig();
     }
+    float uiScaling = JSON_AS_TYPE(configMap["UIScaling"], float);
     this->isNativeWindow = configMap["ViewportMethod"] == "native-window";
 
     glfwDefaultWindowHints();
@@ -51,8 +52,8 @@ Electron::AppInstance::AppInstance() {
 
     SetupImGuiStyle();
 
-    io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, 16.0f);
-    this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, 32.0f);
+    io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, 16.0f * uiScaling);
+    this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, 32.0f * uiScaling);
 
     ImGui_ImplGlfw_InitForOpenGL(this->displayHandle, true);
     ImGui_ImplOpenGL3_Init();
@@ -65,6 +66,13 @@ Electron::AppInstance::AppInstance() {
 
 
     InitializeDylibs();
+}
+
+Electron::AppInstance::~AppInstance() {
+    for (auto ui : this->content) {
+        delete ui;
+    }
+    this->content.clear();
 }
 
 void Electron::AppInstance::Run() {
@@ -140,6 +148,11 @@ void Electron::AppInstance::Run() {
     }
     editor_end:
 
+    Terminate();
+}
+
+void Electron::AppInstance::Terminate() {
+    DestroyDylibs();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -160,6 +173,10 @@ void Electron::AppInstance::ExecuteSignal(ElectronSignal signal, int windowIndex
             AddUIContent(new RenderPreview());
             break;
         }
+        case ElectronSignal_SpawnLayerProperties: {
+            AddUIContent(new LayerProperties());
+            break;
+        }
         case ElectronSignal_A: {
             print("Signal A");
             break;
@@ -167,6 +184,10 @@ void Electron::AppInstance::ExecuteSignal(ElectronSignal signal, int windowIndex
         case ElectronSignal_B: {
             print("Signal B");
             break;
+        }
+
+        default: {
+            throw signal;
         }
     }
 }
@@ -182,6 +203,7 @@ void Electron::AppInstance::RestoreBadConfig() {
     this->configMap["ResizeInterpolation"] = true;
     this->configMap["TextureFiltering"] = "nearest";
     this->configMap["ViewportMethod"] = "native-window";
+    this->configMap["UIScaling"] = 1.0f;
 
     this->showBadConfigMessage = true;
 }
@@ -307,4 +329,6 @@ void Electron::AppInstance::SetupImGuiStyle()
 	style.Colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.0f, 1.0f, 1.0f, 0.699999988079071f);
 	style.Colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.800000011920929f, 0.800000011920929f, 0.800000011920929f, 0.2000000029802322f);
 	style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.800000011920929f, 0.800000011920929f, 0.800000011920929f, 0.3499999940395355f);
+
+    style.ScaleAllSizes(JSON_AS_TYPE(configMap["UIScaling"], float));
 }

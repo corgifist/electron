@@ -15,10 +15,12 @@
     "PROJECT_CONFIGURATION_EDITOR_CONFIGURATION_VIEWPORT_METHOD": "UI Rendering method",
     "PROJECT_CONFIGURATION_EDITOR_VIEWPORT": "Through virtual viewport",
     "PROJECT_CONFIGURATION_EDITOR_NATIVE_WINDOW": "Using native window",
+    "PROJECT_CONFIGURATION_EDITOR_UI_SCALING": "UI Scaling",
     "PROJECT_CONFIGURATION_LINEAR": "Linear",
     "PROJECT_CONFIGURATION_NEAREST": "Nearest",
     "PROJECT_CONFIGURATION_TEXTURE_FILTERING": "Global texture filter",
     "PROJECT_CONFIGURATION_RESTART_REQUIRED": "Requires full editor restart",
+    "PROJECT_CONFIGURATION_FRAMERATE": "Framerate",
     "PROJECT_CONFIGURATION_RENDER_PREVIEW_TIMELINE_PRESCISION": "Render preview timeline prescision",
     "PROJECT_CONFIGURATION_SMOOTHNESS_DECREASE": "This option is unstable! Use at your own risk",
     "PROJECT_CONFIGURATION_RESIZE_INTERPOLATION": "Smooth render preview resize animation",
@@ -37,5 +39,12 @@
     "RENDER_PREVIEW_PAUSE": "Pause",
     "RENDER_PREVIEW_LOOP_PLAYBACK": "Loop playback",
     "CORRUPTED_CONFIG_MESSAGE_TITLE": "Config was factory reset",
-    "CORRUPTED_CONFIG_MESSAGE_MESSAGE": "Your previous config was corrupted or empty,\nso it was reset to the default settings"
+    "CORRUPTED_CONFIG_MESSAGE_MESSAGE": "Your previous config was corrupted or empty,\nso it was reset to the default settings",
+    "LAYER_PROPERTIES_TITLE": "Layer Properties",
+    "LAYER_PROPERTIES_NO_PROJECT": "Open a project to use Layer Properties window",
+    "LAYER_PROPERTIES_NO_LAYER_SELECTED": "No layer selected!",
+    "RELOAD_APPLICATION": "Reload editor",
+    "GENERIC_OK": "OK",
+    "GENERIC_NO": "NO",
+    "GENERIC_YES": "YES"
 }

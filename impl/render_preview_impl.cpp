@@ -94,7 +94,7 @@ extern "C" {
             GraphicsImplCleanPreviewGPUTexture(instance);
 
             instance->graphics.renderLength = 60;
-            instance->graphics.renderFramerate = 30;
+            instance->graphics.renderFramerate = JSON_AS_TYPE(instance->project.propertiesMap["Framerate"], int);
             RenderRequestMetadata metadata;
             metadata.backgroundColor = JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>);
             metadata.beginX = 0;
@@ -117,8 +117,10 @@ extern "C" {
                         translatedTimelineValue = 0.0f;
                     } else playing = false;
                 } else {
-                    if (instance->graphics.renderFrame < instance->graphics.renderLength)
-                        translatedTimelineValue += (1.0f / 60.0f) * (60.0f / instance->graphics.renderFramerate);
+                    if (instance->graphics.renderFrame < instance->graphics.renderLength) {
+                        float intFrame = 1.0f / (60.0 / instance->graphics.renderFramerate);
+                        translatedTimelineValue += (1.0f / 60.0f) * intFrame;
+                    }
                 }
             }
 

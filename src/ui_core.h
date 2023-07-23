@@ -103,6 +103,8 @@ UI_EXPORT  void UIEndTooltip() ;
 UI_EXPORT  void UISetNextWindowPos(ImVec2 size, ImGuiCond cond) ;
 UI_EXPORT  bool UIButton(const char* text) ;
 UI_EXPORT  ImVec2 UIGetDisplaySize() ;
+UI_EXPORT  void UISetItemTooltip(const char* tooltip) ;
+UI_EXPORT  void ShortcutsImplCtrlWL(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlWR(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap projectMap) ;
 UI_EXPORT  void ShortcutsImplCtrlPE(void* instance) ;

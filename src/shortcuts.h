@@ -20,6 +20,8 @@ namespace Electron {
         void Ctrl_P_O(ProjectMap projectMap);
         
         void Ctrl_P_E();
+
+        void Ctrl_W_L();
     };
 }
 

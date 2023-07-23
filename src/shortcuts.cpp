@@ -12,3 +12,7 @@ void Electron::Shortcuts::Ctrl_P_O(ProjectMap projectMap) {
 void Electron::Shortcuts::Ctrl_P_E() {
     throw ElectronSignal_CloseEditor;
 }
+
+void Electron::Shortcuts::Ctrl_W_L() {
+    owner->ExecuteSignal(ElectronSignal_SpawnLayerProperties);
+}

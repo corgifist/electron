@@ -344,6 +344,16 @@ HEADER_TARGET ImVec2 UIGetDisplaySize() {
     return ImGui::GetIO().DisplaySize;
 }
 
+HEADER_TARGET void UISetItemTooltip(const char* tooltip) {
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        ImGui::SetTooltip(tooltip);
+    }
+}
+
+HEADER_TARGET void ShortcutsImplCtrlWL(void* instance) {
+    SHORTCUT(Ctrl_W_L)();
+}
+
 HEADER_TARGET void ShortcutsImplCtrlWR(void* instance) {
     SHORTCUT(Ctrl_W_R)();
 }

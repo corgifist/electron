@@ -18,6 +18,7 @@ Electron::PixelBuffer::PixelBuffer(std::vector<Pixel> pixels, int width, int hei
 }
 
 void Electron::PixelBuffer::SetPixel(int x, int y, Pixel pixel) {
+    if (x >= this->width || y >= this->height) return; // discard out of bounds pixels
     this->pixels[x + y * this->width] = pixel;
 }
 

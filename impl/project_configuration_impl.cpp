@@ -34,6 +34,12 @@ extern "C" {
                         FileDialogImplOpenDialog("OpenProjectDialog", "Open project", nullptr, ".");
                     }
                     UISeparator();
+                    if (UIMenuItem("Reload editor", "")) {
+                        UIEndMenu();
+                        UIEndMenuBar();
+                        UIEnd();
+                        throw ElectronSignal_ReloadSystem;
+                    }
                     if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"), "Ctrl+P+E")) {
                         ShortcutsImplCtrlPE(instance);
                     }
@@ -42,6 +48,9 @@ extern "C" {
                 if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))) {
                     if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU_RENDER_PREVIEW"), "Ctrl+W+R")) {
                         ShortcutsImplCtrlWR(instance);
+                    }
+                    if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_TITLE"), "Ctrl+W+L")) {
+                        ShortcutsImplCtrlWL(instance);
                     }
                     UIEndMenu();
                 }
@@ -73,6 +82,12 @@ extern "C" {
                 std::vector<float> backgroundColor = JSON_AS_TYPE(project.propertiesMap["BackgroundColor"], std::vector<float>);
                 UIInputColor3(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_BACKGROUND_COLOR"), backgroundColor.data(), 0);
                 project.propertiesMap["BackgroundColor"] = backgroundColor;
+
+                int projectFramerate = JSON_AS_TYPE(project.propertiesMap["Framerate"], int);
+                float fProjectFramerate = (float) projectFramerate;
+                UISliderFloat(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_FRAMERATE"), &fProjectFramerate, 1, 60, "%0.0f", 0);
+                projectFramerate = (int) fProjectFramerate;
+                project.propertiesMap["Framerate"] = projectFramerate;
             }
 
             if (!instance->projectOpened) {
@@ -145,9 +160,12 @@ extern "C" {
                 bool resizeInterpolation = JSON_AS_TYPE(instance->configMap["ResizeInterpolation"], bool);
                 UICheckbox(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESIZE_INTERPOLATION"), &resizeInterpolation);
                 instance->configMap["ResizeInterpolation"] = resizeInterpolation;
-                if (UIIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-                    UISetTooltip(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_SMOOTHNESS_DECREASE"));
-                }
+                UISetItemTooltip(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_SMOOTHNESS_DECREASE"));
+
+                float uiScaling = JSON_AS_TYPE(instance->configMap["UIScaling"], float);
+                UISliderFloat(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_UI_SCALING"), &uiScaling, 0.5f, 2.5f, "%0.1f", 0);
+                UISetItemTooltip(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED"));
+                instance->configMap["UIScaling"] = uiScaling;
 
             UIEndTabItem();
             }

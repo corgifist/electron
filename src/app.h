@@ -58,8 +58,10 @@ namespace Electron {
         ImFont* largeFont;
         
         AppInstance();
+        ~AppInstance();
 
         void Run();
+        void Terminate();
 
         void ExecuteSignal(ElectronSignal signal, int windowIndex, int& destroyWindowTarget, bool& exitEditor);
         void ExecuteSignal(ElectronSignal signal);
