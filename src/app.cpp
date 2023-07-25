@@ -85,6 +85,10 @@ void Electron::AppInstance::Run() {
         std::ofstream configStream("config.json");
         configStream << configMap.dump();
 
+        if (projectOpened) {
+            configMap["LastProject"] = project.path;
+        }
+
         PixelBuffer::filtering = configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
 
         if (isNativeWindow) {
@@ -204,6 +208,7 @@ void Electron::AppInstance::RestoreBadConfig() {
     this->configMap["TextureFiltering"] = "nearest";
     this->configMap["ViewportMethod"] = "native-window";
     this->configMap["UIScaling"] = 1.0f;
+    this->configMap["LastProject"] = "null";
 
     this->showBadConfigMessage = true;
 }

@@ -16,7 +16,7 @@ extern "C" {
         return mat2( c, -s, s, c );
     }
 
-    void LayerInitialize(RenderLayer* owner) {
+    ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
         owner->properties["Position"] = {
             GeneralizedPropertyType::Vec2,
             {0, 0, 0},
@@ -39,11 +39,6 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner, RenderRequestMetadata metadata) {
-        if (!owner->initialized) {
-            LayerInitialize(owner);
-            owner->initialized = true;
-        }
-
         auto position = vec2();
         auto size = vec2();
         auto color = vec3();
@@ -79,5 +74,13 @@ extern "C" {
                 }
             }
         }
+    }
+
+    ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
+        json_t& position = layer->properties["Position"];
+        layer->RenderProperty(GeneralizedPropertyType::Vec2, position, "Position");
+
+        json_t& size = layer->properties["Size"];
+        layer->RenderProperty(GeneralizedPropertyType::Vec2, size, "Size");
     }
 }

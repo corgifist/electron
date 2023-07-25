@@ -19,6 +19,7 @@ Electron::PixelBuffer::PixelBuffer(std::vector<Pixel> pixels, int width, int hei
 
 void Electron::PixelBuffer::SetPixel(int x, int y, Pixel pixel) {
     if (x >= this->width || y >= this->height) return; // discard out of bounds pixels
+    if (0 > this->width || 0 > this->height) return;
     this->pixels[x + y * this->width] = pixel;
 }
 
@@ -79,8 +80,14 @@ Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     }   
     implementation = &dylibRegistry[layerLibrary];
     this->layerProcedure = implementation->get_function<void(RenderLayer*, RenderRequestMetadata)>("LayerRender");
+    this->propertiesProcedure = implementation->get_function<void(RenderLayer*)>("LayerPropertiesRender");
+    this->initializationProcedure = implementation->get_function<void(RenderLayer*)>("LayerInitialize");
     this->layerPublicName = implementation->get_variable<std::string>("LayerName");
     if (!layerProcedure) throw std::runtime_error("bad layer procedure!");
+
+    initializationProcedure(this);
+    initialized = true;
+
 }
 
 void Electron::RenderLayer::Render(GraphicsCore* graphics, RenderRequestMetadata metadata) {
@@ -88,6 +95,51 @@ void Electron::RenderLayer::Render(GraphicsCore* graphics, RenderRequestMetadata
     if (std::clamp((int) graphics->renderFrame, beginFrame, endFrame) == (int) graphics->renderFrame)
         layerProcedure(this, metadata);
 }
+
+void Electron::RenderLayer::RenderProperties() {
+    propertiesProcedure(this);
+}
+
+void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName) {
+    ImVec2 windowSize = ImGui::GetWindowSize();
+    if (ImGui::CollapsingHeader(propertyName.c_str())) {
+        ImGui::Text("Keyframes:");
+        for (int i = 1; i < property.size(); i++) {
+            switch (type) {
+                case GeneralizedPropertyType::Vec2:
+                case GeneralizedPropertyType::Vec3: {
+                    float fKey = JSON_AS_TYPE(property.at(i).at(0), float);
+                    print(property.at(i).dump());
+                    std::vector<float> vectorProperty = {};
+                    vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(1), float));
+                    vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(2), float));
+                    if (type == GeneralizedPropertyType::Vec3) {
+                        vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(3), float));
+                    }
+                    float* fProperty = vectorProperty.data();
+                    ImGui::PushItemWidth(windowSize.x / 8);
+                        ImGui::InputFloat(("##" + propertyName + std::to_string(i) + "0").c_str(), &fKey, 0.0f, 0.0f, "%0.0f", 0);
+                    ImGui::PopItemWidth();
+                    ImGui::SameLine();
+                    if (type == GeneralizedPropertyType::Vec2)
+                        ImGui::InputFloat2((std::string("Keyframe ") + std::to_string(i - 1) + "##" + propertyName + std::to_string(i)).c_str(), fProperty, "%0.3f", 0);
+                    else
+                        ImGui::InputFloat3((std::string("Keyframe ") + std::to_string(i - 1) + "##" + propertyName + std::to_string(i)).c_str(), fProperty, "%0.3f", 0);
+
+                    property.at(i).at(0) = fKey;
+                    property.at(i).at(1) = fProperty[0];
+                    property.at(i).at(2) = fProperty[1];
+                    if (GeneralizedPropertyType::Vec3 == type) {
+                        property.at(i).at(3) = fProperty[2];
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
 
 Electron::json_t Electron::RenderLayer::InterpolateProperty(json_t keyframes) {
     int targetKeyframeIndex = -1;
@@ -127,11 +179,11 @@ Electron::json_t Electron::RenderLayer::InterpolateProperty(json_t keyframes) {
     }
 
     switch (propertyType) {
-        // Vector interpolation
         case GeneralizedPropertyType::Float: {
             interpolatedValue.push_back(glm::mix(beginKeyframeValue.at(0), endKeyframeValue.at(0), interpolationPercentage));
             break;
         }
+        // Vector interpolation
         case GeneralizedPropertyType::Vec2:
         case GeneralizedPropertyType::Vec3: {
             if (beginKeyframeValue.size() != endKeyframeValue.size()) {

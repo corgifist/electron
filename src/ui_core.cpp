@@ -74,6 +74,10 @@ HEADER_TARGET bool UIMenuItem(const char* menu, const char* shortcut) {
     return ImGui::MenuItem(menu, shortcut);
 }
 
+HEADER_TARGET bool UIMenuItemEnhanced(const char* menu, const char* shortcut, bool enabled) {
+    return ImGui::MenuItem(menu, shortcut, false, enabled);
+}
+
 HEADER_TARGET bool UIMenuItemShortcutless(const char* menu) {
     return ImGui::MenuItem(menu);
 }

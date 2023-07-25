@@ -33,6 +33,11 @@ extern "C" {
                     if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN"), "Ctrl+P+O")) {
                         FileDialogImplOpenDialog("OpenProjectDialog", "Open project", nullptr, ".");
                     }
+                    if (UIMenuItemEnhanced(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_OPEN_RECENT_PROJECT")) + ": " + JSON_AS_TYPE(instance->configMap["LastProject"], std::string)), "Ctrl+P+L", JSON_AS_TYPE(instance->configMap["LastProject"], std::string) != "null")) {
+                        ProjectMap project{};
+                        project.path = instance->configMap["LastProject"];
+                        project.propertiesMap = json_t::parse(std::fstream(std::string(project.path) + "/project.json"));
+                    }
                     UISeparator();
                     if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "RELOAD_APPLICATION"), "")) {
                         UIEndMenu();

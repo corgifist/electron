@@ -31,6 +31,11 @@ void Electron::LayerProperties::Render(AppInstance* instance) {
     ImGui::PushFont(instance->largeFont);
         ImGui::Text((std::string(targetLayer->layerPublicName) + "<" + std::to_string(instance->selectedRenderLayer) + ">").c_str());
     ImGui::PopFont();
+    ImGui::Spacing();
+    ImGui::Text("Dynamic Library: %s", targetLayer->layerLibrary.c_str());
+    ImGui::Spacing();
     ImGui::Separator();
+    ImGui::Spacing();
+    targetLayer->RenderProperties();
     ImGui::End();
 }

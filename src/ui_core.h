@@ -36,6 +36,7 @@ UI_EXPORT  void UIEndMainMenuBar() ;
 UI_EXPORT  bool UIBeginMenu(const char* menu) ;
 UI_EXPORT  void UIEndMenu() ;
 UI_EXPORT  bool UIMenuItem(const char* menu, const char* shortcut) ;
+UI_EXPORT  bool UIMenuItemEnhanced(const char* menu, const char* shortcut, bool enabled) ;
 UI_EXPORT  bool UIMenuItemShortcutless(const char* menu) ;
 UI_EXPORT  bool UIBeginMenuBar() ;
 UI_EXPORT  void UIEndMenuBar() ;

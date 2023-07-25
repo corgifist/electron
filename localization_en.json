@@ -25,6 +25,7 @@
     "PROJECT_CONFIGURATION_SMOOTHNESS_DECREASE": "This option is unstable! Use at your own risk",
     "PROJECT_CONFIGURATION_RESIZE_INTERPOLATION": "Smooth render preview resize animation",
     "PROJECT_CONFIGURATION_SYSTEMWIDE_PERFORMANCE_DROP": "Option can cause system-wide perofrmance drops!",
+    "PROJECT_CONFIGURATION_OPEN_RECENT_PROJECT": "Open recent project",
     "RENDER_PREVIEW_WINDOW_TITLE": "Render Preview",
     "RENDER_PREVIEW_SETTINGS_HEADER": "Render preview settings",
     "RENDER_PREVIEW_PREVIEW_SCALE": "Preview scale",

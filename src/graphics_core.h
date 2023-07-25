@@ -3,6 +3,7 @@
 #include "electron.h"
 #include "dylib.hpp"
 #include "time.h"
+#include "ImGui/imgui.h"
 
 #define MAX_DEPTH 100000000
 
@@ -73,6 +74,7 @@ namespace Electron {
     };
 
     typedef void (*Electron_LayerImplF)(RenderLayer*, RenderRequestMetadata);
+    typedef void (*Electron_PropertyRenderImplF)(RenderLayer*);
 
 
     class RenderLayer {
@@ -83,6 +85,8 @@ namespace Electron {
         std::string layerLibrary;
         json_t properties;
         Electron_LayerImplF layerProcedure;
+        Electron_PropertyRenderImplF initializationProcedure;
+        Electron_PropertyRenderImplF propertiesProcedure;
         GraphicsCore* graphicsOwner;
         bool initialized;
         std::string layerPublicName;
@@ -95,6 +99,8 @@ namespace Electron {
         ~RenderLayer() {};
 
         void Render(GraphicsCore* graphics, RenderRequestMetadata metadata);
+        void RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName);
+        void RenderProperties();
         json_t InterpolateProperty(json_t property);
         json_t ExtractExactValue(json_t property);
     };
