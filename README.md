@@ -1,5 +1,5 @@
 # Electron
-(Primarily Linux) Extensible CPU Video Editor
+Cross-Platform Extensible CPU Video Editor
 
 
 ## Screenshot gallery
