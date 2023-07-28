@@ -7,9 +7,7 @@ extern "C" {
     ELECTRON_EXPORT void ProjectConfigurationRender(AppInstance* instance) {
         static bool dockInitialized = false;
 
-        if (instance->isNativeWindow) {
-            UIDockSpaceOverViewport(UIGetViewport(), ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
-        }
+        UIDockSpaceOverViewport(UIGetViewport(), ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
 
         ImGuiWindowFlags dockFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar;
         if (instance->isNativeWindow) {
@@ -37,6 +35,7 @@ extern "C" {
                         ProjectMap project{};
                         project.path = instance->configMap["LastProject"];
                         project.propertiesMap = json_t::parse(std::fstream(std::string(project.path) + "/project.json"));
+                        ShortcutsImplCtrlPO(instance, project);
                     }
                     UISeparator();
                     if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "RELOAD_APPLICATION"), "")) {

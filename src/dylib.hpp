@@ -161,10 +161,6 @@ public:
 
     dylib() {
         m_handle = open(NULL);
-
-        if (!m_handle) {
-            throw std::runtime_error("cannot load executable api!");
-        }
     }
 
     ~dylib() {
@@ -276,6 +272,9 @@ protected:
 
     static native_handle_type open(const char *path) noexcept {
 #if (defined(_WIN32) || defined(_WIN64))
+        if (path == NULL) {
+            return GetModuleHandleA(NULL);
+        }
         return LoadLibraryA(path);
 #else
         return dlopen(path, RTLD_NOW | RTLD_LOCAL);

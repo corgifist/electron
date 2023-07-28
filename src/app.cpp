@@ -7,6 +7,7 @@ static void electronGlfwError(int id, const char* description) {
 
 Electron::AppInstance::AppInstance() {
     this->selectedRenderLayer = 0;
+    this->showBadConfigMessage = false;
 
     glfwSetErrorCallback(electronGlfwError);
     if (!glfwInit()) {
@@ -28,7 +29,7 @@ Electron::AppInstance::AppInstance() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_VISIBLE, isNativeWindow);
 
-    this->displayHandle = glfwCreateWindow(isNativeWindow ? 1280 : 2, isNativeWindow ? 720 : 2, "Electron", nullptr, nullptr);
+    this->displayHandle = glfwCreateWindow(isNativeWindow ? 1280 : 8, isNativeWindow ? 720 : 8, "Electron", nullptr, nullptr);
     if (this->displayHandle == nullptr) {
         throw std::runtime_error("cannot instantiate window!");
     }

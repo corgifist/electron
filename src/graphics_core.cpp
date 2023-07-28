@@ -101,6 +101,7 @@ void Electron::RenderLayer::RenderProperties() {
 }
 
 void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName) {
+#ifndef ELECTRON_IMPLEMENTATION_MODE
     ImVec2 windowSize = ImGui::GetWindowSize();
     if (ImGui::CollapsingHeader(propertyName.c_str())) {
         ImGui::Text("Keyframes:");
@@ -137,6 +138,7 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
             }
         }
     }
+#endif
 }
 
 

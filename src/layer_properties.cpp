@@ -33,6 +33,7 @@ void Electron::LayerProperties::Render(AppInstance* instance) {
     ImGui::PopFont();
     ImGui::Spacing();
     ImGui::Text("Dynamic Library: %s", targetLayer->layerLibrary.c_str());
+    ImGui::Text("Render bounds: %i -> %i", targetLayer->beginFrame, targetLayer->endFrame);
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();

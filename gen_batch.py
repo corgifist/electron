@@ -20,7 +20,7 @@ def compile_to_object_file(cpp_file):
 
 def compile_to_shared_library(cpp_file, compile_task):
     acc = CPP_COMPILER
-    acc += f" -shared -o {'lib' if LIBRARY_EXTENSION == 'so' else ''}{cpp_file}.{LIBRARY_EXTENSION} {cpp_file}.o {'-lopengl32' if LIBRARY_EXTENSION == '.dll' else ''} -lstdc++ -ldl -fPIC -g -L. -m64"
+    acc += f" -shared -o {'lib' if LIBRARY_EXTENSION == 'so' else ''}{cpp_file}.{LIBRARY_EXTENSION} {cpp_file}.o {'-lopengl32 -lglfw3' if LIBRARY_EXTENSION == 'dll' else ''} {'-lstdc++ -ldl' if LIBRARY_EXTENSION == 'so' else ''} -fPIC -g -L. -m64"
     return acc
 
 
@@ -28,6 +28,10 @@ compile_task_list = get_all_files_with_ext("CMakeFiles/Electron.dir/src", "o")
 compile_task_list = list(filter(lambda x: 'ui_core' not in x, compile_task_list))
 compile_task_list = list(filter(lambda x: 'imgui' not in x, compile_task_list))
 compile_task_list = list(filter(lambda x: 'ImGui' not in x, compile_task_list))
+compile_task_list = list(filter(lambda x: 'project_configuration' not in x, compile_task_list))
+compile_task_list = list(filter(lambda x: 'render_preview' not in x, compile_task_list))
+compile_task_list = list(filter(lambda x: 'layer_properties' not in x, compile_task_list))
+compile_task_list = list(map(lambda x: x.replace("\\", "/"), compile_task_list))
 
 print(compile_task_list)
 

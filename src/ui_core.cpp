@@ -1,6 +1,10 @@
 #include "ui_core.h"
 
-#define HEADER_TARGET
+#ifdef WIN32
+    #define HEADER_TARGET __declspec(dllexport)
+#else
+    #define HEADER_TARGET
+#endif
 
 HEADER_TARGET float UIExportTest() {
     print("Hello, Export!");
@@ -352,6 +356,22 @@ HEADER_TARGET void UISetItemTooltip(const char* tooltip) {
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
         ImGui::SetTooltip(tooltip);
     }
+}
+
+HEADER_TARGET void RenderLayerImplRenderProperty(Electron::RenderLayer* layer, Electron::GeneralizedPropertyType type, Electron::json_t& property, std::string name) {
+    layer->RenderProperty(type, property, name);
+}
+
+HEADER_TARGET Electron::json_t RenderLayerImplInterpolateProperty(Electron::RenderLayer* layer, Electron::json_t property) {
+    return layer->InterpolateProperty(property);
+}
+
+HEADER_TARGET void PixelBufferImplSetPixel(Electron::PixelBuffer* buffer, int x, int y, Electron::Pixel pixel) {
+    buffer->SetPixel(x, y, pixel);
+}
+
+HEADER_TARGET bool RectContains(Electron::Rect rect, Electron::Point point) {
+    return rect.contains(point);
 }
 
 HEADER_TARGET void ShortcutsImplCtrlWL(void* instance) {

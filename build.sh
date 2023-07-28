@@ -5,12 +5,21 @@ gen_batch() {
 
 compile_layer() {
     gen_batch $1
-    mv lib$1.so layers/lib$1.so
+    if [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+        echo Moving 
+        mv lib$1.so layers/lib$1.so
+    else
+        echo Moving $1.dll
+        mv $1.dll layers/$1.dll
+    fi
 }
 
 pkill Electron
-rm Electron
+rm Electron.exe
 rm *.so
+rm *.dll
+rm -r layers
+mkdir layers
 ./generate_headers.sh
 cmake . -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
 make

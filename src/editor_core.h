@@ -4,7 +4,7 @@
 #include "dylib.hpp"
 
 #if defined(WIN32) || defined(WIN64)
-    #define ELECTRON_EXPORT __declspec(dllexport) __stdcall
+    #define ELECTRON_EXPORT __declspec(dllexport)
     #define ELECTRON_IMPORT __declspec(dllimport)
 #else
     #define ELECTRON_EXPORT
@@ -16,11 +16,11 @@ namespace Electron {
     class AppInstance;
     class RenderPreview;
 
+#ifndef ELECTRON_IMPLEMENTATION_MODE
     struct ImplDylibs {
         static dylib ProjectConfigurationDylib;
         static dylib RenderPreviewDylib;
     };
-
 
     static void InitializeDylibs() {
         ImplDylibs::ProjectConfigurationDylib = dylib(".", "project_configuration_impl");
@@ -31,6 +31,10 @@ namespace Electron {
         ImplDylibs::ProjectConfigurationDylib = dylib();
         ImplDylibs::RenderPreviewDylib = dylib();
     }
+
+
+#endif
+
 
     class ElectronUI {
     public:

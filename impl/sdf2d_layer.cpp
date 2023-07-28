@@ -43,10 +43,10 @@ extern "C" {
         auto size = vec2();
         auto color = vec3();
         auto angle = 0.0f; {
-            auto positionVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Position"]), std::vector<float>);
-            auto sizeVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Size"]), std::vector<float>);
-            auto colorVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Color"]), std::vector<float>);
-            auto angleFloat = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Angle"]), std::vector<float>);
+            auto positionVector = JSON_AS_TYPE(RenderLayerImplInterpolateProperty(owner, owner->properties["Position"]), std::vector<float>);
+            auto sizeVector = JSON_AS_TYPE(RenderLayerImplInterpolateProperty(owner, owner->properties["Size"]), std::vector<float>);
+            auto colorVector = JSON_AS_TYPE(RenderLayerImplInterpolateProperty(owner, owner->properties["Color"]), std::vector<float>);
+            auto angleFloat = JSON_AS_TYPE(RenderLayerImplInterpolateProperty(owner, owner->properties["Angle"]), std::vector<float>);
             position = vec2(positionVector[0], positionVector[1]);
             size = vec2(sizeVector[0], sizeVector[1]); 
             color = vec3(colorVector[0], colorVector[1], colorVector[2]);
@@ -66,11 +66,11 @@ extern "C" {
                 vec2 softwareP = uv;
                 softwareP = softwareP * rotationMatrix(angle);
 
-                if (Rect{softwarePosition.x, softwarePosition.y, size.x, size.y}.contains(Point{softwareP.x, softwareP.y})) {
+                if (RectContains(Rect{softwarePosition.x, softwarePosition.y, size.x, size.y}, Point{softwareP.x, softwareP.y})) {
                     vec2 correctedShift = vec2(position.x * rbo->color.width, position.y * rbo->color.height);
                     vec2 correctedUV = softwareP;
-                    rbo->color.SetPixel(x + correctedShift.x, y + correctedShift.y, Pixel(color.x, color.y, color.z, 1));
-                    rbo->uv.SetPixel(x + correctedShift.x, y + correctedShift.y, Pixel((correctedUV.x - softwarePosition.x) / (size.x), (correctedUV.y - softwarePosition.y) / (size.y), 0, 1));
+                    PixelBufferImplSetPixel(&rbo->color, x + correctedShift.x, y + correctedShift.y, Pixel(color.x, color.y, color.z, 1));
+                    PixelBufferImplSetPixel(&rbo->uv, x + correctedShift.x, y + correctedShift.y, Pixel((correctedUV.x - softwarePosition.x) / (size.x), (correctedUV.y - softwarePosition.y) / (size.y), 0, 1));
                 }
             }
         }
@@ -78,9 +78,12 @@ extern "C" {
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
         json_t& position = layer->properties["Position"];
-        layer->RenderProperty(GeneralizedPropertyType::Vec2, position, "Position");
+        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec2, position, "Position");
 
         json_t& size = layer->properties["Size"];
-        layer->RenderProperty(GeneralizedPropertyType::Vec2, size, "Size");
+        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec2, size, "Size");
+
+        json_t& color = layer->properties["Color"];
+        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec3, color, "Color");
     }
 }
