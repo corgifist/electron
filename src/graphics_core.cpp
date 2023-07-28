@@ -118,7 +118,7 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
     ImVec2 windowSize = ImGui::GetWindowSize();
     float inputFieldDivider = 8;
     if (ImGui::CollapsingHeader(propertyName.c_str())) {
-        if (ImGui::Button("Add keyframe")) {
+        if (ImGui::Button((std::string("Add keyframe") + "##" + propertyName).c_str())) {
             float currentViewTime = graphicsOwner->renderFrame - beginFrame;
             json_t addedKeyframe = {currentViewTime};
             int typeSize = 1;

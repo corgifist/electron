@@ -86,6 +86,13 @@ void Electron::AppInstance::Run() {
         std::ofstream configStream("config.json");
         configStream << configMap.dump();
 
+        if (JSON_AS_TYPE(configMap["LastProject"], std::string) != "null") {
+            struct stat sb;
+            if (stat(JSON_AS_TYPE(configMap["LastProject"], std::string).c_str(), &sb) != 0) {
+                configMap["LastProject"] = "null";
+            }
+        }
+
         if (projectOpened) {
             configMap["LastProject"] = project.path;
         }

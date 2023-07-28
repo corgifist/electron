@@ -109,7 +109,7 @@ extern "C" {
             UIImage(gpuTex, scaledPreviewSize);
             
             float translatedTimelineValue = (float) instance->graphics.renderFrame / (float) instance->graphics.renderFramerate;
-            float translatedRenderLength = (float) instance->graphics.renderLength / (float) instance->graphics.renderFramerate;
+            float translatedRenderLength = (float) instance->graphics.renderLength / 60.0f;
             
             if (playing) {
                 if ((int) instance->graphics.renderFrame >= instance->graphics.renderLength) {

@@ -12,6 +12,7 @@
 #include <cmath>
 #include <filesystem>
 #include <regex>
+#include <sys/stat.h>
 #include "json.hpp"
 #define GLM_FORCE_SWIZZLE
 #include "glm/glm.hpp"

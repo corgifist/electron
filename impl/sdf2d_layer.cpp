@@ -16,6 +16,10 @@ extern "C" {
         return mat2( c, -s, s, c );
     }
 
+    vec2 rotate(vec2 uv, float th) {
+        return mat2(cos(th), sin(th), -sin(th), cos(th)) * uv;
+    }
+
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
         owner->properties["Position"] = {
             GeneralizedPropertyType::Vec2,
@@ -64,13 +68,14 @@ extern "C" {
 
                 vec2 softwarePosition = -(size / 2.0f);
                 vec2 softwareP = uv;
-                softwareP = softwareP * rotationMatrix(angle);
+                softwareP -= position;
+                softwareP = rotate(softwareP, radians(angle));
 
                 if (RectContains(Rect{softwarePosition.x, softwarePosition.y, size.x, size.y}, Point{softwareP.x, softwareP.y})) {
                     vec2 correctedShift = vec2(position.x * rbo->color.width, position.y * rbo->color.height);
                     vec2 correctedUV = softwareP;
-                    PixelBufferImplSetPixel(&rbo->color, x + correctedShift.x, y + correctedShift.y, Pixel(color.x, color.y, color.z, 1));
-                    PixelBufferImplSetPixel(&rbo->uv, x + correctedShift.x, y + correctedShift.y, Pixel((correctedUV.x - softwarePosition.x) / (size.x), (correctedUV.y - softwarePosition.y) / (size.y), 0, 1));
+                    PixelBufferImplSetPixel(&rbo->color, x, y, Pixel(color.x, color.y, color.z, 1));
+                    PixelBufferImplSetPixel(&rbo->uv, x, y, Pixel((correctedUV.x - softwarePosition.x) / (size.x), (correctedUV.y - softwarePosition.y) / (size.y), 0, 1));
                 }
             }
         }
