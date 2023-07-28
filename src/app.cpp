@@ -137,6 +137,9 @@ void Electron::AppInstance::Run() {
             }
             windowIndex++;
         }
+        for (auto& layer : graphics.layers) {
+            layer.sortingProcedure(&layer);
+        }
         if (destroyWindowTarget != -1) {
             delete this->content[destroyWindowTarget];
             this->content.erase(content.begin() + destroyWindowTarget);

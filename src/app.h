@@ -15,7 +15,6 @@
 #include "shortcuts.h"
 
 #define ELECTRON_JSON_TO_STRING(x) 
-#define ELECTRON_GET_LOCALIZATION(instance, localization) (((instance->localizationMap[localization]).template get<std::string>()).c_str())
 
 #ifdef ELECTRON_IMPLEMENTATION_MODE
     #define DIRECT_SIGNAL(instance, signal) ElectronImplDirectSignal(instance, signal)

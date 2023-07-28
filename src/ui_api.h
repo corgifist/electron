@@ -112,6 +112,7 @@ IMPLEMENT_UI_VOID_WRAPPER(RenderLayerImplRenderProperty, (Electron::RenderLayer*
 IMPLEMENT_UI_WRAPPER(RenderLayerImplInterpolateProperty, (Electron::RenderLayer* layer,Electron::json_t property), (layer ,property), (Electron::RenderLayer* ,Electron::json_t), Electron::json_t)
 IMPLEMENT_UI_VOID_WRAPPER(PixelBufferImplSetPixel, (Electron::PixelBuffer* buffer,int x,int y,Electron::Pixel pixel), (buffer ,x ,y ,pixel), (Electron::PixelBuffer* ,int ,int ,Electron::Pixel))
 IMPLEMENT_UI_WRAPPER(RectContains, (Electron::Rect rect,Electron::Point point), (rect ,point), (Electron::Rect ,Electron::Point), bool)
+IMPLEMENT_UI_VOID_WRAPPER(RenderLayerImplSortKeyframes, (Electron::RenderLayer* layer,Electron::json_t& keyframes), (layer ,keyframes), (Electron::RenderLayer* ,Electron::json_t&))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWL, (void* instance), (instance), (void*))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWR, (void* instance), (instance), (void*))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPO, (void* instance,Electron::ProjectMap projectMap), (instance ,projectMap), (void* ,Electron::ProjectMap))

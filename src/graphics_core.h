@@ -87,6 +87,7 @@ namespace Electron {
         Electron_LayerImplF layerProcedure;
         Electron_PropertyRenderImplF initializationProcedure;
         Electron_PropertyRenderImplF propertiesProcedure;
+        Electron_PropertyRenderImplF sortingProcedure;
         GraphicsCore* graphicsOwner;
         bool initialized;
         std::string layerPublicName;
@@ -101,6 +102,8 @@ namespace Electron {
         void Render(GraphicsCore* graphics, RenderRequestMetadata metadata);
         void RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName);
         void RenderProperties();
+
+        void SortKeyframes(json_t& keyframes);
         json_t InterpolateProperty(json_t property);
         json_t ExtractExactValue(json_t property);
     };

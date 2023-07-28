@@ -85,5 +85,22 @@ extern "C" {
 
         json_t& color = layer->properties["Color"];
         RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec3, color, "Color");
+
+        json_t& angle = layer->properties["Angle"];
+        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Float, angle, "Angle");
+    }
+
+    ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {
+        json_t& position = layer->properties["Position"];
+        RenderLayerImplSortKeyframes(layer, position);
+
+        json_t& size = layer->properties["Size"];
+        RenderLayerImplSortKeyframes(layer, size);
+
+        json_t& color = layer->properties["Color"];
+        RenderLayerImplSortKeyframes(layer, color);
+
+        json_t& angle = layer->properties["Angle"];
+        RenderLayerImplSortKeyframes(layer, angle);
     }
 }

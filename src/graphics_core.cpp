@@ -82,6 +82,7 @@ Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     this->layerProcedure = implementation->get_function<void(RenderLayer*, RenderRequestMetadata)>("LayerRender");
     this->propertiesProcedure = implementation->get_function<void(RenderLayer*)>("LayerPropertiesRender");
     this->initializationProcedure = implementation->get_function<void(RenderLayer*)>("LayerInitialize");
+    this->sortingProcedure = implementation->get_function<void(RenderLayer*)>("LayerSortKeyframes");
     this->layerPublicName = implementation->get_variable<std::string>("LayerName");
     if (!layerProcedure) throw std::runtime_error("bad layer procedure!");
 
@@ -96,6 +97,18 @@ void Electron::RenderLayer::Render(GraphicsCore* graphics, RenderRequestMetadata
         layerProcedure(this, metadata);
 }
 
+void Electron::RenderLayer::SortKeyframes(json_t& keyframes) {
+    for (int step = 0; step < keyframes.size() - 1; ++step) {
+        for (int i = 1; i < keyframes.size() - step - 1; ++i) {
+            if (keyframes.at(i).at(0) > keyframes.at(i + 1).at(0)) {
+                json_t temp = keyframes.at(i);
+                keyframes.at(i) = keyframes.at(i + 1);
+                keyframes.at(i + 1) = temp;
+            }
+        }
+    }
+}
+
 void Electron::RenderLayer::RenderProperties() {
     propertiesProcedure(this);
 }
@@ -103,14 +116,38 @@ void Electron::RenderLayer::RenderProperties() {
 void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName) {
 #ifndef ELECTRON_IMPLEMENTATION_MODE
     ImVec2 windowSize = ImGui::GetWindowSize();
+    float inputFieldDivider = 8;
     if (ImGui::CollapsingHeader(propertyName.c_str())) {
+        if (ImGui::Button("Add keyframe")) {
+            float currentViewTime = graphicsOwner->renderFrame - beginFrame;
+            json_t addedKeyframe = {currentViewTime};
+            int typeSize = 1;
+            switch (type) {
+                case GeneralizedPropertyType::Vec2: {
+                    typeSize = 2;
+                    break;
+                }
+                case GeneralizedPropertyType::Vec3: {
+                    typeSize = 3;
+                    break;
+                }
+                case GeneralizedPropertyType::Float: {
+                    typeSize = 1;
+                    break;
+                }
+            }
+            for (int i = 0; i < typeSize; i++) {
+                addedKeyframe.push_back(0.0f);
+            }
+            property.push_back(addedKeyframe);
+        }
         ImGui::Text("Keyframes:");
         for (int i = 1; i < property.size(); i++) {
+            bool breakLoop = false;
             switch (type) {
                 case GeneralizedPropertyType::Vec2:
                 case GeneralizedPropertyType::Vec3: {
                     float fKey = JSON_AS_TYPE(property.at(i).at(0), float);
-                    print(property.at(i).dump());
                     std::vector<float> vectorProperty = {};
                     vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(1), float));
                     vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(2), float));
@@ -118,14 +155,31 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
                         vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(3), float));
                     }
                     float* fProperty = vectorProperty.data();
-                    ImGui::PushItemWidth(windowSize.x / 8);
-                        ImGui::InputFloat(("##" + propertyName + std::to_string(i) + "0").c_str(), &fKey, 0.0f, 0.0f, "%0.0f", 0);
+                    ImGui::PushItemWidth(30);
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{1, 0, 0, 1});
+                    
+                            if (ImGui::Button(("Delete##" + propertyName + std::to_string(i) + "KeyframeDelete").c_str())) {
+                                property.erase(property.begin() + i);
+                                breakLoop = true;
+                                ImGui::PopStyleColor();
+                                ImGui::PopItemWidth();
+                                break;
+                            }
+                    
+                        ImGui::PopStyleColor();
+                    ImGui::PopItemWidth();
+                    ImGui::SameLine();
+
+
+                    ImGui::PushItemWidth(windowSize.x / inputFieldDivider);
+                        ImGui::InputFloat(("##" + propertyName + std::to_string(i) + "0").c_str(), &fKey, 0.0f, 0.0f, "%0.0f", ImGuiInputTextFlags_EnterReturnsTrue);
                     ImGui::PopItemWidth();
                     ImGui::SameLine();
                     if (type == GeneralizedPropertyType::Vec2)
                         ImGui::InputFloat2((std::string("Keyframe ") + std::to_string(i - 1) + "##" + propertyName + std::to_string(i)).c_str(), fProperty, "%0.3f", 0);
                     else
                         ImGui::InputFloat3((std::string("Keyframe ") + std::to_string(i - 1) + "##" + propertyName + std::to_string(i)).c_str(), fProperty, "%0.3f", 0);
+
 
                     property.at(i).at(0) = fKey;
                     property.at(i).at(1) = fProperty[0];
@@ -135,7 +189,38 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
                     }
                     break;
                 }
+                case GeneralizedPropertyType::Float: {
+                    float fKey = JSON_AS_TYPE(property.at(i).at(0), float);
+                    float fValue = JSON_AS_TYPE(property.at(i).at(1), float);
+
+                    ImGui::PushItemWidth(30);
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{1, 0, 0, 1});
+                    
+                            if (ImGui::Button(("Delete##" + propertyName + std::to_string(i) + "KeyframeDelete").c_str())) {
+                                property.erase(property.begin() + i);
+                                breakLoop = true;
+                                ImGui::PopStyleColor();
+                                ImGui::PopItemWidth();
+                                break;
+                            }
+                    
+                        ImGui::PopStyleColor();
+                    ImGui::PopItemWidth();
+                    ImGui::SameLine();
+                    ImGui::SameLine();
+
+                    ImGui::PushItemWidth(windowSize.x / inputFieldDivider);
+                        ImGui::InputFloat(("##" + propertyName + std::to_string(i) + "0").c_str(), &fKey, 0.0f, 0.0f, "%0.0f", ImGuiInputTextFlags_EnterReturnsTrue);
+                    ImGui::PopItemWidth();
+                    ImGui::SameLine();
+                    ImGui::InputFloat((std::string("Keyframe ") + std::to_string(i - 1) + "##" + propertyName + std::to_string(i)).c_str(), &fValue, 0, 0, "%0.2f", 0);
+
+                    property.at(i).at(0) = fKey;
+                    property.at(i).at(1) = fValue;
+                    break;
+                }
             }
+            if (breakLoop) break;
         }
     }
 #endif

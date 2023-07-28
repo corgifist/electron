@@ -374,6 +374,10 @@ HEADER_TARGET bool RectContains(Electron::Rect rect, Electron::Point point) {
     return rect.contains(point);
 }
 
+HEADER_TARGET void RenderLayerImplSortKeyframes(Electron::RenderLayer* layer, Electron::json_t& keyframes) {
+    layer->SortKeyframes(keyframes);
+}
+
 HEADER_TARGET void ShortcutsImplCtrlWL(void* instance) {
     SHORTCUT(Ctrl_W_L)();
 }

@@ -22,6 +22,7 @@
 
 #define print(expr) std::cout << expr << std::endl
 #define JSON_AS_TYPE(x, type) (x).template get<type>()
+#define ELECTRON_GET_LOCALIZATION(instance, localization) (((instance->localizationMap[localization]).template get<std::string>()).c_str())
 
 #define DUMP_VAR(var) print(#var << " = " << (var))
 
