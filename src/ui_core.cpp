@@ -378,6 +378,10 @@ HEADER_TARGET void RenderLayerImplSortKeyframes(Electron::RenderLayer* layer, El
     layer->SortKeyframes(keyframes);
 }
 
+HEADER_TARGET void RenderLayerImplRenderProperties(Electron::RenderLayer* layer) {
+    layer->RenderProperties();
+}
+
 HEADER_TARGET void ShortcutsImplCtrlWL(void* instance) {
     SHORTCUT(Ctrl_W_L)();
 }

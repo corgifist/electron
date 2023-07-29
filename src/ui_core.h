@@ -110,6 +110,7 @@ UI_EXPORT  Electron::json_t RenderLayerImplInterpolateProperty(Electron::RenderL
 UI_EXPORT  void PixelBufferImplSetPixel(Electron::PixelBuffer* buffer, int x, int y, Electron::Pixel pixel) ;
 UI_EXPORT  bool RectContains(Electron::Rect rect, Electron::Point point) ;
 UI_EXPORT  void RenderLayerImplSortKeyframes(Electron::RenderLayer* layer, Electron::json_t& keyframes) ;
+UI_EXPORT  void RenderLayerImplRenderProperties(Electron::RenderLayer* layer) ;
 UI_EXPORT  void ShortcutsImplCtrlWL(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlWR(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap projectMap) ;

@@ -20,16 +20,19 @@ namespace Electron {
     struct ImplDylibs {
         static dylib ProjectConfigurationDylib;
         static dylib RenderPreviewDylib;
+        static dylib LayerPropertiesDylib;
     };
 
     static void InitializeDylibs() {
         ImplDylibs::ProjectConfigurationDylib = dylib(".", "project_configuration_impl");
         ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
+        ImplDylibs::LayerPropertiesDylib = dylib(".", "layer_properties_impl");
     }
 
     static void DestroyDylibs() {
         ImplDylibs::ProjectConfigurationDylib = dylib();
         ImplDylibs::RenderPreviewDylib = dylib();
+        ImplDylibs::LayerPropertiesDylib = dylib();
     }
 
 
@@ -74,7 +77,7 @@ namespace Electron {
         Electron_ImplF impl;
     
     public:
-        LayerProperties() {}
+        LayerProperties();
 
         void Render(AppInstance* instance);
     };

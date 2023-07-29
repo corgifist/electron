@@ -1,0 +1,44 @@
+build_arch = "64"
+if eq(get_platform(), windows) {
+    target_exec = "Electron.exe"
+} else {
+    target_exec = "Electron"
+}
+
+scenario build {
+    print("starting Electron build")
+    object_add_compile_definition("GLEW_STATIC")
+    objects = object_compile(
+        cat(glob_files("src", "cpp"), glob_files("src", "c")),
+        $build_arch
+    )
+
+    deps = list()
+    if eq(get_platform(), windows) {
+        list_append($deps, opengl32)
+        list_append($deps, glfw3)
+    } else {
+        list_append($deps, glut)
+        list_append($deps, glfw)
+        list_append($deps, GL)
+        list_append($deps, GLU)
+        list_append($deps, m)
+        list_append($deps, Xrandr)
+        list_append($deps, Xi)
+        list_append($deps, X11)
+        list_append($deps, pthread)
+        list_append($deps, "stdc++")
+        list_append($deps, dl)
+    }
+
+    link_executable($objects, $target_exec, $deps)
+}
+
+scenario clean {
+    if path_exists($target_exec) {
+        rm($target_exec) 
+    }
+    object_clean()
+}
+
+default_scenario = build
