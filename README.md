@@ -3,7 +3,7 @@ Cross-Platform Extensible CPU Video Editor
 
 ## Building
 Electron uses it's own build system to make development faster and smoother.
-HashBuild is the maybe the most minimalistic build system ever that can provide straightforward way to build your project
+HashBuild is maybe the most minimalistic build system ever that can provide straightforward way to build your project
 
 Building steps:
 * (Optional) Run `python HashBuild/hash_build.py -dclean`
