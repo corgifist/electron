@@ -49,4 +49,6 @@ Use this command to run specific scenario without chaning `default_scenario` var
 python hash_build.py -dscenario_name
 ```
 
+To get example of advanced usage of HashBuild look at Electron's build file
+
 Work In Progress...
