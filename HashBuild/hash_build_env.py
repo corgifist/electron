@@ -12,7 +12,10 @@ from hash_build_common import warning, info, fatal
 scenarios = {}
 var_env = {}
 
+compile_options = []
 compile_definitions = []
+link_options = []
+include_path = None
 
 def cat(a, b):
     return a + b
@@ -20,8 +23,7 @@ def cat(a, b):
 def object_compile(source, arch):
     machine_bit = f'-m{arch}'
     if type(source) == str:
-        object_compile([source], arch)
-        return
+        return object_compile([source], arch)
     
     progress = 0
     result_objects = list()
@@ -46,9 +48,11 @@ def object_compile(source, arch):
                 extension = file.split(".")[-1]
                 std_cxx_override_exists = 'std_cxx' in var_env
                 std_c_override_exists = 'std_c' in var_env
-                compile_command = f"{'g++' if extension == 'cpp' else 'gcc'} -c {file} {machine_bit} -o {output_file} {' '.join(compile_definitions)} {('-std=c++' + var_env['std_cxx'] if std_cxx_override_exists else '') if extension == 'cpp' else ''} {('-std=c' + var_env['std_c'] if std_c_override_exists else '') if extension == 'c' else ''}"
-                compilation_process = subprocess.run(list(filter(lambda x: x != '', compile_command.split(" "))), stdout=sys.stdout)
+                compile_command = f"{'g++' if extension == 'cpp' else 'gcc'} {'-I' + include_path if include_path != None else ''} -c {file} {machine_bit} -o {output_file} {' '.join(compile_definitions)} {('-std=c++' + var_env['std_cxx'] if std_cxx_override_exists else '') if extension == 'cpp' else ''} {('-std=c' + var_env['std_c'] if std_c_override_exists else '') if extension == 'c' else ''}{' ' + ' '.join(compile_options) if len(compile_options) != 0 else ''}"
+                compilation_process = subprocess.run(list(filter(lambda x: x != '', compile_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)
                 if (compilation_process.returncode != 0):
+                    hash_file.close()
+                    os.remove(f"hash_build_files/{name_hash}.hash")
                     fatal(f"compiler returned non-zero code while compiling {file}")
                     exit(1)
                 info(f"[{progress}/{len(source)}] compiling {file} ({output_file})")
@@ -84,17 +88,22 @@ def eq(a, b):
 def _not(x):
     return not x
 
-def link_executable(objects, out, link_libraries=[]):
+def link_executable(objects, out, link_libraries=[], shared='null'):
+    if shared == 'shared':
+        shared = True
+    else:
+        shared = False
     str_objects = ' '.join(objects)
     transformed_libraries = list()
     for lib in link_libraries:
         transformed_libraries.append("-l" + lib)
-    link_command = f"g++ -o {out} {str_objects}{' ' if len(link_libraries) != 0 else ''}{' '.join(transformed_libraries)}"
-    info(f"linking executable {out}")
-    link_process = subprocess.run(link_command.split(" "), stdout=sys.stdout, stderr=sys.stderr)
+    link_command = f"g++ {'-shared' if shared else ''} -o {out} {str_objects}{' ' if len(link_libraries) != 0 else ''}{' '.join(transformed_libraries)} {' '.join(link_options)}"
+    info(f"linking {'executable' if not shared else 'shared library'} {out}")
+    link_process = subprocess.run(list(filter(lambda x: x != '', link_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)
     if link_process.returncode != 0:
         fatal("linker returned non-zero code!")
         exit(1)
+    return True
 
 def list_append(list, value):
     list.append(value)
@@ -102,10 +111,28 @@ def list_append(list, value):
 def object_add_compile_definition(definition):
     compile_definitions.append("-D" + definition)
 
+interpreter_proc = None
+
+def call_scenario(scenario_name):
+    interpreter_proc(scenarios[scenario_name])
+
+def object_set_include_path(x):
+    global include_path
+    include_path = x
+
+def for_each(iterable, var_name, callee):
+    for x in iterable:
+        var_env[var_name] = x
+        interpreter_proc(scenarios[callee])
+
+def object_add_link_options(option):
+    link_options.append("-" + option)
+
 functions = {
     "print": print,
     'cat': cat,
     "object_compile": object_compile,
+    "object_add_compile_options": lambda x: compile_options.append("-" + x),
     "dump_var_env": dump_var_env,
     "glob_files": glob_files,
     "object_clean": object_clean,
@@ -114,13 +141,21 @@ functions = {
     'eq': eq,
     "list": list,
     "rm": os.remove,
+    "rmtree": shutil.rmtree,
+    "mkdir": os.mkdir,
     "path_exists": os.path.exists,
     "object_add_compile_definition": object_add_compile_definition,
+    "object_set_include_path": object_set_include_path,
     "list_append": list_append,
     "warning": warning,
+    "call_scenario": call_scenario,
+    "for_each": for_each,
+    "subprocess_run": subprocess.run,
+    "object_add_link_options": object_add_link_options,
     "info": info,
     "fatal": fatal,
-    'not': _not
+    'not': _not,
+    "mv": shutil.move
 }
 
 def arg_wrapper(func, args):

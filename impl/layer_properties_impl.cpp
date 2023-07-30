@@ -17,7 +17,7 @@ extern "C" {
                 return;
             }
 
-            if (instance->selectedRenderLayer == -1) {
+            if (instance->selectedRenderLayer == -1 || instance->graphics.layers.size() == 0) {
                 std::string noLayerWarning = ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_NO_LAYER_SELECTED");
                 ImVec2 warningSize = UICalcTextSize(CSTR(noLayerWarning));
                 UISetCursorPos({windowSize.x / 2.0f - warningSize.x / 2.0f, windowSize.y / 2.0f - warningSize.y / 2.0f});

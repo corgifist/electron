@@ -1,12 +1,32 @@
 build_arch = "64"
 if eq(get_platform(), windows) {
     target_exec = "Electron.exe"
+    dylib_prefix = ".dll"
+    object_add_link_options(mwindows)
 } else {
     target_exec = "Electron"
+    dylib_prefix = ".so"
 }
 
-scenario build {
-    print("starting Electron build")
+object_add_link_options(m64)
+
+impl_target_file = null
+
+object_add_compile_options(fPIC)
+object_add_compile_options(g) # include debug symbols
+
+target_impls = [
+    project_configuration_impl,
+    render_preview_impl,
+    layer_properties_impl
+]
+
+target_layers = [
+    sdf2d_layer
+]
+
+scenario build_core {
+    info("starting Electron build")
     object_add_compile_definition("GLEW_STATIC")
     objects = object_compile(
         cat(glob_files("src", "cpp"), glob_files("src", "c")),
@@ -17,28 +37,74 @@ scenario build {
     if eq(get_platform(), windows) {
         list_append($deps, opengl32)
         list_append($deps, glfw3)
+        deps = [
+            opengl32, glfw3
+        ]
     } else {
-        list_append($deps, glut)
-        list_append($deps, glfw)
-        list_append($deps, GL)
-        list_append($deps, GLU)
-        list_append($deps, m)
-        list_append($deps, Xrandr)
-        list_append($deps, Xi)
-        list_append($deps, X11)
-        list_append($deps, pthread)
-        list_append($deps, "stdc++")
-        list_append($deps, dl)
+        deps = [
+            glut, glfw, GL, GLU, m, Xrandr, Xi, X11, pthread, "stdc++", dl
+        ]
     }
 
     link_executable($objects, $target_exec, $deps)
+}
+
+scenario build_impl {
+    info(cat("compiling impl ", $impl_target_file))
+
+    shared_library_name = cat($impl_target_file, $dylib_prefix)
+    object_set_include_path("src/")
+    impl_objects = object_compile(cat(cat("impl/", $impl_target_file), ".cpp"), $build_arch)
+
+    impl_deps = list()
+    if eq(get_platform(), windows) {
+        impl_deps = [
+            opengl32, glfw3
+        ]
+    } else {
+        impl_deps = [
+            "stdc++", dl
+        ]
+    }
+    link_executable($impl_objects, $shared_library_name, $impl_deps, shared)
+}
+
+scenario build_layer {
+    call_scenario(build_impl)
+    mv(cat($impl_target_file, $dylib_prefix), cat("layers/", cat($impl_target_file, $dylib_prefix)))
 }
 
 scenario clean {
     if path_exists($target_exec) {
         rm($target_exec) 
     }
+    if path_exists("layers/") {
+        rmtree("layers")
+    }
+    mkdir("layers")
     object_clean()
+}
+
+scenario build {
+    subprocess_run([python, "generate_ui_core_header.py", "src/ui_core.h"])
+    subprocess_run([python, "generate_ui_api.py", "src/ui_api.h"])
+    call_scenario(build_core)
+
+    if not(path_exists("layers/")) {
+        mkdir("layers")
+    }
+
+    object_add_compile_definition(ELECTRON_IMPLEMENTATION_MODE)
+    for_each($target_impls, impl_target_file, execute_build_impl)
+    for_each($target_layers, impl_target_file, execute_build_layer)
+}
+
+scenario execute_build_impl {
+    call_scenario(build_impl)
+}
+
+scenario execute_build_layer {
+    call_scenario(build_layer)
 }
 
 default_scenario = build

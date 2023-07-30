@@ -306,11 +306,11 @@ Electron::GraphicsCore::GraphicsCore() {
 
     this->outputBufferType = PreviewOutputBufferType_Color;
 
-    RenderLayer sampleRect("sdf2d_layer");
+    /* RenderLayer sampleRect("sdf2d_layer");
     sampleRect.beginFrame = 0;
-    sampleRect.endFrame = 60;
+    sampleRect.endFrame = 60; */
 
-    this->layers.push_back(sampleRect);
+    /* this->layers.push_back(sampleRect); */
 }
 
 void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {

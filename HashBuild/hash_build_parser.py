@@ -34,13 +34,25 @@ def p_assignment(node):
 def p_call(node):
     '''call : ATOM LPAREN call_args RPAREN
             | ATOM LPAREN RPAREN
-            | scenario'''
+            | list'''
     if len(node) == 2:
         node[0] = node[1]
     elif len(node) == 4:
         node[0] = ['call', node[1], []]
     else:
         node[0] = ['call', node[1], node[3]]
+
+def p_list(node):
+    '''list : LBRACKET RBRACKET
+            | LBRACKET call_args RBRACKET
+            | scenario'''
+    if len(node) == 3:
+        node[0] = ['list', []]
+    elif len(node) == 2:
+        node[0] = node[1]
+    else:
+        node[0] = ['list', node[2]]
+    
 
 def p_scenario(node):
     '''scenario : SCENARIO ATOM block

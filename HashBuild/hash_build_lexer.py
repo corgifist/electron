@@ -15,7 +15,9 @@ tokens = (
     'SCENARIO',
     'DOLLAR',
     'IF',
-    'ELSE'
+    'ELSE',
+    'LBRACKET',
+    'RBRACKET'
 )
 
 
@@ -28,6 +30,8 @@ t_EQ        = r'\='
 t_COMMA     = r'\,'
 t_DOLLAR    = r'\$'
 
+t_LBRACKET  = r'\['
+t_RBRACKET  = r'\]'
 
 def t_COMMENT(t):
     r'\#.*'

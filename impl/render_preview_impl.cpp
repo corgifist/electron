@@ -107,22 +107,23 @@ extern "C" {
             
             UISetCursorX(windowSize.x / 2.0f - scaledPreviewSize.x / 2.0f);
             UIImage(gpuTex, scaledPreviewSize);
-            
-            float translatedTimelineValue = (float) instance->graphics.renderFrame / (float) instance->graphics.renderFramerate;
-            float translatedRenderLength = (float) instance->graphics.renderLength / 60.0f;
-            
+
             if (playing) {
                 if ((int) instance->graphics.renderFrame >= instance->graphics.renderLength) {
                     if (looping) {
-                        translatedTimelineValue = 0.0f;
+                        instance->graphics.renderFrame = 0.0f;
                     } else playing = false;
                 } else {
                     if (instance->graphics.renderFrame < instance->graphics.renderLength) {
                         float intFrame = 1.0f / (60.0 / instance->graphics.renderFramerate);
-                        translatedTimelineValue += (1.0f / 60.0f) * intFrame;
+                        instance->graphics.renderFrame += intFrame;
                     }
                 }
             }
+
+            float translatedTimelineValue = (float) instance->graphics.renderFrame / 60.0f;
+            float translatedRenderLength = (float) instance->graphics.renderLength / 60.0f;
+        
 
             if (UIButton(ELECTRON_GET_LOCALIZATION(instance, playing ? "RENDER_PREVIEW_PAUSE" : "RENDER_PREVIEW_PLAY"))) {
                 playing = !playing;
@@ -132,7 +133,7 @@ extern "C" {
             UIPushItemWidth(windowSize.x * 0.96f);
                 UISliderFloat("##", &translatedTimelineValue, 0, translatedRenderLength, CSTR(std::string("%0.") + std::to_string(JSON_AS_TYPE(instance->configMap["RenderPreviewTimelinePrescision"], int)) + "f"), 0);
             UIPopItemWidth();
-            instance->graphics.renderFrame = (float) instance->graphics.renderFramerate * translatedTimelineValue;
+            instance->graphics.renderFrame = 60.0f * translatedTimelineValue;
             UISpacing();
             UISeparator();
             UISpacing();
@@ -181,6 +182,9 @@ extern "C" {
             }
             UISeparator();
             UIText(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_PROFILING")) + ":"));
+            if (instance->graphics.layers.size() == 0) {
+                UIText(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_NOTHING_TO_PROFILE_HERE"));
+            }
             for (int i = 0; i < instance->graphics.layers.size(); i++) {
                 RenderLayer& layer = instance->graphics.layers[i];
                 float renderTime = instance->graphics.layers[i].renderTime;
