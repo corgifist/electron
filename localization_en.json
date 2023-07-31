@@ -51,7 +51,9 @@
     "LAYER_PROPERTIES_DYNAMIC_LIBRARY": "Dynamic library",
     "LAYER_PROPERTIES_RENDER_BOUNDS": "Render bounds",
     "RELOAD_APPLICATION": "Reload editor",
+    "ASSET_MANAGER_TITLE": "Asset Manager",
     "GENERIC_OK": "OK",
     "GENERIC_NO": "NO",
-    "GENERIC_YES": "YES"
+    "GENERIC_YES": "YES",
+    "GENERIC_PLACEHOLDER": "Imagine here a powerful video editor with tons of effects and plugins available"
 }
