@@ -53,6 +53,7 @@ namespace Electron {
         Shortcuts shortcuts;
         ImGuiID nativeWindowCentralDockID;
         int selectedRenderLayer;
+        AssetRegistry assets;
 
         ImFont* largeFont;
         

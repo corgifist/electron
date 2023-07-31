@@ -21,18 +21,21 @@ namespace Electron {
         static dylib ProjectConfigurationDylib;
         static dylib RenderPreviewDylib;
         static dylib LayerPropertiesDylib;
+        static dylib AssetManagerDylib;
     };
 
     static void InitializeDylibs() {
         ImplDylibs::ProjectConfigurationDylib = dylib(".", "project_configuration_impl");
         ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
         ImplDylibs::LayerPropertiesDylib = dylib(".", "layer_properties_impl");
+        ImplDylibs::AssetManagerDylib = dylib(".", "asset_manager_impl");
     }
 
     static void DestroyDylibs() {
         ImplDylibs::ProjectConfigurationDylib = dylib();
         ImplDylibs::RenderPreviewDylib = dylib();
         ImplDylibs::LayerPropertiesDylib = dylib();
+        ImplDylibs::AssetManagerDylib = dylib();
     }
 
 
@@ -78,6 +81,16 @@ namespace Electron {
     
     public:
         LayerProperties();
+
+        void Render(AppInstance* instance);
+    };
+
+    class AssetManager : public ElectronUI {
+    private:
+        Electron_ImplF impl;
+
+    public:
+        AssetManager();
 
         void Render(AppInstance* instance);
     };

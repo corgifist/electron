@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <regex>
 #include <sys/stat.h>
+#include <variant>
 #include "json.hpp"
 #define GLM_FORCE_SWIZZLE
 #include "glm/glm.hpp"
@@ -37,6 +38,7 @@ namespace Electron {
         ElectronSignal_SpawnRenderPreview,
         ElectronSignal_SpawnLayerProperties,
         ElectronSignal_ReloadSystem,
+        ElectronSignal_SpawnAssetManager,
         ElectronSignal_A,
         ElectronSignal_B,
         ElectronSignal_None
@@ -44,6 +46,11 @@ namespace Electron {
 
 
     std::string exec(const char* cmd);
+
+    inline bool file_exists(const std::string& name) {
+        struct stat buffer;   
+        return (stat (name.c_str(), &buffer) == 0); 
+    }
 
     struct ElectronVector2f {
         float x, y;

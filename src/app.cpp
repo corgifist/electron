@@ -65,6 +65,7 @@ Electron::AppInstance::AppInstance() {
     this->graphics.ResizeRenderBuffer(128, 128);
     this->shortcuts.owner = this;
 
+    this->assets.owner = &graphics;
 
     InitializeDylibs();
 }
@@ -87,8 +88,7 @@ void Electron::AppInstance::Run() {
         configStream << configMap.dump();
 
         if (JSON_AS_TYPE(configMap["LastProject"], std::string) != "null") {
-            struct stat sb;
-            if (stat(JSON_AS_TYPE(configMap["LastProject"], std::string).c_str(), &sb) != 0) {
+            if (!file_exists(JSON_AS_TYPE(configMap["LastProject"], std::string))) {
                 configMap["LastProject"] = "null";
             }
         }
@@ -190,6 +190,10 @@ void Electron::AppInstance::ExecuteSignal(ElectronSignal signal, int windowIndex
         }
         case ElectronSignal_SpawnLayerProperties: {
             AddUIContent(new LayerProperties());
+            break;
+        }
+        case ElectronSignal_SpawnAssetManager: {
+            AddUIContent(new AssetManager());
             break;
         }
         case ElectronSignal_A: {

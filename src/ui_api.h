@@ -118,3 +118,4 @@ IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWL, (void* instance), (instance), (vo
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWR, (void* instance), (instance), (void*))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPO, (void* instance,Electron::ProjectMap projectMap), (instance ,projectMap), (void* ,Electron::ProjectMap))
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPE, (void* instance), (instance), (void*))
+IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWA, (void* instance), (instance), (void*))

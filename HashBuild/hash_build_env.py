@@ -49,13 +49,13 @@ def object_compile(source, arch):
                 std_cxx_override_exists = 'std_cxx' in var_env
                 std_c_override_exists = 'std_c' in var_env
                 compile_command = f"{'g++' if extension == 'cpp' else 'gcc'} {'-I' + include_path if include_path != None else ''} -c {file} {machine_bit} -o {output_file} {' '.join(compile_definitions)} {('-std=c++' + var_env['std_cxx'] if std_cxx_override_exists else '') if extension == 'cpp' else ''} {('-std=c' + var_env['std_c'] if std_c_override_exists else '') if extension == 'c' else ''}{' ' + ' '.join(compile_options) if len(compile_options) != 0 else ''}"
+                info(f"[{progress}/{len(source)}] compiling {file} ({output_file})")
                 compilation_process = subprocess.run(list(filter(lambda x: x != '', compile_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)
                 if (compilation_process.returncode != 0):
                     hash_file.close()
                     os.remove(f"hash_build_files/{name_hash}.hash")
                     fatal(f"compiler returned non-zero code while compiling {file}")
                     exit(1)
-                info(f"[{progress}/{len(source)}] compiling {file} ({output_file})")
     
     info("object compilation finished successfully")
     return result_objects

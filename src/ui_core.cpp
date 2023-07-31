@@ -397,3 +397,7 @@ HEADER_TARGET void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap proj
 HEADER_TARGET void ShortcutsImplCtrlPE(void* instance) {
     SHORTCUT(Ctrl_P_E)();
 }
+
+HEADER_TARGET void ShortcutsImplCtrlWA(void* instance) {
+    SHORTCUT(Ctrl_W_A)();
+}

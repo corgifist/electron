@@ -66,6 +66,37 @@ Electron::RenderBuffer::RenderBuffer(int width, int height) {
     this->depth = PixelBuffer(width, height);
 }
 
+void Electron::AssetRegistry::LoadFromProject(json_t project) {
+    Clear();
+
+    json_t assetRegistry = project["AssetRegistry"];
+    for (int i = 0; i < assetRegistry.size(); i++) {
+        json_t assetDescription = assetRegistry.at(i);
+        TextureUnionType type = TextureUnionTypeFromString(JSON_AS_TYPE(assetDescription["Type"], std::string));
+        std::string resourcePath = JSON_AS_TYPE(assetDescription["Path"], std::string);
+        std::string internalName = JSON_AS_TYPE(assetDescription["InternalName"], std::string);
+
+        TextureUnion assetUnion{};
+        assetUnion.type = type;
+        assetUnion.path = resourcePath;
+        assetUnion.name = internalName;
+        switch (assetUnion.type) {
+            case TextureUnionType::Texture: {
+                assetUnion.as = owner->CreateBufferFromImage(assetUnion.path.c_str());
+                break;
+            }
+        }
+
+        assets.push_back(assetUnion);
+
+        print("[" << JSON_AS_TYPE(assetDescription["Type"], std::string) << "] Loaded " << resourcePath);
+    }
+}
+
+void Electron::AssetRegistry::Clear() {
+    this->assets.clear();
+}
+
 Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     this->layerLibrary = layerLibrary;
     print("Loading dylib " + layerLibrary);
@@ -306,11 +337,11 @@ Electron::GraphicsCore::GraphicsCore() {
 
     this->outputBufferType = PreviewOutputBufferType_Color;
 
-    /* RenderLayer sampleRect("sdf2d_layer");
+    RenderLayer sampleRect("sdf2d_layer");
     sampleRect.beginFrame = 0;
-    sampleRect.endFrame = 60; */
+    sampleRect.endFrame = 60;
 
-    /* this->layers.push_back(sampleRect); */
+    this->layers.push_back(sampleRect);
 }
 
 void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
@@ -377,6 +408,9 @@ Electron::PixelBuffer& Electron::GraphicsCore::GetPreviewBufferByOutputType() {
 
 Electron::PixelBuffer Electron::GraphicsCore::CreateBufferFromImage(const char* filename) {
     int width, height, channels;
+    if (!file_exists(filename)) {
+        throw std::runtime_error("image " + std::string(filename) + " is not found");
+    }
     stbi_uc* image = stbi_load(filename, &width, &height, &channels, 0);
 
     std::vector<stbi_uc> vector_image = std::vector<stbi_uc>(image, image + width * height * channels);

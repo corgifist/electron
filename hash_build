@@ -18,7 +18,8 @@ object_add_compile_options(g) # include debug symbols
 target_impls = [
     project_configuration_impl,
     render_preview_impl,
-    layer_properties_impl
+    layer_properties_impl,
+    asset_manager_impl
 ]
 
 target_layers = [
@@ -86,8 +87,10 @@ scenario clean {
 }
 
 scenario build {
-    subprocess_run([python, "generate_ui_core_header.py", "src/ui_core.h"])
-    subprocess_run([python, "generate_ui_api.py", "src/ui_api.h"])
+    if path_exists($target_exec) {
+        rm($target_exec)
+    }
+    call_scenario(generate_headers)
     call_scenario(build_core)
 
     if not(path_exists("layers/")) {
@@ -105,6 +108,11 @@ scenario execute_build_impl {
 
 scenario execute_build_layer {
     call_scenario(build_layer)
+}
+
+scenario generate_headers {
+    subprocess_run([python, "generate_ui_core_header.py", "src/ui_core.h"])
+    subprocess_run([python, "generate_ui_api.py", "src/ui_api.h"])
 }
 
 default_scenario = build

@@ -42,6 +42,9 @@ namespace Electron {
         RenderRequestMetadata() {}
     };
 
+    enum class TextureUnionType {
+        Texture
+    };
 
     class PixelBuffer {
     private:
@@ -53,7 +56,7 @@ namespace Electron {
 
         PixelBuffer(int width, int height);
         PixelBuffer(std::vector<Pixel> pixels, int width, int height);
-        PixelBuffer() = default;
+        PixelBuffer() {};
 
         void SetPixel(int x, int y, Pixel);
         Pixel GetPixel(int x, int y);
@@ -63,6 +66,18 @@ namespace Electron {
         GLuint BuildGPUTexture();
     };
 
+    using InternalTextureUnion = std::variant<PixelBuffer>;
+
+    struct TextureUnion {
+        TextureUnionType type;
+        InternalTextureUnion as;
+        std::string name;
+        std::string path;
+
+        TextureUnion() {}
+        ~TextureUnion() {}
+    }; 
+
     class RenderBuffer {
     public:
         PixelBuffer color;
@@ -71,6 +86,23 @@ namespace Electron {
 
         RenderBuffer(int width, int height);
         RenderBuffer() = default;
+    };
+
+    struct AssetRegistry {
+        std::vector<TextureUnion> assets;
+        GraphicsCore* owner;
+
+        AssetRegistry() {}
+
+        void LoadFromProject(json_t project);
+        void Clear();
+
+        static TextureUnionType TextureUnionTypeFromString(std::string type) {
+            if (type == "Image") {
+                return TextureUnionType::Texture;
+            }
+            return TextureUnionType::Texture;
+        }
     };
 
     typedef void (*Electron_LayerImplF)(RenderLayer*, RenderRequestMetadata);

@@ -56,6 +56,9 @@ extern "C" {
                     if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_TITLE"), "Ctrl+W+L")) {
                         ShortcutsImplCtrlWL(instance);
                     }
+                    if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE"), "Ctrl+W+A")) {
+                        ShortcutsImplCtrlWA(instance);
+                    }
                     UIEndMenu();
                 }
                 UIEndMenuBar();

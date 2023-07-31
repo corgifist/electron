@@ -115,6 +115,7 @@ UI_EXPORT  void ShortcutsImplCtrlWL(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlWR(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap projectMap) ;
 UI_EXPORT  void ShortcutsImplCtrlPE(void* instance) ;
+UI_EXPORT  void ShortcutsImplCtrlWA(void* instance) ;
 
 }
 #undef UI_EXPORT
