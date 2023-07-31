@@ -15,5 +15,7 @@ Read `HashBuild/README.md` to get more info about HashBuild
 
 
 ## Screenshot gallery
-* July 20 2022 (WIP)
+* July 31 2023
+![Screenshot 1](gallery/GalleryImage2.png "Added some basic layers, working on asset management")
+* July 20 2023 (WIP)
 ![Screenshot 1](gallery/GalleryImage1.png "Very very WIP screenshot")
