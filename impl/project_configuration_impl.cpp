@@ -4,29 +4,25 @@
 using namespace Electron;
 
 extern "C" {
-    ELECTRON_EXPORT void ProjectConfigurationRender(AppInstance* instance) {
-        static bool dockInitialized = false;
 
-        UIDockSpaceOverViewport(UIGetViewport(), ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
+    int UIFormatString(char* buf, size_t buf_size, const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        int w = vsnprintf(buf, buf_size, fmt, args);
+        va_end(args);
+        if (buf == NULL)
+            return w;
+        if (w == -1 || w >= (int)buf_size)
+            w = (int)buf_size - 1;
+        buf[w] = 0;
+        return w;
+    }
 
-        ImGuiWindowFlags dockFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar;
-        if (instance->isNativeWindow) {
-            dockFlags |= ImGuiWindowFlags_NoTitleBar;
+    UIBeginMenuBar_T MenuBarBeginProc = UIBeginMenuBar;
+    UIEndMenuBar_T MenuBarEndProc = UIEndMenuBar;
 
-            ImVec2 displaySize = UIGetDisplaySize();
-            UISetNextWindowPos({0, 0}, ImGuiCond_Once);
-            UISetNextWindowSize({640, 480}, ImGuiCond_Once);
-        } else {
-            UISetNextWindowSize({640, 480}, ImGuiCond_Once);
-        }
- 
-        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE"), instance)), instance->isNativeWindow ? ElectronSignal_None : ElectronSignal_CloseEditor, dockFlags);
-            std::string projectTip = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_CREATE_PROJECT_TIP");
-            ImVec2 windowSize = UIGetWindowSize();
-            ImVec2 tipSize = UICalcTextSize(projectTip.c_str());
-    
-
-            if (UIBeginMenuBar()) {
+    void ProjectConfigurationRenderTabBar(AppInstance* instance) {
+        if (MenuBarBeginProc()) {
                 if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU"))) {
                     if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN"), "Ctrl+P+O")) {
                         FileDialogImplOpenDialog("OpenProjectDialog", "Open project", nullptr, ".");
@@ -61,8 +57,68 @@ extern "C" {
                     }
                     UIEndMenu();
                 }
-                UIEndMenuBar();
+                MenuBarEndProc();
             }
+    }
+
+    ELECTRON_EXPORT void ProjectConfigurationRender(AppInstance* instance) {
+        static bool dockInitialized = false;
+
+        // UIDockSpaceOverViewport(UIGetViewport(), ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
+
+        {
+            ImGuiViewport* viewport = UIGetViewport();
+            ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+
+            UISetNextWindowPos(viewport->WorkPos, 0);
+            UISetNextWindowSize(viewport->WorkSize, 0);
+            UISetNextWindowViewport(viewport->ID);
+
+            ImGuiWindowFlags host_window_flags = 0;
+
+            host_window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking;
+            host_window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_MenuBar;
+            if (dockspace_flags & ImGuiDockNodeFlags_PassthruCentralNode)
+                host_window_flags |= ImGuiWindowFlags_NoBackground;
+
+
+            char label[32];
+            UIFormatString(label, IM_ARRAYSIZE(label), "DockSpaceViewport_%08X", viewport->ID);
+
+            UIPushStyleVarF(ImGuiStyleVar_WindowRounding, 0);
+            UIPushStyleVarF(ImGuiStyleVar_WindowBorderSize, 0);
+            UIPushStyleVarV2(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+
+            UIBegin(label, ElectronSignal_None, host_window_flags);
+            UIPopStyleVarIter(3);
+            if (instance->isNativeWindow) {
+                ProjectConfigurationRenderTabBar(instance);
+            }
+
+            ImGuiID dockspace_id = UIGetID("DockSpace");
+            UIDockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags, nullptr);
+
+            UIEnd();
+        };
+
+        ImGuiWindowFlags dockFlags = ImGuiWindowFlags_NoCollapse;
+        if (instance->isNativeWindow) {
+
+            ImVec2 displaySize = UIGetDisplaySize();
+            UISetNextWindowPos({0, 0}, ImGuiCond_Once);
+            UISetNextWindowSize({640, 480}, ImGuiCond_Once);
+        } else {
+            dockFlags |= ImGuiWindowFlags_MenuBar;
+            UISetNextWindowSize({640, 480}, ImGuiCond_Once);
+        }
+ 
+        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE"), instance)), instance->isNativeWindow ? ElectronSignal_None : ElectronSignal_CloseEditor, dockFlags);
+            std::string projectTip = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_CREATE_PROJECT_TIP");
+            ImVec2 windowSize = UIGetWindowSize();
+            ImVec2 tipSize = UICalcTextSize(projectTip.c_str());
+    
+
+        if (!instance->isNativeWindow) (instance);        
 
         if (UIBeginTabBar(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_CONFIGURATIONS"), 0)) {
             if (UIBeginTabItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_PROJECT_CONFIGURATION"), nullptr, 0)) {

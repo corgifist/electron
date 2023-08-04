@@ -60,11 +60,47 @@ void Electron::PixelBuffer::FillColor(Pixel pixel, RenderRequestMetadata metadat
     }
 }
 
+void Electron::PixelBuffer::DestroyGPUTexture(GLuint texture) {
+    glDeleteTextures(1, &texture);
+}
+
 Electron::RenderBuffer::RenderBuffer(int width, int height) {
     this->color = PixelBuffer(width, height);
     this->uv = PixelBuffer(width, height);
     this->depth = PixelBuffer(width, height);
 }
+
+void Electron::TextureUnion::RebuildAssetData(GraphicsCore* owner) {
+    if (!file_exists(path)) {
+        invalid = true;
+        GenerateUVTexture();
+        return;
+    } else invalid = false;
+    previousPboGpuTexture = -1;
+    pboGpuTexture = -1;
+    switch (type) {
+        case TextureUnionType::Texture: {
+            if (pboGpuTexture != -1) {
+                PixelBuffer::DestroyGPUTexture(pboGpuTexture);
+            }
+            as = owner->CreateBufferFromImage(path.c_str());
+            pboGpuTexture = std::get<PixelBuffer>(as).BuildGPUTexture();
+            break;
+        }
+    }
+}
+
+void Electron::TextureUnion::GenerateUVTexture() {
+    type = TextureUnionType::Texture;
+    as = PixelBuffer(256, 256);
+    PixelBuffer& buffer = std::get<PixelBuffer>(as);
+    for (int x = 0; x < buffer.width; x++) {
+        for (int y = 0; y < buffer.height; y++) {
+            buffer.SetPixel(x, y, Pixel((float) x / (float) buffer.width, (float) y / (float) buffer.height, 0, 1));
+        }
+    }
+}
+
 
 void Electron::AssetRegistry::LoadFromProject(json_t project) {
     Clear();
@@ -80,17 +116,55 @@ void Electron::AssetRegistry::LoadFromProject(json_t project) {
         assetUnion.type = type;
         assetUnion.path = resourcePath;
         assetUnion.name = internalName;
-        switch (assetUnion.type) {
-            case TextureUnionType::Texture: {
-                assetUnion.as = owner->CreateBufferFromImage(assetUnion.path.c_str());
-                break;
+        assetUnion.strType = JSON_AS_TYPE(assetDescription["Type"], std::string);
+        assetUnion.invalid = !file_exists(resourcePath);
+        assetUnion.previousPboGpuTexture = -1;
+        assetUnion.pboGpuTexture = -1;
+        if (!assetUnion.invalid) {
+            switch (assetUnion.type) {
+                case TextureUnionType::Texture: {
+                    assetUnion.as = owner->CreateBufferFromImage(assetUnion.path.c_str());
+                    assetUnion.pboGpuTexture = std::get<PixelBuffer>(assetUnion.as).BuildGPUTexture();
+                    break;
+                }
             }
+        } else {    // filling invalid texture with UV coord
+            assetUnion.GenerateUVTexture();
         }
 
         assets.push_back(assetUnion);
 
         print("[" << JSON_AS_TYPE(assetDescription["Type"], std::string) << "] Loaded " << resourcePath);
     }
+}
+
+std::string Electron::AssetRegistry::ImportAsset(std::string path) {
+    if (!file_exists(path)) {
+        return "File does not exist '" + path + "'";
+    }
+    TextureUnionType targetAssetType = static_cast<TextureUnionType>(0);
+    if (hasEnding(path, ".png") || hasEnding(path, ".jpg") || hasEnding(path, ".jpeg") || hasEnding(path, ".tga")) {
+        targetAssetType = TextureUnionType::Texture;
+    } else return "Unsupported file format '" + path + "'";
+
+    TextureUnion assetUnion{};
+    assetUnion.type = targetAssetType;
+    assetUnion.strType = StringFromTextureUnionType(targetAssetType);
+    assetUnion.path = path;
+    switch (targetAssetType) {
+        case TextureUnionType::Texture: {
+            assetUnion.as = owner->CreateBufferFromImage(path.c_str());
+            break;
+        }
+
+        default: {
+            return "Editor is now unstable, restart now.";
+        }
+    }
+
+    assets.push_back(assetUnion);
+
+    return "";
 }
 
 void Electron::AssetRegistry::Clear() {

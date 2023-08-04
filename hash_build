@@ -82,6 +82,7 @@ scenario clean {
     if path_exists("layers/") {
         rmtree("layers")
     }
+
     mkdir("layers")
     object_clean()
 }

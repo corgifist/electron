@@ -52,6 +52,19 @@ namespace Electron {
         return (stat (name.c_str(), &buffer) == 0); 
     }
 
+    static bool hasEnding (std::string const &fullString, std::string const &ending) {
+        if (fullString.length() >= ending.length()) {
+            return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
+        } else {
+            return false;
+        }
+    }
+
+    static std::ifstream::pos_type filesize(const char* filename) {
+        std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+        return in.tellg(); 
+    }
+
     struct ElectronVector2f {
         float x, y;
 

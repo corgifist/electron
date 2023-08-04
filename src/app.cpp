@@ -160,6 +160,20 @@ void Electron::AppInstance::Run() {
         }
         glfwMakeContextCurrent(this->displayHandle);
         glfwSwapBuffers(this->displayHandle);
+
+        if (projectOpened) {
+            json_t assetRegistry = {};
+            auto& _assets = this->assets.assets;
+            for (int i = 0; i < _assets.size(); i++) {
+                json_t assetDescription = {};
+                TextureUnion texUnion = _assets[i];
+                assetDescription["InternalName"] = texUnion.name;
+                assetDescription["Path"] = texUnion.path;
+                assetDescription["Type"] = texUnion.strType;
+                assetRegistry.push_back(assetDescription);
+            }
+            project.propertiesMap["AssetRegistry"] = assetRegistry;
+        }
     }
     editor_end:
 

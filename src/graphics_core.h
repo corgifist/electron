@@ -4,8 +4,10 @@
 #include "dylib.hpp"
 #include "time.h"
 #include "ImGui/imgui.h"
+#include "GLEW/include/GL/glew.h"
 
 #define MAX_DEPTH 100000000
+#define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,"
 
 namespace Electron {
 
@@ -64,6 +66,8 @@ namespace Electron {
         void FillColor(Pixel pixel, RenderRequestMetadata metadata);
 
         GLuint BuildGPUTexture();
+
+        static void DestroyGPUTexture(GLuint texture);
     };
 
     using InternalTextureUnion = std::variant<PixelBuffer>;
@@ -73,9 +77,27 @@ namespace Electron {
         InternalTextureUnion as;
         std::string name;
         std::string path;
+        std::string strType;
+        GLuint pboGpuTexture;
+        GLuint previousPboGpuTexture;
+        bool invalid;
+        float previewScale;
 
-        TextureUnion() {}
-        ~TextureUnion() {}
+        TextureUnion() {
+            this->previewScale = 1.0f;
+            this->pboGpuTexture = -1;
+        }
+        ~TextureUnion() {
+#ifndef ELECTRON_IMPLEMENTATION_MODE
+            if (pboGpuTexture != -1) {
+                PixelBuffer::DestroyGPUTexture(pboGpuTexture);
+            }
+#endif
+        }
+
+        void RebuildAssetData(GraphicsCore* owner);
+
+        void GenerateUVTexture();
     }; 
 
     class RenderBuffer {
@@ -97,11 +119,22 @@ namespace Electron {
         void LoadFromProject(json_t project);
         void Clear();
 
+        std::string ImportAsset(std::string path);
+
         static TextureUnionType TextureUnionTypeFromString(std::string type) {
             if (type == "Image") {
                 return TextureUnionType::Texture;
             }
             return TextureUnionType::Texture;
+        }
+
+        static std::string StringFromTextureUnionType(TextureUnionType type) {
+            switch (type) {
+                case TextureUnionType::Texture: {
+                    return "Image";
+                }
+            }
+            return "Image";
         }
     };
 

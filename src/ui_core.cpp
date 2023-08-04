@@ -118,11 +118,19 @@ HEADER_TARGET void UISpacing() {
     ImGui::Spacing();
 }
 
+HEADER_TARGET void UIDummy(ImVec2 size) {
+    ImGui::Dummy(size);
+}
+
+HEADER_TARGET void TextureUnionImplRebuildAssetData(Electron::TextureUnion* _union, Electron::GraphicsCore* owner) {
+    _union->RebuildAssetData(owner);
+}
+
 HEADER_TARGET bool UICollapsingHeader(const char* name) {
     return ImGui::CollapsingHeader(name);
 }
 
-HEADER_TARGET void UISetNextWindowSize(ImVec2 size, ImGuiCond_ cond) {
+HEADER_TARGET void UISetNextWindowSize(ImVec2 size, ImGuiCond cond) {
     ImGui::SetNextWindowSize(size, cond);
 }
 
@@ -216,8 +224,16 @@ HEADER_TARGET void FileDialogImplClose() {
     ImGuiFileDialog::Instance()->Close();
 }
 
-HEADER_TARGET void UIInputField(const char* label, std::string* string, ImGuiInputTextFlags flags) {
-    ImGui::InputText(label, string, flags);
+HEADER_TARGET bool UIInputField(const char* label, std::string* string, ImGuiInputTextFlags flags) {
+    return ImGui::InputText(label, string, flags);
+}
+
+HEADER_TARGET std::string AssetManagerImplImportAsset(Electron::AssetRegistry* registry, std::string path) {
+    return registry->ImportAsset(path);
+}
+
+HEADER_TARGET bool UICenteredButton(Electron::AppInstance* instance, const char* label) {
+    return instance->ButtonCenteredOnLine(label);
 }
 
 HEADER_TARGET void UIInputInt2(const char* label, int* ptr, ImGuiInputTextFlags flags) {
@@ -380,6 +396,38 @@ HEADER_TARGET void RenderLayerImplSortKeyframes(Electron::RenderLayer* layer, El
 
 HEADER_TARGET void RenderLayerImplRenderProperties(Electron::RenderLayer* layer) {
     layer->RenderProperties();
+}
+
+HEADER_TARGET void UIPushColor(ImGuiCol col, ImVec4 color) {
+    ImGui::PushStyleColor(col, color);
+}
+
+HEADER_TARGET void UIPopColor() {
+    ImGui::PopStyleColor();
+}
+
+HEADER_TARGET void UISetNextWindowViewport(ImGuiID viewport) {
+    ImGui::SetNextWindowViewport(viewport);
+}
+
+HEADER_TARGET void UIPushStyleVarF(ImGuiStyleVar var, float f) {
+    ImGui::PushStyleVar(var, f);
+}
+
+HEADER_TARGET void UIPushStyleVarV2(ImGuiStyleVar var, ImVec2 vec) {
+    ImGui::PushStyleVar(var, vec);
+}
+
+HEADER_TARGET void UIPopStyleVar() {
+    ImGui::PopStyleVar();
+}
+
+HEADER_TARGET void UIPopStyleVarIter(int count) {
+    ImGui::PopStyleVar(count);
+}
+
+HEADER_TARGET void PixelBufferImplDestroyGPUTexture(GLuint texture) {
+    Electron::PixelBuffer::DestroyGPUTexture(texture);
 }
 
 HEADER_TARGET void ShortcutsImplCtrlWL(void* instance) {

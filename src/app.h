@@ -76,7 +76,7 @@ namespace Electron {
         void AddUIContent(ElectronUI* ui) {
             this->content.push_back(ui);
         }
-    private:
+
         bool ButtonCenteredOnLine(const char* label, float alignment = 0.5f);
     };
 }
