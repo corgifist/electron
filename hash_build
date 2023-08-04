@@ -85,6 +85,15 @@ scenario clean {
 
     mkdir("layers")
     object_clean()
+
+    for_each($target_impls, shared_lib_name, clean_shared_library)
+}
+
+scenario clean_shared_library {
+    rm_path = cat($shared_lib_name, $dylib_prefix)
+    if path_exists($rm_path) {
+        rm($rm_path)
+    }
 }
 
 scenario build {

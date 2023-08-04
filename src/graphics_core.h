@@ -7,7 +7,7 @@
 #include "GLEW/include/GL/glew.h"
 
 #define MAX_DEPTH 100000000
-#define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,"
+#define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.*"
 
 namespace Electron {
 
@@ -88,11 +88,6 @@ namespace Electron {
             this->pboGpuTexture = -1;
         }
         ~TextureUnion() {
-#ifndef ELECTRON_IMPLEMENTATION_MODE
-            if (pboGpuTexture != -1) {
-                PixelBuffer::DestroyGPUTexture(pboGpuTexture);
-            }
-#endif
         }
 
         void RebuildAssetData(GraphicsCore* owner);

@@ -120,6 +120,7 @@ void Electron::AssetRegistry::LoadFromProject(json_t project) {
         assetUnion.invalid = !file_exists(resourcePath);
         assetUnion.previousPboGpuTexture = -1;
         assetUnion.pboGpuTexture = -1;
+        assetUnion.previewScale = 1.0f;
         if (!assetUnion.invalid) {
             switch (assetUnion.type) {
                 case TextureUnionType::Texture: {
@@ -151,6 +152,7 @@ std::string Electron::AssetRegistry::ImportAsset(std::string path) {
     assetUnion.type = targetAssetType;
     assetUnion.strType = StringFromTextureUnionType(targetAssetType);
     assetUnion.path = path;
+    assetUnion.previewScale = 1.0f;
     switch (targetAssetType) {
         case TextureUnionType::Texture: {
             assetUnion.as = owner->CreateBufferFromImage(path.c_str());

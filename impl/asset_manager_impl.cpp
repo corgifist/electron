@@ -40,6 +40,7 @@ extern "C" {
 
                             UISetCursorX((windowSize.x / 2.0f) - ((pbo.width * asset.previewScale) / 2.0f));
                             UIImage(asset.pboGpuTexture, ImVec2{pbo.width * asset.previewScale, pbo.height * asset.previewScale});
+                            print(asset.pboGpuTexture);
                             UISliderFloat(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_PREVIEW_SCALE") + std::string("##") + std::to_string((uint64_t) &asset)), &asset.previewScale, 0.1f, 2.0f, "%0.1f", 0);
                             UIText(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION") + std::string(": ") + std::to_string(pbo.width) + "x" + std::to_string(pbo.height)));
                             break;
@@ -69,7 +70,8 @@ extern "C" {
         UIEnd();
 
         if (importErrorMessage != "") {
-            UIBegin(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_IMPORT_FAILURE"), ElectronSignal_None, ImGuiWindowFlags_AlwaysAutoResize);
+            UISetNextWindowSize(ImVec2{640, 128}, ImGuiCond_Always);
+            UIBegin(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_IMPORT_FAILURE"), ElectronSignal_None, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
                 UISetCursorX(windowSize.x / 2.0f - UICalcTextSize(CSTR(importErrorMessage)).x / 2.0f);
                 UIText(CSTR(importErrorMessage));
 
