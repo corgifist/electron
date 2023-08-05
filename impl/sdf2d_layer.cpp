@@ -31,7 +31,7 @@ extern "C" {
             {0, 0.5f, 0.5f},
         };
         owner->properties["Color"] = {
-            GeneralizedPropertyType::Vec3,
+            GeneralizedPropertyType::Color3,
             {0, 1, 0, 0}
         };
 
@@ -89,7 +89,7 @@ extern "C" {
         RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec2, size, "Size");
 
         json_t& color = layer->properties["Color"];
-        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec3, color, "Color");
+        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Color3, color, "Color");
 
         json_t& angle = layer->properties["Angle"];
         RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Float, angle, "Angle");

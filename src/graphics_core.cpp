@@ -234,6 +234,7 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
                     typeSize = 2;
                     break;
                 }
+                case GeneralizedPropertyType::Color3:
                 case GeneralizedPropertyType::Vec3: {
                     typeSize = 3;
                     break;
@@ -252,13 +253,14 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
         for (int i = 1; i < property.size(); i++) {
             bool breakLoop = false;
             switch (type) {
+                case GeneralizedPropertyType::Color3:
                 case GeneralizedPropertyType::Vec2:
                 case GeneralizedPropertyType::Vec3: {
                     float fKey = JSON_AS_TYPE(property.at(i).at(0), float);
                     std::vector<float> vectorProperty = {};
                     vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(1), float));
                     vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(2), float));
-                    if (type == GeneralizedPropertyType::Vec3) {
+                    if (type == GeneralizedPropertyType::Vec3 || type == GeneralizedPropertyType::Color3) {
                         vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(3), float));
                     }
                     float* fProperty = vectorProperty.data();
@@ -284,6 +286,8 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
                     ImGui::SameLine();
                     if (type == GeneralizedPropertyType::Vec2)
                         ImGui::InputFloat2((std::string("Keyframe ") + std::to_string(i - 1) + "##" + propertyName + std::to_string(i)).c_str(), fProperty, "%0.3f", 0);
+                    else if (type == GeneralizedPropertyType::Color3)
+                        ImGui::ColorEdit3((std::string("Keyframe ") + std::to_string(i - 1) + "##" + propertyName + std::to_string(i)).c_str(), fProperty, 0);
                     else
                         ImGui::InputFloat3((std::string("Keyframe ") + std::to_string(i - 1) + "##" + propertyName + std::to_string(i)).c_str(), fProperty, "%0.3f", 0);
 
@@ -291,7 +295,7 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
                     property.at(i).at(0) = fKey;
                     property.at(i).at(1) = fProperty[0];
                     property.at(i).at(2) = fProperty[1];
-                    if (GeneralizedPropertyType::Vec3 == type) {
+                    if (GeneralizedPropertyType::Vec3 == type || GeneralizedPropertyType::Color3 == type) {
                         property.at(i).at(3) = fProperty[2];
                     }
                     break;
@@ -379,7 +383,8 @@ Electron::json_t Electron::RenderLayer::InterpolateProperty(json_t keyframes) {
         }
         // Vector interpolation
         case GeneralizedPropertyType::Vec2:
-        case GeneralizedPropertyType::Vec3: {
+        case GeneralizedPropertyType::Vec3:
+        case GeneralizedPropertyType::Color3: {
             if (beginKeyframeValue.size() != endKeyframeValue.size()) {
                 throw std::runtime_error("malformed interpolation targets (vector size mismatch)");
             }

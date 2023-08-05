@@ -18,7 +18,7 @@ namespace Electron {
     };
 
     enum class GeneralizedPropertyType {
-        Vec3, Vec2, Float
+        Vec3, Vec2, Float, Color3
     };
 
     class GraphicsCore;
