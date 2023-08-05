@@ -78,16 +78,7 @@ void Electron::TextureUnion::RebuildAssetData(GraphicsCore* owner) {
     } else invalid = false;
     previousPboGpuTexture = -1;
     pboGpuTexture = -1;
-    switch (type) {
-        case TextureUnionType::Texture: {
-            if (pboGpuTexture != -1) {
-                PixelBuffer::DestroyGPUTexture(pboGpuTexture);
-            }
-            as = owner->CreateBufferFromImage(path.c_str());
-            pboGpuTexture = std::get<PixelBuffer>(as).BuildGPUTexture();
-            break;
-        }
-    }
+    *this = assetOwner->LoadAssetFromPath(path).result;
 }
 
 void Electron::TextureUnion::GenerateUVTexture() {
@@ -112,50 +103,41 @@ void Electron::AssetRegistry::LoadFromProject(json_t project) {
         std::string resourcePath = JSON_AS_TYPE(assetDescription["Path"], std::string);
         std::string internalName = JSON_AS_TYPE(assetDescription["InternalName"], std::string);
 
-        TextureUnion assetUnion{};
-        assetUnion.type = type;
-        assetUnion.path = resourcePath;
-        assetUnion.name = internalName;
-        assetUnion.strType = JSON_AS_TYPE(assetDescription["Type"], std::string);
-        assetUnion.invalid = !file_exists(resourcePath);
-        assetUnion.previousPboGpuTexture = -1;
-        assetUnion.pboGpuTexture = -1;
-        assetUnion.previewScale = 1.0f;
-        if (!assetUnion.invalid) {
-            switch (assetUnion.type) {
-                case TextureUnionType::Texture: {
-                    assetUnion.as = owner->CreateBufferFromImage(assetUnion.path.c_str());
-                    assetUnion.pboGpuTexture = std::get<PixelBuffer>(assetUnion.as).BuildGPUTexture();
-                    break;
-                }
-            }
-        } else {    // filling invalid texture with UV coord
-            assetUnion.GenerateUVTexture();
+        AssetLoadInfo assetUnion = LoadAssetFromPath(resourcePath);
+        if (assetUnion.returnMessage != "") {
+            print(resourcePath << ": " << assetUnion.returnMessage);
+            assetUnion.result.GenerateUVTexture();
         }
+        assetUnion.result.name = internalName;
 
-        assets.push_back(assetUnion);
+        assets.push_back(assetUnion.result);
 
         print("[" << JSON_AS_TYPE(assetDescription["Type"], std::string) << "] Loaded " << resourcePath);
     }
 }
 
-std::string Electron::AssetRegistry::ImportAsset(std::string path) {
+Electron::AssetLoadInfo Electron::AssetRegistry::LoadAssetFromPath(std::string path) {
+    std::string retMessage = "";
     if (!file_exists(path)) {
         return "File does not exist '" + path + "'";
     }
     TextureUnionType targetAssetType = static_cast<TextureUnionType>(0);
-    if (hasEnding(path, ".png") || hasEnding(path, ".jpg") || hasEnding(path, ".jpeg") || hasEnding(path, ".tga")) {
+    std::string lowerPath = lowercase(path);
+    if (hasEnding(lowerPath, ".png") || hasEnding(lowerPath, ".jpg") || hasEnding(lowerPath, ".jpeg") || hasEnding(lowerPath, ".tga")) {
         targetAssetType = TextureUnionType::Texture;
     } else return "Unsupported file format '" + path + "'";
 
     TextureUnion assetUnion{};
     assetUnion.type = targetAssetType;
     assetUnion.strType = StringFromTextureUnionType(targetAssetType);
+    assetUnion.name = "New asset";
     assetUnion.path = path;
     assetUnion.previewScale = 1.0f;
+    assetUnion.assetOwner = this;
     switch (targetAssetType) {
         case TextureUnionType::Texture: {
             assetUnion.as = owner->CreateBufferFromImage(path.c_str());
+            assetUnion.pboGpuTexture = std::get<PixelBuffer>(assetUnion.as).BuildGPUTexture();
             break;
         }
 
@@ -164,9 +146,17 @@ std::string Electron::AssetRegistry::ImportAsset(std::string path) {
         }
     }
 
-    assets.push_back(assetUnion);
+    AssetLoadInfo result{};
+    result.result = assetUnion;
+    result.returnMessage = "";
+    return result;
+}
 
-    return "";
+std::string Electron::AssetRegistry::ImportAsset(std::string path) {
+    AssetLoadInfo loadInfo = LoadAssetFromPath(path);
+    if (loadInfo.returnMessage != "") return loadInfo.returnMessage;
+    assets.push_back(loadInfo.result);
+    return loadInfo.returnMessage;
 }
 
 void Electron::AssetRegistry::Clear() {

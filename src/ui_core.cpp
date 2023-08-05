@@ -201,11 +201,11 @@ HEADER_TARGET void GraphicsImplResizeRenderBuffer(void* instance, int width, int
 }
 
 HEADER_TARGET void FileDialogImplOpenDialog(const char* internalName, const char* title, const char* extensions, const char* initialPath) {
-    ImGuiFileDialog::Instance()->OpenDialog(internalName, title, extensions, initialPath);
+    ImGuiFileDialog::Instance()->OpenDialog(internalName, title, extensions, initialPath, 1, nullptr, ImGuiFileDialogFlags_Modal);
 }
 
 HEADER_TARGET bool FileDialogImplDisplay(const char* internalName) {
-    return ImGuiFileDialog::Instance()->Display(internalName);
+    return ImGuiFileDialog::Instance()->Display(internalName, 32 | ImGuiWindowFlags_NoDocking);
 }
 
 HEADER_TARGET bool FileDialogImplIsOK() {

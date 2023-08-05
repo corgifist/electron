@@ -9,6 +9,7 @@ extern "C" {
             ImVec2 windowSize = UIGetWindowSize();
 
             static std::string importErrorMessage = "";
+            static int targetAssetBrowsePath = -1;
 
             float totalResourcesSize = 0;
             for (auto& asset : instance->assets.assets) {
@@ -54,6 +55,11 @@ extern "C" {
 
                     std::string reservedResourcePath = asset.path;
                     std::string assetPath = asset.path;
+                    if (UIButton(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_BROWSE")) + "##" + std::to_string((uint64_t) &asset)))) {
+                        FileDialogImplOpenDialog("BrowseAssetPath", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_BROWSE_ASSET_PATH"), IMPORT_EXTENSIONS, ".");
+                        targetAssetBrowsePath = assetIndex;
+                    }
+                    UISameLine();
                     if (UIInputField(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_RESOURCE_PATH")) + (asset.invalid ? std::string(" (") + ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_INVALID_RESOURCE_PATH") + ")" : "") + "##" + std::to_string((uint64_t) &asset)), &assetPath, ImGuiInputTextFlags_EnterReturnsTrue)) {
                         asset.path = assetPath;
                     }
@@ -65,6 +71,9 @@ extern "C" {
             }
             if (assetDeletionIndex != -1) {
                 auto& assets = instance->assets.assets;
+                if (assets.at(assetDeletionIndex).type == TextureUnionType::Texture) {
+                    PixelBufferImplDestroyGPUTexture(assets.at(assetDeletionIndex).pboGpuTexture);
+                }
                 assets.erase(assets.begin() + assetDeletionIndex);
             }
         UIEnd();
@@ -85,6 +94,16 @@ extern "C" {
             if (FileDialogImplIsOK()) {
                 importErrorMessage = AssetManagerImplImportAsset(&instance->assets, FileDialogImplGetFilePathName());
             }
+            FileDialogImplClose();
+        }
+
+        if (FileDialogImplDisplay("BrowseAssetPath")) {
+            if (FileDialogImplIsOK()) {
+                AssetRegistry& reg = instance->assets;
+                reg.assets[targetAssetBrowsePath].path = FileDialogImplGetFilePathName();
+                TextureUnionImplRebuildAssetData(&reg.assets[targetAssetBrowsePath], &instance->graphics);
+            }
+
             FileDialogImplClose();
         }
     }

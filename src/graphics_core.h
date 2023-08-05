@@ -71,6 +71,8 @@ namespace Electron {
     };
 
     using InternalTextureUnion = std::variant<PixelBuffer>;
+    struct AssetRegistry;
+    struct TextureUnion;
 
     struct TextureUnion {
         TextureUnionType type;
@@ -82,6 +84,7 @@ namespace Electron {
         GLuint previousPboGpuTexture;
         bool invalid;
         float previewScale;
+        AssetRegistry* assetOwner;
 
         TextureUnion() {
             this->previewScale = 1.0f;
@@ -94,6 +97,21 @@ namespace Electron {
 
         void GenerateUVTexture();
     }; 
+
+    struct AssetLoadInfo {
+        TextureUnion result;
+        std::string returnMessage;
+
+        AssetLoadInfo(std::string msg) {
+            this->returnMessage = msg;
+        }
+
+        AssetLoadInfo(const char* msg) {
+            this->returnMessage = msg;
+        }
+
+        AssetLoadInfo() {}
+    };
 
     class RenderBuffer {
     public:
@@ -115,6 +133,7 @@ namespace Electron {
         void Clear();
 
         std::string ImportAsset(std::string path);
+        AssetLoadInfo LoadAssetFromPath(std::string path);
 
         static TextureUnionType TextureUnionTypeFromString(std::string type) {
             if (type == "Image") {
@@ -188,5 +207,6 @@ namespace Electron {
         PixelBuffer& GetPreviewBufferByOutputType();
 
         PixelBuffer CreateBufferFromImage(const char* filename);
+
     };
 }
