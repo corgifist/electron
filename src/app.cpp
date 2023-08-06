@@ -170,6 +170,7 @@ void Electron::AppInstance::Run() {
                 assetDescription["InternalName"] = texUnion.name;
                 assetDescription["Path"] = texUnion.path;
                 assetDescription["Type"] = texUnion.strType;
+                assetDescription["ID"] = texUnion.id;
                 assetRegistry.push_back(assetDescription);
             }
             project.propertiesMap["AssetRegistry"] = assetRegistry;

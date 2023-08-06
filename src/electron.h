@@ -16,7 +16,12 @@
 #include <variant>
 #include <locale>
 #include <algorithm>
+#include <filesystem>
+#include <iomanip>
+#include <cstdlib>
+#include <time.h>
 #include "json.hpp"
+#include "clip.h"
 #define GLM_FORCE_SWIZZLE
 #include "glm/glm.hpp"
 #include "glm/gtx/matrix_transform_2d.hpp"
@@ -50,8 +55,7 @@ namespace Electron {
     std::string exec(const char* cmd);
 
     inline bool file_exists(const std::string& name) {
-        struct stat buffer;   
-        return (stat (name.c_str(), &buffer) == 0); 
+        return std::filesystem::exists(name); 
     }
 
     static bool hasEnding (std::string const &fullString, std::string const &ending) {
@@ -82,6 +86,18 @@ namespace Electron {
     static std::ifstream::pos_type filesize(const char* filename) {
         std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
         return in.tellg(); 
+    }
+
+    static std::string intToHex(int x) {
+        std::stringstream stream;
+        stream << std::hex << x;
+        return stream.str();
+    }
+
+    static int seedrand() {
+        print("generating seed");
+        srand(time(NULL));
+        return rand();
     }
 
     struct ElectronVector2f {

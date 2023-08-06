@@ -85,10 +85,12 @@ namespace Electron {
         bool invalid;
         float previewScale;
         AssetRegistry* assetOwner;
+        int id;
 
         TextureUnion() {
             this->previewScale = 1.0f;
             this->pboGpuTexture = -1;
+            this->invalid = false;
         }
         ~TextureUnion() {
         }

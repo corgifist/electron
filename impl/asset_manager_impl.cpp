@@ -41,11 +41,16 @@ extern "C" {
 
                             UISetCursorX((windowSize.x / 2.0f) - ((pbo.width * asset.previewScale) / 2.0f));
                             UIImage(asset.pboGpuTexture, ImVec2{pbo.width * asset.previewScale, pbo.height * asset.previewScale});
-                            print(asset.pboGpuTexture);
                             UISliderFloat(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_PREVIEW_SCALE") + std::string("##") + std::to_string((uint64_t) &asset)), &asset.previewScale, 0.1f, 2.0f, "%0.1f", 0);
                             UIText(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION") + std::string(": ") + std::to_string(pbo.width) + "x" + std::to_string(pbo.height)));
                             break;
                         }
+                    }
+
+                    UIText(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_ID") + std::string(": ") + intToHex(asset.id)));
+                    UISameLine();
+                    if (UIButton(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY_TO_CLIPBOARD"))) {
+                        
                     }
 
                     std::string assetName = asset.name;

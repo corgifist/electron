@@ -23,7 +23,9 @@ std::string Electron::exec(const char* cmd) {
 }
 
 int main(int argc, char *argv[]) {
-
+    if (std::filesystem::exists("G:/ProgrammingProjects/Electron/corgi.png")) {
+        print("LOL EXISTS");
+    }
     try {
         Electron::AppInstance instance;
         instance.AddUIContent(new Electron::ProjectConfiguration());

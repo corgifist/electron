@@ -73,7 +73,10 @@ Electron::RenderBuffer::RenderBuffer(int width, int height) {
 void Electron::TextureUnion::RebuildAssetData(GraphicsCore* owner) {
     if (!file_exists(path)) {
         invalid = true;
+        type = TextureUnionType::Texture;
         GenerateUVTexture();
+        PixelBuffer::DestroyGPUTexture(pboGpuTexture);
+        pboGpuTexture = std::get<PixelBuffer>(as).BuildGPUTexture();
         return;
     } else invalid = false;
     previousPboGpuTexture = -1;
@@ -102,6 +105,7 @@ void Electron::AssetRegistry::LoadFromProject(json_t project) {
         TextureUnionType type = TextureUnionTypeFromString(JSON_AS_TYPE(assetDescription["Type"], std::string));
         std::string resourcePath = JSON_AS_TYPE(assetDescription["Path"], std::string);
         std::string internalName = JSON_AS_TYPE(assetDescription["InternalName"], std::string);
+        int id = JSON_AS_TYPE(assetDescription["ID"], int);
 
         AssetLoadInfo assetUnion = LoadAssetFromPath(resourcePath);
         if (assetUnion.returnMessage != "") {
@@ -109,6 +113,7 @@ void Electron::AssetRegistry::LoadFromProject(json_t project) {
             assetUnion.result.GenerateUVTexture();
         }
         assetUnion.result.name = internalName;
+        assetUnion.result.id = id;
 
         assets.push_back(assetUnion.result);
 
@@ -118,14 +123,19 @@ void Electron::AssetRegistry::LoadFromProject(json_t project) {
 
 Electron::AssetLoadInfo Electron::AssetRegistry::LoadAssetFromPath(std::string path) {
     std::string retMessage = "";
+    bool invalid = false;
     if (!file_exists(path)) {
-        return "File does not exist '" + path + "'";
+        invalid = true;
+        retMessage = "File does not exist '" + path + "'";
     }
     TextureUnionType targetAssetType = static_cast<TextureUnionType>(0);
     std::string lowerPath = lowercase(path);
     if (hasEnding(lowerPath, ".png") || hasEnding(lowerPath, ".jpg") || hasEnding(lowerPath, ".jpeg") || hasEnding(lowerPath, ".tga")) {
         targetAssetType = TextureUnionType::Texture;
-    } else return "Unsupported file format '" + path + "'";
+    } else {
+        retMessage = "Unsupported file format '" + path + "'";
+        invalid = true;
+    }
 
     TextureUnion assetUnion{};
     assetUnion.type = targetAssetType;
@@ -134,7 +144,9 @@ Electron::AssetLoadInfo Electron::AssetRegistry::LoadAssetFromPath(std::string p
     assetUnion.path = path;
     assetUnion.previewScale = 1.0f;
     assetUnion.assetOwner = this;
-    switch (targetAssetType) {
+    assetUnion.invalid = invalid;
+    if (!invalid) {
+        switch (targetAssetType) {
         case TextureUnionType::Texture: {
             assetUnion.as = owner->CreateBufferFromImage(path.c_str());
             assetUnion.pboGpuTexture = std::get<PixelBuffer>(assetUnion.as).BuildGPUTexture();
@@ -142,8 +154,14 @@ Electron::AssetLoadInfo Electron::AssetRegistry::LoadAssetFromPath(std::string p
         }
 
         default: {
-            return "Editor is now unstable, restart now.";
+            retMessage = "Editor is now unstable, restart now.";
         }
+    }
+    } else {
+        assetUnion.type = TextureUnionType::Texture;
+        assetUnion.strType = "Image";
+        assetUnion.GenerateUVTexture();
+        assetUnion.pboGpuTexture = std::get<PixelBuffer>(assetUnion.as).BuildGPUTexture();
     }
 
     AssetLoadInfo result{};
@@ -155,6 +173,7 @@ Electron::AssetLoadInfo Electron::AssetRegistry::LoadAssetFromPath(std::string p
 std::string Electron::AssetRegistry::ImportAsset(std::string path) {
     AssetLoadInfo loadInfo = LoadAssetFromPath(path);
     if (loadInfo.returnMessage != "") return loadInfo.returnMessage;
+    loadInfo.result.id = seedrand();
     assets.push_back(loadInfo.result);
     return loadInfo.returnMessage;
 }

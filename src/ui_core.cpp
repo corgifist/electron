@@ -260,6 +260,14 @@ HEADER_TARGET void UISetWindowPos(ImVec2 pos, ImGuiCond cond) {
     ImGui::SetWindowPos(pos, cond);
 }
 
+HEADER_TARGET void UIIndent() {
+    ImGui::Indent();
+}
+
+HEADER_TARGET void UIUnindent() {
+    ImGui::Unindent();
+}
+
 HEADER_TARGET Electron::ElectronVector2f ElectronImplGetNativeWindowSize(void* instance) {
     return ((Electron::AppInstance*) instance)->GetNativeWindowSize();
 }
@@ -448,4 +456,14 @@ HEADER_TARGET void ShortcutsImplCtrlPE(void* instance) {
 
 HEADER_TARGET void ShortcutsImplCtrlWA(void* instance) {
     SHORTCUT(Ctrl_W_A)();
+}
+
+HEADER_TARGET std::string ClipGetText() {
+    std::string value;
+    clip::get_text(value);
+    return value;
+}
+
+HEADER_TARGET void ClipSetText(std::string text) {
+    clip::set_text(text);
 }

@@ -93,6 +93,10 @@ extern "C" {
 
         json_t& angle = layer->properties["Angle"];
         RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Float, angle, "Angle");
+
+        if (UICollapsingHeader("Texturing")) {
+            
+        }
     }
 
     ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {

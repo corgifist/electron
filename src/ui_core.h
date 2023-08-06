@@ -81,6 +81,8 @@ UI_EXPORT  std::string ParentString(const char* string) ;
 UI_EXPORT  void UIInputColor3(const char* label, float* color, ImGuiColorEditFlags flags) ;
 UI_EXPORT  void UISetWindowSize(ImVec2 size, ImGuiCond cond) ;
 UI_EXPORT  void UISetWindowPos(ImVec2 pos, ImGuiCond cond) ;
+UI_EXPORT  void UIIndent() ;
+UI_EXPORT  void UIUnindent() ;
 UI_EXPORT  Electron::ElectronVector2f ElectronImplGetNativeWindowSize(void* instance) ;
 UI_EXPORT  Electron::ElectronVector2f ElectronImplGetNativeWindowPos(void* instance) ;
 UI_EXPORT  ImGuiDockNode* UIDockBuilderGetNode(ImGuiID id) ;
@@ -128,6 +130,8 @@ UI_EXPORT  void ShortcutsImplCtrlWR(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlPO(void* instance, Electron::ProjectMap projectMap) ;
 UI_EXPORT  void ShortcutsImplCtrlPE(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlWA(void* instance) ;
+UI_EXPORT  std::string ClipGetText() ;
+UI_EXPORT  void ClipSetText(std::string text) ;
 
 }
 #undef UI_EXPORT
