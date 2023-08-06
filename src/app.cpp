@@ -22,7 +22,6 @@ Electron::AppInstance::AppInstance() {
     float uiScaling = JSON_AS_TYPE(configMap["UIScaling"], float);
     this->isNativeWindow = configMap["ViewportMethod"] == "native-window";
 
-    glfwDefaultWindowHints();
     glfwWindowHint(GLFW_RESIZABLE, isNativeWindow);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
@@ -62,6 +61,7 @@ Electron::AppInstance::AppInstance() {
     this->localizationMap = json_t::parse(std::fstream("localization_en.json"));
     this->projectOpened = false;
 
+    this->graphics.owner = this;
     this->graphics.ResizeRenderBuffer(128, 128);
     this->shortcuts.owner = this;
 

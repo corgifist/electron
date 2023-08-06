@@ -6,7 +6,7 @@ using namespace Electron;
 extern "C" {
     ELECTRON_EXPORT void LayerPropertiesRender(AppInstance* instance) {
         UISetNextWindowSize({512, 512}, ImGuiCond_Once);
-        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_TITLE"), instance)), ElectronSignal_CloseWindow, 0);
+        UIBegin(CSTR(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_TITLE") + std::string("##") + std::to_string(CounterGetLayerProperties())), ElectronSignal_CloseWindow, 0);
             ImVec2 windowSize = UIGetWindowSize();
             if (!instance->projectOpened) {
                 std::string projectWarningString = ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_NO_PROJECT");

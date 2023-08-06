@@ -5,7 +5,7 @@ using namespace Electron;
 
 extern "C" {
     ELECTRON_EXPORT void AssetManagerRender(AppInstance* instance) {
-        UIBegin(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE"), ElectronSignal_CloseWindow, 0);
+        UIBegin(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE") + std::string("##") + std::to_string(CounterGetAssetManager())), ElectronSignal_CloseWindow, 0);
             ImVec2 windowSize = UIGetWindowSize();
 
             static std::string importErrorMessage = "";
@@ -50,7 +50,7 @@ extern "C" {
                     UIText(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_ID") + std::string(": ") + intToHex(asset.id)));
                     UISameLine();
                     if (UIButton(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY_TO_CLIPBOARD"))) {
-                        
+                        ClipSetText(intToHex(asset.id));
                     }
 
                     std::string assetName = asset.name;

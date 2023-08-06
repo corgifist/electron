@@ -135,3 +135,8 @@ IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlPE, (void* instance), (instance), (vo
 IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWA, (void* instance), (instance), (void*))
 IMPLEMENT_UI_WRAPPER(ClipGetText, (), (), (), std::string)
 IMPLEMENT_UI_VOID_WRAPPER(ClipSetText, (std::string text), (text), (std::string))
+IMPLEMENT_UI_WRAPPER(CounterGetProjectConfiguration, (), (), (), int)
+IMPLEMENT_UI_WRAPPER(CounterGetRenderPreview, (), (), (), int)
+IMPLEMENT_UI_WRAPPER(CounterGetLayerProperties, (), (), (), int)
+IMPLEMENT_UI_WRAPPER(CounterGetAssetManager, (), (), (), int)
+IMPLEMENT_UI_WRAPPER(PixelBufferImplGetPixel, (Electron::PixelBuffer* pbo,int x,int y), (pbo ,x ,y), (Electron::PixelBuffer* ,int ,int), Electron::Pixel)

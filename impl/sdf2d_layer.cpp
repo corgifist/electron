@@ -40,6 +40,9 @@ extern "C" {
             {0, 0},
             {60, 90}
         };
+
+        owner->properties["TextureID"] = "";
+        owner->properties["EnableTexturing"] = false;
     }
 
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner, RenderRequestMetadata metadata) {
@@ -55,6 +58,23 @@ extern "C" {
             size = vec2(sizeVector[0], sizeVector[1]); 
             color = vec3(colorVector[0], colorVector[1], colorVector[2]);
             angle = angleFloat[0];
+        }
+
+        bool texturingEnabled = JSON_AS_TYPE(owner->properties["EnableTexturing"], bool);
+        std::string textureID = JSON_AS_TYPE(owner->properties["TextureID"], std::string);
+        TextureUnion* asset = nullptr;
+        auto& assets = owner->graphicsOwner->owner->assets.assets;
+        for (int i = 0; i < assets.size(); i++) {
+            if (intToHex(assets.at(i).id) == textureID) {
+                if (assets.at(i).IsTextureCompatible())
+                    asset = &assets.at(i);
+            }
+        }
+
+        bool canTexture = (asset != nullptr && texturingEnabled);
+        std::unique_ptr<PixelBuffer> maybePBO;
+        if (canTexture) {
+            maybePBO = std::make_unique<PixelBuffer>(std::get<PixelBuffer>(asset->as));
         }
 
         RenderBuffer* rbo = &owner->graphicsOwner->renderBuffer;
@@ -74,14 +94,25 @@ extern "C" {
                 if (RectContains(Rect{softwarePosition.x, softwarePosition.y, size.x, size.y}, Point{softwareP.x, softwareP.y})) {
                     vec2 correctedShift = vec2(position.x * rbo->color.width, position.y * rbo->color.height);
                     vec2 correctedUV = softwareP;
-                    PixelBufferImplSetPixel(&rbo->color, x, y, Pixel(color.x, color.y, color.z, 1));
-                    PixelBufferImplSetPixel(&rbo->uv, x, y, Pixel((correctedUV.x - softwarePosition.x) / (size.x), (correctedUV.y - softwarePosition.y) / (size.y), 0, 1));
+                    Pixel uvPixel = Pixel((correctedUV.x - softwarePosition.x) / (size.x), (correctedUV.y - softwarePosition.y) / (size.y), 0, 1);
+                    Pixel colorPixel = Pixel(color.x, color.y, color.z, 1);
+                    if (canTexture) {
+                        Pixel texturePixel = PixelBufferImplGetPixel(maybePBO.get(), uvPixel.r * maybePBO->width, uvPixel.g * maybePBO->height);
+                        colorPixel.r *= texturePixel.r;
+                        colorPixel.g *= texturePixel.g;
+                        colorPixel.b *= texturePixel.b;
+                        colorPixel.a *= texturePixel.a;
+                    }
+                    PixelBufferImplSetPixel(&rbo->color, x, y, colorPixel);
+                    PixelBufferImplSetPixel(&rbo->uv, x, y, uvPixel);
                 }
             }
         }
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
+        AppInstance* instance = layer->graphicsOwner->owner;
+
         json_t& position = layer->properties["Position"];
         RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec2, position, "Position");
 
@@ -95,7 +126,32 @@ extern "C" {
         RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Float, angle, "Angle");
 
         if (UICollapsingHeader("Texturing")) {
-            
+            bool enableTexturing = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
+            UICheckbox("Enable texturing", &enableTexturing);
+            layer->properties["EnableTexturing"] = enableTexturing;
+
+            if (enableTexturing) {
+            std::string textureID = JSON_AS_TYPE(layer->properties["TextureID"], std::string);
+            UIInputField("Texture ID", &textureID, 0);
+            layer->properties["TextureID"] = textureID;
+
+            TextureUnion* textureAsset = nullptr;
+            auto& assets = instance->assets.assets;
+            for (int i = 0; i < assets.size(); i++) {
+                if (assets.at(i).id == hexToInt(textureID)) {
+                    textureAsset = &assets.at(i);
+                }
+            }
+
+            if (textureAsset == nullptr) {
+                UIText(CSTR("No asset with ID '" + textureID + "' found"));
+            } else if (!textureAsset->IsTextureCompatible()) {
+                UIText(CSTR("Asset with ID '" + textureID + "' is not texture-compatible"));
+            } else {
+                UIText(CSTR("Asset name: " + textureAsset->name));
+                UIText(CSTR("Asset type: " + textureAsset->strType));
+            }
+            }
         }
     }
 

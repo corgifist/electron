@@ -41,6 +41,12 @@ namespace Electron {
 
 #endif
 
+    struct UICounters {
+        static int ProjectConfigurationCounter;
+        static int RenderPreviewCounter;
+        static int LayerPropertiesCounter;
+        static int AssetManagerCounter;
+    };
 
     class ElectronUI {
     public:

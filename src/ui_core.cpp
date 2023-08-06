@@ -467,3 +467,23 @@ HEADER_TARGET std::string ClipGetText() {
 HEADER_TARGET void ClipSetText(std::string text) {
     clip::set_text(text);
 }
+
+HEADER_TARGET int CounterGetProjectConfiguration() {
+    return Electron::UICounters::ProjectConfigurationCounter;
+}
+
+HEADER_TARGET int CounterGetRenderPreview() {
+    return Electron::UICounters::RenderPreviewCounter;
+}
+
+HEADER_TARGET int CounterGetLayerProperties() {
+    return Electron::UICounters::LayerPropertiesCounter;
+}
+
+HEADER_TARGET int CounterGetAssetManager() {
+    return Electron::UICounters::AssetManagerCounter;
+}
+
+HEADER_TARGET Electron::Pixel PixelBufferImplGetPixel(Electron::PixelBuffer* pbo, int x, int y) {
+    return pbo->GetPixel(x, y);
+}

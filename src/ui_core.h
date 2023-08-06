@@ -132,6 +132,11 @@ UI_EXPORT  void ShortcutsImplCtrlPE(void* instance) ;
 UI_EXPORT  void ShortcutsImplCtrlWA(void* instance) ;
 UI_EXPORT  std::string ClipGetText() ;
 UI_EXPORT  void ClipSetText(std::string text) ;
+UI_EXPORT  int CounterGetProjectConfiguration() ;
+UI_EXPORT  int CounterGetRenderPreview() ;
+UI_EXPORT  int CounterGetLayerProperties() ;
+UI_EXPORT  int CounterGetAssetManager() ;
+UI_EXPORT  Electron::Pixel PixelBufferImplGetPixel(Electron::PixelBuffer* pbo, int x, int y) ;
 
 }
 #undef UI_EXPORT

@@ -23,6 +23,7 @@ namespace Electron {
 
     class GraphicsCore;
     class RenderLayer;
+    class AppInstance;
 
     struct Pixel {
         float r, g, b, a;
@@ -93,6 +94,10 @@ namespace Electron {
             this->invalid = false;
         }
         ~TextureUnion() {
+        }
+
+        bool IsTextureCompatible() {
+            return type == TextureUnionType::Texture;
         }
 
         void RebuildAssetData(GraphicsCore* owner);
@@ -196,6 +201,7 @@ namespace Electron {
         GLuint previousRenderBufferTexture;
         GLuint renderBufferTexture;
         std::vector<RenderLayer> layers;
+        AppInstance* owner;
 
         float renderFrame;
         int renderLength, renderFramerate;

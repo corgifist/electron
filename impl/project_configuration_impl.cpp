@@ -112,7 +112,7 @@ extern "C" {
             UISetNextWindowSize({640, 480}, ImGuiCond_Once);
         }
  
-        UIBegin(CSTR(ElectronImplTag(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE"), instance)), instance->isNativeWindow ? ElectronSignal_None : ElectronSignal_CloseEditor, dockFlags);
+        UIBegin(CSTR(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_WINDOW_TITLE") + std::string("##") + std::to_string(CounterGetProjectConfiguration())), instance->isNativeWindow ? ElectronSignal_None : ElectronSignal_CloseEditor, dockFlags);
             std::string projectTip = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_CREATE_PROJECT_TIP");
             ImVec2 windowSize = UIGetWindowSize();
             ImVec2 tipSize = UICalcTextSize(projectTip.c_str());

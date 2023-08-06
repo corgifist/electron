@@ -94,6 +94,14 @@ namespace Electron {
         return stream.str();
     }
 
+    static int hexToInt(std::string hex) {
+        int x;   
+        std::stringstream ss;
+        ss << std::hex << hex;
+        ss >> x;
+        return x;
+    }
+
     static int seedrand() {
         print("generating seed");
         srand(time(NULL));
