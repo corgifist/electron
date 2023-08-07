@@ -54,7 +54,7 @@ UI_EXPORT  void UIPushFont(ImFont* font) ;
 UI_EXPORT  void UIPopFont() ;
 UI_EXPORT  void ElectronImplThrow(Electron::ElectronSignal signal) ;
 UI_EXPORT  void ElectronImplDirectSignal(void* instance, Electron::ElectronSignal signal) ;
-UI_EXPORT  void GraphicsImplRequestRenderWithinRegion(void* instance, Electron::RenderRequestMetadata metadata) ;
+UI_EXPORT  std::vector<float> GraphicsImplRequestRenderWithinRegion(void* instance, Electron::RenderRequestMetadata metadata) ;
 UI_EXPORT  GLuint PixelBufferImplBuildGPUTexture(Electron::PixelBuffer& buffer) ;
 UI_EXPORT  void GraphicsImplCleanPreviewGPUTexture(void* instance) ;
 UI_EXPORT  void GraphicsImplBuildPreviewGPUTexture(void* instance) ;
@@ -137,6 +137,10 @@ UI_EXPORT  int CounterGetRenderPreview() ;
 UI_EXPORT  int CounterGetLayerProperties() ;
 UI_EXPORT  int CounterGetAssetManager() ;
 UI_EXPORT  Electron::Pixel PixelBufferImplGetPixel(Electron::PixelBuffer* pbo, int x, int y) ;
+UI_EXPORT  float UIBeginDisabled() ;
+UI_EXPORT  void UIEndDisabled(float alpha) ;
+UI_EXPORT  void GraphicsImplRequestRenderBufferCleaningWithingRegion(Electron::AppInstance* instance, Electron::RenderRequestMetadata metadata) ;
+UI_EXPORT  void UISliderInt(const char* label, int* v, int v_min, int v_max, const char* format, ImGuiSliderFlags flags) ;
 
 }
 #undef UI_EXPORT

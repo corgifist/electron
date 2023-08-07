@@ -24,9 +24,16 @@ extern "C" {
             UISameLine();
             UIText(CSTR("  " + std::string(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TOTAL_ASSET_COUNT")) + ": " + std::to_string(instance->assets.assets.size())));
             UISeparator();
+            static std::string searchFilter = "";
+            UIInputField(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_SEARCH"), &searchFilter, 0);
+            UISeparator();
             int assetIndex = 0;
             int assetDeletionIndex = -1;
             for (auto& asset : instance->assets.assets) {
+                if (searchFilter != "" && asset.name.find(searchFilter) == std::string::npos) {
+                    assetIndex++;
+                    continue;
+                }
                 UIPushColor(ImGuiCol_Button, ImVec4{1, 0, 0, 1});
                     if (UIButton(CSTR(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE") + std::string("##") + std::to_string((uint64_t) &asset)))) {
                         assetDeletionIndex = assetIndex;

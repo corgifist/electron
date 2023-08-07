@@ -239,6 +239,7 @@ void Electron::AppInstance::RestoreBadConfig() {
     this->configMap["ViewportMethod"] = "native-window";
     this->configMap["UIScaling"] = 1.0f;
     this->configMap["LastProject"] = "null";
+    this->configMap["ActivateRenderGrid"] = false; 
 
     this->showBadConfigMessage = true;
 }

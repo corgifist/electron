@@ -9,6 +9,8 @@
 #define MAX_DEPTH 100000000
 #define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.*"
 
+#define RENDER_THREADS_MULTIPLIER 2
+
 namespace Electron {
 
     enum PreviewOutputBufferType {
@@ -24,6 +26,7 @@ namespace Electron {
     class GraphicsCore;
     class RenderLayer;
     class AppInstance;
+    class RenderBuffer;
 
     struct Pixel {
         float r, g, b, a;
@@ -41,6 +44,7 @@ namespace Electron {
     struct RenderRequestMetadata {
         int beginX, endX, beginY, endY;
         std::vector<float> backgroundColor;
+        RenderBuffer* rbo;
 
         RenderRequestMetadata() {}
     };
@@ -208,7 +212,8 @@ namespace Electron {
         
         GraphicsCore();
 
-        void RequestRenderWithinRegion(RenderRequestMetadata metadata);
+        void RequestRenderBufferCleaningWithinRegion(RenderRequestMetadata metadata);
+        std::vector<float> RequestRenderWithinRegion(RenderRequestMetadata metadata);
         void ResizeRenderBuffer(int width, int height);
         void CleanPreviewGPUTexture();
         void BuildPreviewGPUTexture();

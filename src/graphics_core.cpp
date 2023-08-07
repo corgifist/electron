@@ -438,12 +438,14 @@ void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
     this->renderBuffer = RenderBuffer(width, height);
 }
 
-void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
+void Electron::GraphicsCore::RequestRenderBufferCleaningWithinRegion(RenderRequestMetadata metadata) {
     this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1), metadata);
     this->renderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 1), metadata);
     this->renderBuffer.uv.FillColor(Pixel(0, 0, 0, 1), metadata);
-    
+}
 
+std::vector<float> Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
+    std::vector<float> renderTimes{};
     for (RenderLayer& layer : layers) {
         float first = glfwGetTime();
         RenderBuffer originalRenderBuffer = this->renderBuffer;
@@ -451,13 +453,11 @@ void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata met
         temporaryRenderBuffer.color.FillColor(Pixel(0, 0, 0, 0), metadata);
         temporaryRenderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 0), metadata);
         temporaryRenderBuffer.uv.FillColor(Pixel(0, 0, 0, 0), metadata);
-        this->renderBuffer = temporaryRenderBuffer;
+        metadata.rbo = &temporaryRenderBuffer;
         layer.Render(this, metadata);
-        temporaryRenderBuffer = this->renderBuffer;
 
-        this->renderBuffer = originalRenderBuffer;
-        for (int x = 0; x < temporaryRenderBuffer.color.width; x++) {
-            for (int y = 0; y < temporaryRenderBuffer.color.height; y++) {
+        for (int x = metadata.beginX; x < metadata.endX; x++) {
+            for (int y = metadata.beginY; y < metadata.endY; y++) {
                 Pixel colorPixel = temporaryRenderBuffer.color.GetPixel(x, y);
                 Pixel uvPixel = temporaryRenderBuffer.uv.GetPixel(x, y);
                 Pixel depthPixel = temporaryRenderBuffer.depth.GetPixel(x, y);
@@ -472,8 +472,9 @@ void Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata met
             }
         }
         float second = glfwGetTime();
-        layer.renderTime = second - first;
+        renderTimes.push_back(second - first);
     }
+    return renderTimes;
 }
 
 void Electron::GraphicsCore::CleanPreviewGPUTexture() {

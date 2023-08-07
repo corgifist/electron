@@ -77,7 +77,7 @@ extern "C" {
             maybePBO = std::make_unique<PixelBuffer>(std::get<PixelBuffer>(asset->as));
         }
 
-        RenderBuffer* rbo = &owner->graphicsOwner->renderBuffer;
+        RenderBuffer* rbo = metadata.rbo;
         for (int x = metadata.beginX; x < metadata.endX; x++) {
             for (int y = metadata.beginY; y < metadata.endY; y++) {
                 vec2 uv = {(float) x / (float) rbo->color.width, (float) y / (float) rbo->color.height};
@@ -132,7 +132,7 @@ extern "C" {
 
             if (enableTexturing) {
             std::string textureID = JSON_AS_TYPE(layer->properties["TextureID"], std::string);
-            UIInputField("Texture ID", &textureID, 0);
+            UIInputField("Texture ID", &textureID, ImGuiInputTextFlags_AutoSelectAll);
             layer->properties["TextureID"] = textureID;
 
             TextureUnion* textureAsset = nullptr;

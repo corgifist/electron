@@ -18,8 +18,11 @@
 #include <algorithm>
 #include <filesystem>
 #include <iomanip>
+#include <thread>
+#include <future>
 #include <cstdlib>
 #include <time.h>
+#include <chrono>
 #include "json.hpp"
 #include "clip.h"
 #define GLM_FORCE_SWIZZLE
@@ -64,6 +67,11 @@ namespace Electron {
         } else {
             return false;
         }
+    }
+
+    template<typename T>
+    inline bool future_is_ready(std::future<T>& t){
+        return t.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
     }
 
     

@@ -152,8 +152,8 @@ HEADER_TARGET void ElectronImplDirectSignal(void* instance, Electron::ElectronSi
     ((Electron::AppInstance*) instance)->ExecuteSignal(signal, ref, ref, bRef);
 }
 
-HEADER_TARGET void GraphicsImplRequestRenderWithinRegion(void* instance, Electron::RenderRequestMetadata metadata) {
-    ((Electron::AppInstance*) instance)->graphics.RequestRenderWithinRegion(metadata);
+HEADER_TARGET std::vector<float> GraphicsImplRequestRenderWithinRegion(void* instance, Electron::RenderRequestMetadata metadata) {
+    return ((Electron::AppInstance*) instance)->graphics.RequestRenderWithinRegion(metadata);
 }
 
 HEADER_TARGET GLuint PixelBufferImplBuildGPUTexture(Electron::PixelBuffer& buffer) {
@@ -486,4 +486,22 @@ HEADER_TARGET int CounterGetAssetManager() {
 
 HEADER_TARGET Electron::Pixel PixelBufferImplGetPixel(Electron::PixelBuffer* pbo, int x, int y) {
     return pbo->GetPixel(x, y);
+}
+
+HEADER_TARGET float UIBeginDisabled() {
+    float savedAlpha = ImGui::GetStyle().Alpha;
+    ImGui::GetStyle().Alpha = 0.25f;
+    return savedAlpha;
+}
+
+HEADER_TARGET void UIEndDisabled(float alpha) {
+    ImGui::GetStyle().Alpha = alpha;
+}
+
+HEADER_TARGET void GraphicsImplRequestRenderBufferCleaningWithingRegion(Electron::AppInstance* instance, Electron::RenderRequestMetadata metadata) {
+    instance->graphics.RequestRenderBufferCleaningWithinRegion(metadata);
+}
+
+HEADER_TARGET void UISliderInt(const char* label, int* v, int v_min, int v_max, const char* format, ImGuiSliderFlags flags) {
+    ImGui::SliderInt(label, v, v_min, v_max, format, flags);
 }

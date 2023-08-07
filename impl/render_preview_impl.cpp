@@ -82,6 +82,8 @@ extern "C" {
             instance->project.propertiesMap["PreviewResolution"] = selectedResolutionVariant;
             instance->project.propertiesMap["RenderPreviewScale"] = previewScale;
 
+            bool useRenderGrid = JSON_AS_TYPE(instance->configMap["ActivateRenderGrid"], bool);
+            int renderThreadsCount = JSON_AS_TYPE(instance->configMap["RenderThreadsCount"], int);
             ImVec2 scaledPreviewSize = {resolutionVariants[0].width, resolutionVariants[0].height};
 
             float scaleFactor = ((availZone.x / scaledPreviewSize.x * 0.1f) + (availZone.y / scaledPreviewSize.y * 0.1f)) / 2.0f;
@@ -101,7 +103,44 @@ extern "C" {
             metadata.beginY = 0;
             metadata.endX = renderBuffer.width;
             metadata.endY = renderBuffer.height;
-            GraphicsImplRequestRenderWithinRegion(instance, metadata);
+            std::vector<float> renderTimes{};
+            std::vector<std::vector<float>> threadRenderTimes(renderThreadsCount);
+            if (!useRenderGrid) {
+                GraphicsImplRequestRenderBufferCleaningWithingRegion(instance, metadata);
+                renderTimes = GraphicsImplRequestRenderWithinRegion(instance, metadata);
+            } else {
+                bool* threadStatuses = new bool[renderThreadsCount];
+                auto renderFunction = [](AppInstance* instance, RenderRequestMetadata m, int threadIndex, bool* statues, std::vector<float>* times) {
+                    GraphicsImplRequestRenderBufferCleaningWithingRegion(instance, m);
+                    *times = GraphicsImplRequestRenderWithinRegion(instance, m);
+                    statues[threadIndex] = true;
+                };
+
+                float xStep = renderBuffer.width / renderThreadsCount;
+                float renderHeight = renderBuffer.height;
+                std::vector<RenderRequestMetadata> renderMetadatas{};
+                for (int i = 0; i < renderThreadsCount; i++) {
+                    RenderRequestMetadata m{};
+                    m.backgroundColor = metadata.backgroundColor;
+                    m.beginX = i * xStep;
+                    m.endX = (i + 1) * xStep;
+                    m.beginY = 0;
+                    m.endY = renderHeight;
+                    renderMetadatas.push_back(m);
+                }
+                std::vector<std::thread> renderThreads{};
+                for (int i = 0; i < renderThreadsCount; i++) {
+                    threadStatuses[i] = false;
+                    renderThreads.push_back(std::thread(renderFunction, instance, renderMetadatas.at(i), i, threadStatuses, threadRenderTimes.data() + i));
+                }
+
+                for (int i = 0; i < renderThreadsCount; i++) {
+                    while (threadStatuses[i] != true) {}
+                    renderThreads[i].join();
+                }
+
+                delete[] threadStatuses;
+            }
             GraphicsImplBuildPreviewGPUTexture(instance);
             GLuint gpuTex = GraphicsImplGetPreviewGPUTexture(instance);
             
@@ -185,10 +224,22 @@ extern "C" {
             if (instance->graphics.layers.size() == 0) {
                 UIText(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_NOTHING_TO_PROFILE_HERE"));
             }
-            for (int i = 0; i < instance->graphics.layers.size(); i++) {
-                RenderLayer& layer = instance->graphics.layers[i];
-                float renderTime = instance->graphics.layers[i].renderTime;
-                UIText(CSTR(layer.layerPublicName + "<" + std::to_string(i) + ">: " + std::to_string(renderTime)));
+            if (!useRenderGrid) {
+                for (int i = 0; i < instance->graphics.layers.size(); i++) {
+                    RenderLayer& layer = instance->graphics.layers[i];
+                    float renderTime = renderTimes[i];
+                    UIText(CSTR(layer.layerPublicName + "<" + std::to_string(i) + ">: " + std::to_string(renderTime)));
+                }
+            } else {
+                for (int i = 0; i < instance->graphics.layers.size(); i++) {
+                    RenderLayer& layer = instance->graphics.layers[i];
+                    float timesAcc = 0;
+                    for (int j = 0; j < renderThreadsCount; j++) {
+                        timesAcc += threadRenderTimes[j][i];
+                    }
+                    float renderTime = timesAcc / (float) renderThreadsCount;
+                    UIText(CSTR(layer.layerPublicName + "<" + std::to_string(i) + ">:" + std::to_string(renderTime)));
+                }
             }
             UISpacing();
         UIEnd();
