@@ -9,7 +9,7 @@
 #define MAX_DEPTH 100000000
 #define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.*"
 
-#define RENDER_THREADS_MULTIPLIER 2
+#define RENDER_THREADS_MULTIPLIER 8
 
 namespace Electron {
 

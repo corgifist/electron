@@ -78,9 +78,10 @@ extern "C" {
         }
 
         RenderBuffer* rbo = metadata.rbo;
+        RenderBuffer* internalRbo = &owner->graphicsOwner->renderBuffer;
         for (int x = metadata.beginX; x < metadata.endX; x++) {
             for (int y = metadata.beginY; y < metadata.endY; y++) {
-                vec2 uv = {(float) x / (float) rbo->color.width, (float) y / (float) rbo->color.height};
+                vec2 uv = {(float) x / (float) internalRbo->color.width, (float) y / (float) internalRbo->color.height};
                 vec2 fragCoord = {x, y};
                 vec2 iResolution = {rbo->color.width, rbo->color.height};
                 uv -= 0.5f;

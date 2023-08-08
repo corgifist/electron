@@ -240,6 +240,7 @@ void Electron::AppInstance::RestoreBadConfig() {
     this->configMap["UIScaling"] = 1.0f;
     this->configMap["LastProject"] = "null";
     this->configMap["ActivateRenderGrid"] = false; 
+    this->configMap["RenderThreadsCount"] = 1;
 
     this->showBadConfigMessage = true;
 }

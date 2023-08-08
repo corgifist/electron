@@ -449,7 +449,7 @@ std::vector<float> Electron::GraphicsCore::RequestRenderWithinRegion(RenderReque
     for (RenderLayer& layer : layers) {
         float first = glfwGetTime();
         RenderBuffer originalRenderBuffer = this->renderBuffer;
-        RenderBuffer temporaryRenderBuffer(originalRenderBuffer.color.width, originalRenderBuffer.color.height);
+        RenderBuffer temporaryRenderBuffer(metadata.endX - metadata.beginX, metadata.endY - metadata.beginY);
         temporaryRenderBuffer.color.FillColor(Pixel(0, 0, 0, 0), metadata);
         temporaryRenderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 0), metadata);
         temporaryRenderBuffer.uv.FillColor(Pixel(0, 0, 0, 0), metadata);
@@ -458,9 +458,9 @@ std::vector<float> Electron::GraphicsCore::RequestRenderWithinRegion(RenderReque
 
         for (int x = metadata.beginX; x < metadata.endX; x++) {
             for (int y = metadata.beginY; y < metadata.endY; y++) {
-                Pixel colorPixel = temporaryRenderBuffer.color.GetPixel(x, y);
-                Pixel uvPixel = temporaryRenderBuffer.uv.GetPixel(x, y);
-                Pixel depthPixel = temporaryRenderBuffer.depth.GetPixel(x, y);
+                Pixel colorPixel = temporaryRenderBuffer.color.GetPixel(x - metadata.beginX, y - metadata.beginY);
+                Pixel uvPixel = temporaryRenderBuffer.uv.GetPixel(x - metadata.beginX, y - metadata.beginY);
+                Pixel depthPixel = temporaryRenderBuffer.depth.GetPixel(x - metadata.beginX, y - metadata.beginY);
                 float renderedDepth = depthPixel.r;
                 float accumulatedDepth = originalRenderBuffer.depth.GetPixel(x, y).r;
                 if (colorPixel.a == 0.0f) continue;

@@ -47,6 +47,8 @@ scenario build_core {
         ]
     }
 
+    object_add_link_options(static)
+    object_add_link_options("static-libstdc++")
     link_executable($objects, $target_exec, $deps)
 }
 
