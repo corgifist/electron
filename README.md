@@ -1,5 +1,5 @@
 # Electron
-Cross-Platform Extensible CPU Video Editor
+Cross-Platform Extensible Mostly-GPU Video Editor
 
 ## Building
 Electron uses it's own build system to make development faster and smoother.
