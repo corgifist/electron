@@ -9,6 +9,7 @@ using namespace glm;
 extern "C" {
 
     ELECTRON_EXPORT std::string LayerName = "SDF2D";
+    GLuint sdf2d_compute = -1;
 
     mat2 rotationMatrix(float angle) {
 	    angle *= 3.1415f / 180.0f;
@@ -23,8 +24,7 @@ extern "C" {
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
         owner->properties["Position"] = {
             GeneralizedPropertyType::Vec2,
-            {0, 0, 0},
-            {60, 0.25f, 0.25f}
+            {0, 0, 0}
         };
         owner->properties["Size"] = {
             GeneralizedPropertyType::Vec2,
@@ -32,20 +32,47 @@ extern "C" {
         };
         owner->properties["Color"] = {
             GeneralizedPropertyType::Color3,
-            {0, 1, 0, 0}
+            {0, 1, 1, 1}
         };
 
         owner->properties["Angle"] = {
             GeneralizedPropertyType::Float,
-            {0, 0},
-            {60, 90}
+            {0, 0}
         };
 
         owner->properties["TextureID"] = "";
         owner->properties["EnableTexturing"] = false;
+
+        if (sdf2d_compute == -1) {
+            sdf2d_compute = GraphicsImplCompileComputeShader(owner->graphicsOwner, "sdf2d.compute");
+            print("compiled sdf2d.compute");
+            DUMP_VAR(sdf2d_compute);
+        }
     }
 
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner, RenderRequestMetadata metadata) {
+        RenderBuffer* pbo = &owner->graphicsOwner->renderBuffer;
+        GraphicsCore* core = owner->graphicsOwner;
+        if (owner->anyData.size() == 0) {
+            owner->anyData.push_back(ResizableGPUTextureCreate(core, pbo->width, pbo->height));
+            owner->anyData.push_back(ResizableGPUTextureCreate(core, pbo->width, pbo->height));
+            owner->anyData.push_back(ResizableGPUTextureCreate(core, pbo->width, pbo->height));
+        }
+
+        ResizableGPUTexture colorTexture = std::any_cast<ResizableGPUTexture>(owner->anyData[0]);
+        ResizableGPUTImplCheckForResize(&colorTexture, pbo);
+        owner->anyData[0] = colorTexture;
+
+        ResizableGPUTexture uvTexture = std::any_cast<ResizableGPUTexture>(owner->anyData[1]);
+        ResizableGPUTImplCheckForResize(&uvTexture, pbo);
+        owner->anyData[1] = uvTexture;
+
+        ResizableGPUTexture depthTexture = std::any_cast<ResizableGPUTexture>(owner->anyData[2]);
+        ResizableGPUTImplCheckForResize(&depthTexture, pbo);
+        owner->anyData[2] = depthTexture;
+        
+        GraphicsImplRequestTextureCollectionCleaning(core, colorTexture.texture, uvTexture.texture, depthTexture.texture, pbo->width, pbo->height, metadata);
+
         auto position = vec2();
         auto size = vec2();
         auto color = vec3();
@@ -77,38 +104,20 @@ extern "C" {
             maybePBO = std::make_unique<PixelBuffer>(std::get<PixelBuffer>(asset->as));
         }
 
-        RenderBuffer* rbo = metadata.rbo;
-        RenderBuffer* internalRbo = &owner->graphicsOwner->renderBuffer;
-        for (int x = metadata.beginX; x < metadata.endX; x++) {
-            for (int y = metadata.beginY; y < metadata.endY; y++) {
-                vec2 uv = {(float) x / (float) internalRbo->color.width, (float) y / (float) internalRbo->color.height};
-                vec2 fragCoord = {x, y};
-                vec2 iResolution = {rbo->color.width, rbo->color.height};
-                uv -= 0.5f;
-                uv.x *= iResolution.x/iResolution.y; // fix aspect ratio
+        GraphicsImplBindGPUTexture(owner->graphicsOwner, colorTexture.texture, 0);
+        GraphicsImplBindGPUTexture(owner->graphicsOwner, uvTexture.texture, 1);
+        GraphicsImplBindGPUTexture(owner->graphicsOwner, depthTexture.texture, 2);
+        GraphicsImplUseShader(owner->graphicsOwner, sdf2d_compute);
+        GraphicsImplShaderSetUniformII(owner->graphicsOwner, sdf2d_compute, "pboResolution", pbo->width, pbo->height);
+        GraphicsImplShaderSetUniformFF(owner->graphicsOwner, sdf2d_compute, "position", position);
+        GraphicsImplShaderSetUniformFF(owner->graphicsOwner, sdf2d_compute, "size", size);
+        GraphicsImplShaderSetUniformF(owner->graphicsOwner, sdf2d_compute, "angle", angle);
+        GraphicsImplShaderSetUniformFFF(owner->graphicsOwner, sdf2d_compute, "color", color);
+        GraphicsImplDispatchComputeShader(owner->graphicsOwner, std::ceil(pbo->width / 8), std::ceil(pbo->height / 4), 1);
+        GraphicsImplMemoryBarrier(owner->graphicsOwner, GL_ALL_BARRIER_BITS);
 
-                vec2 softwarePosition = -(size / 2.0f);
-                vec2 softwareP = uv;
-                softwareP -= position;
-                softwareP = rotate(softwareP, radians(angle));
+        GraphicsImplCallCompositor(core, colorTexture, uvTexture, depthTexture);
 
-                if (RectContains(Rect{softwarePosition.x, softwarePosition.y, size.x, size.y}, Point{softwareP.x, softwareP.y})) {
-                    vec2 correctedShift = vec2(position.x * rbo->color.width, position.y * rbo->color.height);
-                    vec2 correctedUV = softwareP;
-                    Pixel uvPixel = Pixel((correctedUV.x - softwarePosition.x) / (size.x), (correctedUV.y - softwarePosition.y) / (size.y), 0, 1);
-                    Pixel colorPixel = Pixel(color.x, color.y, color.z, 1);
-                    if (canTexture) {
-                        Pixel texturePixel = PixelBufferImplGetPixel(maybePBO.get(), uvPixel.r * maybePBO->width, uvPixel.g * maybePBO->height);
-                        colorPixel.r *= texturePixel.r;
-                        colorPixel.g *= texturePixel.g;
-                        colorPixel.b *= texturePixel.b;
-                        colorPixel.a *= texturePixel.a;
-                    }
-                    PixelBufferImplSetPixel(&rbo->color, x, y, colorPixel);
-                    PixelBufferImplSetPixel(&rbo->uv, x, y, uvPixel);
-                }
-            }
-        }
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {

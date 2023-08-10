@@ -5,6 +5,9 @@ int Electron::PixelBuffer::filtering = GL_LINEAR;
 
 static std::unordered_map<std::string, dylib> dylibRegistry{};
 
+static GLuint basic_compute = 0;
+static GLuint compositor_compute = 0;
+
 Electron::PixelBuffer::PixelBuffer(int width, int height) {
     this->pixels = std::vector<Pixel>(width * height);
     this->width = width;
@@ -64,10 +67,16 @@ void Electron::PixelBuffer::DestroyGPUTexture(GLuint texture) {
     glDeleteTextures(1, &texture);
 }
 
-Electron::RenderBuffer::RenderBuffer(int width, int height) {
-    this->color = PixelBuffer(width, height);
-    this->uv = PixelBuffer(width, height);
-    this->depth = PixelBuffer(width, height);
+Electron::RenderBuffer::RenderBuffer(GraphicsCore* core, int width, int height) {
+    this->colorBuffer = core->GenerateGPUTexture(width, height, 0);
+    this->uvBuffer = core->GenerateGPUTexture(width, height, 1);
+    this->depthBuffer = core->GenerateGPUTexture(width, height, 2);
+
+    this->width = width;
+    this->height = height;
+}
+
+Electron::RenderBuffer::~RenderBuffer() {
 }
 
 void Electron::TextureUnion::RebuildAssetData(GraphicsCore* owner) {
@@ -426,75 +435,216 @@ Electron::GraphicsCore::GraphicsCore() {
     this->renderLength = 0;
 
     this->outputBufferType = PreviewOutputBufferType_Color;
-
-    RenderLayer sampleRect("sdf2d_layer");
-    sampleRect.beginFrame = 0;
-    sampleRect.endFrame = 60;
-
-    this->layers.push_back(sampleRect);
 }
 
 void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
-    this->renderBuffer = RenderBuffer(width, height);
+    this->renderBuffer = RenderBuffer(this, width, height);
 }
 
+Electron::ResizableGPUTexture::ResizableGPUTexture(GraphicsCore* core, int width, int height) {
+    this->core = core;
+    this->width = width;
+    this->height = height;
+    this->texture = core->GenerateGPUTexture(width, height, 0);
+}
+
+void Electron::ResizableGPUTexture::CheckForResize(RenderBuffer* pbo) {
+    if (width != pbo->width || height != pbo->height) {
+        this->width = pbo->width;
+        this->height = pbo->height;
+        PixelBuffer::DestroyGPUTexture(texture);
+        this->texture = core->GenerateGPUTexture(width, height, 0);
+    }
+}
+
+
 void Electron::GraphicsCore::RequestRenderBufferCleaningWithinRegion(RenderRequestMetadata metadata) {
-    this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1), metadata);
+    /* this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1), metadata);
     this->renderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 1), metadata);
     this->renderBuffer.uv.FillColor(Pixel(0, 0, 0, 1), metadata);
+    */
+
+   RequestTextureCollectionCleaning(renderBuffer.colorBuffer, renderBuffer.uvBuffer, renderBuffer.depthBuffer, renderBuffer.width, renderBuffer.height, metadata);
+}
+
+void Electron::GraphicsCore::RequestTextureCollectionCleaning(GLuint color, GLuint uv, GLuint depth, int width, int height, RenderRequestMetadata metadata) {
+    if (basic_compute == 0) {
+        basic_compute = CompileComputeShader("basic.compute");
+    }
+
+    UseShader(basic_compute);
+    BindGPUTexture(color, 0);
+    BindGPUTexture(uv, 1);
+    BindGPUTexture(depth, 2);
+
+    ShaderSetUniform(basic_compute, "backgroundColor", glm::vec3(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2]));
+    ShaderSetUniform(basic_compute, "maxDepth", (float) MAX_DEPTH);
+    DispatchComputeShader(std::ceil(renderBuffer.width / 8), std::ceil(renderBuffer.height / 4), 1);
+    ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
 }
 
 std::vector<float> Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
     std::vector<float> renderTimes{};
-    for (RenderLayer& layer : layers) {
+    for (auto& layer : layers) {
         float first = glfwGetTime();
-        RenderBuffer originalRenderBuffer = this->renderBuffer;
-        RenderBuffer temporaryRenderBuffer(metadata.endX - metadata.beginX, metadata.endY - metadata.beginY);
-        temporaryRenderBuffer.color.FillColor(Pixel(0, 0, 0, 0), metadata);
-        temporaryRenderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 0), metadata);
-        temporaryRenderBuffer.uv.FillColor(Pixel(0, 0, 0, 0), metadata);
-        metadata.rbo = &temporaryRenderBuffer;
         layer.Render(this, metadata);
-
-        for (int x = metadata.beginX; x < metadata.endX; x++) {
-            for (int y = metadata.beginY; y < metadata.endY; y++) {
-                Pixel colorPixel = temporaryRenderBuffer.color.GetPixel(x - metadata.beginX, y - metadata.beginY);
-                Pixel uvPixel = temporaryRenderBuffer.uv.GetPixel(x - metadata.beginX, y - metadata.beginY);
-                Pixel depthPixel = temporaryRenderBuffer.depth.GetPixel(x - metadata.beginX, y - metadata.beginY);
-                float renderedDepth = depthPixel.r;
-                float accumulatedDepth = originalRenderBuffer.depth.GetPixel(x, y).r;
-                if (colorPixel.a == 0.0f) continue;
-                if (renderedDepth <= accumulatedDepth || depthPixel.a == 0.0f) {
-                    if (depthPixel.a != 0.0f) renderBuffer.depth.SetPixel(x, y, Pixel(renderedDepth, 0, 0, 1));
-                    renderBuffer.color.SetPixel(x, y, colorPixel);
-                    renderBuffer.uv.SetPixel(x, y, uvPixel);
-                }
-            }
-        }
-        float second = glfwGetTime();
-        renderTimes.push_back(second - first);
+        renderTimes.push_back(glfwGetTime() - first);
     }
     return renderTimes;
 }
 
 void Electron::GraphicsCore::CleanPreviewGPUTexture() {
-    if (previousRenderBufferTexture != -1) {
-        glDeleteTextures(1, &previousRenderBufferTexture);
-    }
 }
 
 void Electron::GraphicsCore::BuildPreviewGPUTexture() {
-    previousRenderBufferTexture = renderBufferTexture;
-    renderBufferTexture = GetPreviewBufferByOutputType().BuildGPUTexture();
+    renderBufferTexture = GetPreviewBufferByOutputType();
 }
 
-Electron::PixelBuffer& Electron::GraphicsCore::GetPreviewBufferByOutputType() {
+GLuint Electron::GraphicsCore::GetPreviewBufferByOutputType() {
     switch (outputBufferType) {
-        case PreviewOutputBufferType_Color: return renderBuffer.color;
-        case PreviewOutputBufferType_Depth: return renderBuffer.depth;
-        case PreviewOutputBufferType_UV: return renderBuffer.uv;
+        case PreviewOutputBufferType_Color: return renderBuffer.colorBuffer;
+        case PreviewOutputBufferType_Depth: return renderBuffer.depthBuffer;
+        case PreviewOutputBufferType_UV: return renderBuffer.uvBuffer;
     }
-    return renderBuffer.uv;
+    return renderBuffer.uvBuffer;
+}
+
+GLuint Electron::GraphicsCore::CompileComputeShader(std::string path) {
+    std::string computeShaderCode = read_file("compute/" + path);
+    const char* c_code = computeShaderCode.c_str();
+
+    GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
+    glShaderSource(computeShader, 1, &c_code, NULL);
+    glCompileShader(computeShader);
+
+    GLint compiled = 0;
+    glGetShaderiv(computeShader, GL_COMPILE_STATUS, &compiled);
+    if (compiled == GL_FALSE) {
+        GLint maxLength = 0;
+        glGetShaderiv(computeShader, GL_INFO_LOG_LENGTH, &maxLength);
+
+        std::vector<GLchar> errorLog(maxLength);
+        glGetShaderInfoLog(computeShader, maxLength, &maxLength, &errorLog[0]);
+        print(errorLog.data());
+
+        glDeleteShader(computeShader);
+
+        throw std::runtime_error("error while compiling compute shader!");
+        return -1;
+    }
+    
+    GLuint computeProgram = glCreateProgram();
+    glAttachShader(computeProgram, computeShader);
+    glLinkProgram(computeProgram);
+
+    GLint isLinked = 0;
+    glGetProgramiv(computeProgram, GL_LINK_STATUS, &isLinked);
+    if (isLinked == GL_FALSE) {
+	    GLint maxLength = 0;
+	    glGetProgramiv(computeProgram, GL_INFO_LOG_LENGTH, &maxLength);
+
+	    std::vector<GLchar> infoLog(maxLength);
+	    glGetProgramInfoLog(computeProgram, maxLength, &maxLength, &infoLog[0]);
+
+	    glDeleteProgram(computeProgram);
+
+        throw std::runtime_error("error while linking compute shader!");
+
+	    return -1;
+    }
+
+    glDeleteShader(computeShader);
+
+    return computeProgram;
+}
+
+void Electron::GraphicsCore::UseShader(GLuint shader) {
+    glUseProgram(shader);
+}
+
+void Electron::GraphicsCore::DispatchComputeShader(int grid_x, int grid_y, int grid_z) {
+    glDispatchCompute(grid_x, grid_y, grid_z);
+}
+
+void Electron::GraphicsCore::ComputeMemoryBarier(GLbitfield barrier) {
+    glMemoryBarrier(barrier);
+}
+
+GLuint Electron::GraphicsCore::GenerateGPUTexture(int width, int height, int unit) {
+    unsigned int texture;
+
+	glGenTextures(1, &texture);
+	glActiveTexture(GL_TEXTURE0 + unit);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+
+    return texture;
+}
+
+void Electron::GraphicsCore::BindGPUTexture(GLuint texture, int unit) {
+    glActiveTexture(GL_TEXTURE0 + unit);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindImageTexture(unit, texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+}
+
+void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name, int x, int y) {
+    glUniform2i(glGetUniformLocation(program, name.c_str()), x, y);
+}
+
+void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name, glm::vec3 vec) {
+    glUniform3f(glGetUniformLocation(program, name.c_str()), vec.x, vec.y, vec.z);
+}
+
+void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name, float f) {
+    glUniform1f(glGetUniformLocation(program, name.c_str()), f);
+}
+
+void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name, glm::vec2 vec) {
+    glUniform2f(glGetUniformLocation(program, name.c_str()), vec.x, vec.y);
+}
+
+Electron::PixelBuffer Electron::GraphicsCore::PBOFromGPUTexture(GLuint texture, int width, int height) {
+    glFlush();
+    PixelBuffer pbo(width, height);
+
+    std::vector<float> pixels(width * height * 4);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glGetnTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, width * height * 4 * sizeof(float), pixels.data());
+
+    int pixelIndex = 0;
+    for (int i = 0; i < width * height * 4; i += 4) {
+        pbo.pixels[pixelIndex].r = pixels[i + 0];
+        pbo.pixels[pixelIndex].g = pixels[i + 1];
+        pbo.pixels[pixelIndex].b = pixels[i + 2];
+        pbo.pixels[pixelIndex].a = pixels[i + 3];
+
+        pixelIndex++;
+    }
+
+    return pbo;
+}
+
+void Electron::GraphicsCore::CallCompositor(ResizableGPUTexture color, ResizableGPUTexture uv, ResizableGPUTexture depth) {
+
+    if (compositor_compute == 0) {
+        compositor_compute = CompileComputeShader("compositor.compute");
+    }
+
+    UseShader(compositor_compute);
+    BindGPUTexture(renderBuffer.colorBuffer, 0);
+    BindGPUTexture(renderBuffer.uvBuffer, 1);
+    BindGPUTexture(renderBuffer.depthBuffer, 2);
+
+    BindGPUTexture(color.texture, 3);
+    BindGPUTexture(uv.texture, 4);
+    BindGPUTexture(depth.texture, 5);
+
+    DispatchComputeShader(std::ceil(renderBuffer.width / 8), std::ceil(renderBuffer.height / 4), 1);
+    ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
 }
 
 Electron::PixelBuffer Electron::GraphicsCore::CreateBufferFromImage(const char* filename) {

@@ -14,6 +14,7 @@ impl_target_file = null
 
 object_add_compile_options(fPIC)
 object_add_compile_options(g) # include debug symbols
+object_add_compile_options("O2")
 
 target_impls = [
     project_configuration_impl,
@@ -123,8 +124,8 @@ scenario execute_build_layer {
 }
 
 scenario generate_headers {
-    subprocess_run([python, "generate_ui_core_header.py", "src/ui_core.h"])
-    subprocess_run([python, "generate_ui_api.py", "src/ui_api.h"])
+    subprocess_run([python, "scripts/generate_ui_core_header.py", "src/ui_core.h"])
+    subprocess_run([python, "scripts/generate_ui_api.py", "src/ui_api.h"])
 }
 
 default_scenario = build

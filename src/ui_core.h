@@ -104,7 +104,7 @@ UI_EXPORT  void UICheckbox(const char* label, bool* v) ;
 UI_EXPORT  void UISameLine() ;
 UI_EXPORT  void UIInputInt(const char* label, int* ptr, int step, int step_fast, ImGuiInputTextFlags flags) ;
 UI_EXPORT  void UISetTooltip(const char* tooltip) ;
-UI_EXPORT  Electron::PixelBuffer& GraphicsImplGetPreviewBufferByOutputType(void* instance) ;
+UI_EXPORT  GLuint GraphicsImplGetPreviewBufferByOutputType(void* instance) ;
 UI_EXPORT  bool UIBeginTooltip() ;
 UI_EXPORT  void UIEndTooltip() ;
 UI_EXPORT  void UISetNextWindowPos(ImVec2 size, ImGuiCond cond) ;
@@ -141,6 +141,21 @@ UI_EXPORT  float UIBeginDisabled() ;
 UI_EXPORT  void UIEndDisabled(float alpha) ;
 UI_EXPORT  void GraphicsImplRequestRenderBufferCleaningWithingRegion(Electron::AppInstance* instance, Electron::RenderRequestMetadata metadata) ;
 UI_EXPORT  void UISliderInt(const char* label, int* v, int v_min, int v_max, const char* format, ImGuiSliderFlags flags) ;
+UI_EXPORT  GLuint GraphicsImplCompileComputeShader(Electron::GraphicsCore* graphics, std::string path) ;
+UI_EXPORT  void GraphicsImplUseShader(Electron::GraphicsCore* core, GLuint shader) ;
+UI_EXPORT  void GraphicsImplDispatchComputeShader(Electron::GraphicsCore* core, int grid_x, int grid_y, int grid_z) ;
+UI_EXPORT  void GraphicsImplBindGPUTexture(Electron::GraphicsCore* core, GLuint texture, int unit) ;
+UI_EXPORT  GLuint GraphicsImplGenerateGPUTexture(Electron::GraphicsCore* core, int width, int height, int unit) ;
+UI_EXPORT  void GraphicsImplMemoryBarrier(Electron::GraphicsCore* core, GLbitfield barrier) ;
+UI_EXPORT  Electron::PixelBuffer GraphicsImplPBOFromGPUTexture(Electron::GraphicsCore* core, GLuint texture, int width, int height) ;
+UI_EXPORT  void GraphicsImplShaderSetUniformII(Electron::GraphicsCore* core, GLuint program, std::string name, int x, int y) ;
+UI_EXPORT  Electron::ResizableGPUTexture ResizableGPUTextureCreate(Electron::GraphicsCore* core, int width, int height) ;
+UI_EXPORT  void ResizableGPUTImplCheckForResize(Electron::ResizableGPUTexture* texture, Electron::RenderBuffer* pbo) ;
+UI_EXPORT  void GraphicsImplCallCompositor(Electron::GraphicsCore* core, Electron::ResizableGPUTexture color, Electron::ResizableGPUTexture uv, Electron::ResizableGPUTexture depth) ;
+UI_EXPORT  void GraphicsImplShaderSetUniformFF(Electron::GraphicsCore* core, GLuint program, std::string name, glm::vec2 vec2) ;
+UI_EXPORT  void GraphicsImplShaderSetUniformFFF(Electron::GraphicsCore* core, GLuint program, std::string name, glm::vec3 vec) ;
+UI_EXPORT  void GraphicsImplShaderSetUniformF(Electron::GraphicsCore* core, GLuint program, std::string name, float f) ;
+UI_EXPORT  void GraphicsImplRequestTextureCollectionCleaning(Electron::GraphicsCore* core, GLuint color, GLuint uv, GLuint depth, int width, int height, Electron::RenderRequestMetadata metadata) ;
 
 }
 #undef UI_EXPORT

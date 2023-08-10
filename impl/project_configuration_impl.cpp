@@ -229,41 +229,6 @@ extern "C" {
                 UISliderFloat(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_UI_SCALING"), &uiScaling, 0.5f, 2.5f, "%0.1f", 0);
                 UISetItemTooltip(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED"));
                 instance->configMap["UIScaling"] = uiScaling;
-
-                bool activateRenderGrid = JSON_AS_TYPE(instance->configMap["ActivateRenderGrid"], bool);
-
-                float disabledAlpha = 0;
-                int cpuCores = std::thread::hardware_concurrency();
-                bool renderGridIsNotPossible = (cpuCores == 0);
-
-                if (renderGridIsNotPossible) disabledAlpha = UIBeginDisabled();
-                UICheckbox(ELECTRON_GET_LOCALIZATION(instance, "EDITOR_CONFIGURATION_ACTIVATE_RENDER_GRID"), &activateRenderGrid);
-                if (renderGridIsNotPossible) {
-                    UIEndDisabled(disabledAlpha);
-                    activateRenderGrid = false;
-                    UISameLine();
-                    UIText("   ");
-                    UISameLine();
-                    UIText(ELECTRON_GET_LOCALIZATION(instance, "EDITOR_CONFIGURATION_RENDER_GRID_IS_NOT_SUPPORTED_CPU_CORES"));
-                } else if (activateRenderGrid) {
-                    UISameLine();
-                    UIText("   ");
-                    UISameLine();
-                    UIText(CSTR(ELECTRON_GET_LOCALIZATION(instance, "EDITOR_CONFIGURATION_MAX_RENDER_THREADS") + std::string(": ") + std::to_string(cpuCores * RENDER_THREADS_MULTIPLIER)));
-                }
-
-                if (renderGridIsNotPossible) disabledAlpha = UIBeginDisabled();
-                int renderThreadsCount = JSON_AS_TYPE(instance->configMap["RenderThreadsCount"], int);
-                UISliderInt(ELECTRON_GET_LOCALIZATION(instance, "EDITOR_CONFIGURATION_RENDER_THREADS_COUNT"), &renderThreadsCount, 1, cpuCores * RENDER_THREADS_MULTIPLIER, "%d", 0);
-                if (renderGridIsNotPossible) {
-                    renderThreadsCount = 1;
-                    UIEndDisabled(disabledAlpha);
-                }
-                instance->configMap["RenderThreadsCount"] = renderThreadsCount;
-
-                if (!renderGridIsNotPossible) {
-                    instance->configMap["ActivateRenderGrid"] = activateRenderGrid;
-                }
                 
             UIEndTabItem();
             }

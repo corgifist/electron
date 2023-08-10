@@ -1,0 +1,26 @@
+#version 460 core
+
+layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+
+layout(rgba32f, binding = 0) uniform image2D pboColor;
+layout(rgba32f, binding = 1) uniform image2D pboUV;
+layout(rgba32f, binding = 2) uniform image2D pboDepth;
+
+layout(rgba32f, binding = 3) uniform image2D layerColor;
+layout(rgba32f, binding = 4) uniform image2D layerUV;
+layout(rgba32f, binding = 5) uniform image2D layerDepth;
+
+void main() {
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec4 layerDepthVector = imageLoad(layerDepth, texelCoord);
+    vec4 layerColorVector = imageLoad(layerColor, texelCoord);
+    float layerDepthValue = layerDepthVector.r;
+    float pboDepthValue = imageLoad(pboDepth, texelCoord).r;
+    float colorAlphaValue = layerColorVector.a;
+
+    if ((layerDepthValue < pboDepthValue || layerDepthVector.a == 0.0) && colorAlphaValue != 0.0) {
+        if (layerDepthVector.a != 0.0)  imageStore(pboDepth, texelCoord, vec4(layerDepthValue, 0, 0, 1.0));
+        imageStore(pboColor, texelCoord, layerColorVector);
+        imageStore(pboUV, texelCoord, imageLoad(layerUV, texelCoord));
+    }
+}

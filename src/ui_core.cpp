@@ -352,7 +352,7 @@ HEADER_TARGET void UISetTooltip(const char* tooltip) {
     ImGui::SetTooltip(tooltip);
 }
 
-HEADER_TARGET Electron::PixelBuffer& GraphicsImplGetPreviewBufferByOutputType(void* instance) {
+HEADER_TARGET GLuint GraphicsImplGetPreviewBufferByOutputType(void* instance) {
     return ((Electron::AppInstance*) instance)->graphics.GetPreviewBufferByOutputType();
 }
 
@@ -504,4 +504,65 @@ HEADER_TARGET void GraphicsImplRequestRenderBufferCleaningWithingRegion(Electron
 
 HEADER_TARGET void UISliderInt(const char* label, int* v, int v_min, int v_max, const char* format, ImGuiSliderFlags flags) {
     ImGui::SliderInt(label, v, v_min, v_max, format, flags);
+}
+
+HEADER_TARGET GLuint GraphicsImplCompileComputeShader(Electron::GraphicsCore* graphics, std::string path) {
+    return graphics->CompileComputeShader(path);
+}
+
+HEADER_TARGET void GraphicsImplUseShader(Electron::GraphicsCore* core, GLuint shader) {
+    core->UseShader(shader);
+}
+
+HEADER_TARGET void GraphicsImplDispatchComputeShader(Electron::GraphicsCore* core, int grid_x, int grid_y, int grid_z) {
+    core->DispatchComputeShader(grid_x, grid_y, grid_z);
+}
+
+HEADER_TARGET void GraphicsImplBindGPUTexture(Electron::GraphicsCore* core, GLuint texture, int unit) {
+    core->BindGPUTexture(texture, unit);
+}
+
+HEADER_TARGET GLuint GraphicsImplGenerateGPUTexture(Electron::GraphicsCore* core, int width, int height, int unit) {
+    return core->GenerateGPUTexture(width, height, unit);
+}
+
+HEADER_TARGET void GraphicsImplMemoryBarrier(Electron::GraphicsCore* core, GLbitfield barrier) {
+    core->ComputeMemoryBarier(barrier);
+}
+
+HEADER_TARGET Electron::PixelBuffer GraphicsImplPBOFromGPUTexture(Electron::GraphicsCore* core, GLuint texture, int width, int height) {
+    return core->PBOFromGPUTexture(texture, width, height);
+}
+
+
+HEADER_TARGET void GraphicsImplShaderSetUniformII(Electron::GraphicsCore* core, GLuint program, std::string name, int x, int y) {
+    core->ShaderSetUniform(program, name, x, y);
+}
+
+HEADER_TARGET Electron::ResizableGPUTexture ResizableGPUTextureCreate(Electron::GraphicsCore* core, int width, int height) {
+    return Electron::ResizableGPUTexture(core, width, height);
+}
+
+HEADER_TARGET void ResizableGPUTImplCheckForResize(Electron::ResizableGPUTexture* texture, Electron::RenderBuffer* pbo) {
+    return texture->CheckForResize(pbo);
+}
+
+HEADER_TARGET void GraphicsImplCallCompositor(Electron::GraphicsCore* core, Electron::ResizableGPUTexture color, Electron::ResizableGPUTexture uv, Electron::ResizableGPUTexture depth) {
+    core->CallCompositor(color, uv, depth);
+}
+
+HEADER_TARGET void GraphicsImplShaderSetUniformFF(Electron::GraphicsCore* core, GLuint program, std::string name, glm::vec2 vec2) {
+    core->ShaderSetUniform(program, name, vec2);
+}
+
+HEADER_TARGET void GraphicsImplShaderSetUniformFFF(Electron::GraphicsCore* core, GLuint program, std::string name, glm::vec3 vec) {
+    core->ShaderSetUniform(program, name, vec);
+}
+
+HEADER_TARGET void GraphicsImplShaderSetUniformF(Electron::GraphicsCore* core, GLuint program, std::string name, float f) {
+    core->ShaderSetUniform(program, name, f);
+}
+
+HEADER_TARGET void GraphicsImplRequestTextureCollectionCleaning(Electron::GraphicsCore* core, GLuint color, GLuint uv, GLuint depth, int width, int height, Electron::RenderRequestMetadata metadata) {
+    core->RequestTextureCollectionCleaning(color, uv, depth, width, height, metadata);
 }

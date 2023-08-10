@@ -5,6 +5,21 @@ static void electronGlfwError(int id, const char* description) {
     print("GLFW_ERROR: " << description);
 }
 
+static void GLAPIENTRY
+MessageCallback( GLenum source,
+                 GLenum type,
+                 GLuint id,
+                 GLenum severity,
+                 GLsizei length,
+                 const GLchar* message,
+                 const void* userParam )
+{
+    if (type != GL_DEBUG_TYPE_ERROR) return;
+  fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+            type, severity, message );
+}
+
 Electron::AppInstance::AppInstance() {
     this->selectedRenderLayer = 0;
     this->showBadConfigMessage = false;
@@ -23,8 +38,8 @@ Electron::AppInstance::AppInstance() {
     this->isNativeWindow = configMap["ViewportMethod"] == "native-window";
 
     glfwWindowHint(GLFW_RESIZABLE, isNativeWindow);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_VISIBLE, isNativeWindow);
 
@@ -40,6 +55,9 @@ Electron::AppInstance::AppInstance() {
     if (glInitStatus != GLEW_OK) {
         throw std::runtime_error("cannot initialize glew! (" + std::string((const char*) glewGetErrorString(glInitStatus)) + ")");
     }
+
+    glEnable              ( GL_DEBUG_OUTPUT );
+    glDebugMessageCallback( MessageCallback, 0 );
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -68,6 +86,12 @@ Electron::AppInstance::AppInstance() {
     this->assets.owner = &graphics;
 
     InitializeDylibs();
+    
+    RenderLayer sampleRect("sdf2d_layer");
+    sampleRect.beginFrame = 0;
+    sampleRect.endFrame = 60;
+
+    graphics.layers.push_back(sampleRect);
 }
 
 Electron::AppInstance::~AppInstance() {
@@ -239,8 +263,6 @@ void Electron::AppInstance::RestoreBadConfig() {
     this->configMap["ViewportMethod"] = "native-window";
     this->configMap["UIScaling"] = 1.0f;
     this->configMap["LastProject"] = "null";
-    this->configMap["ActivateRenderGrid"] = false; 
-    this->configMap["RenderThreadsCount"] = 1;
 
     this->showBadConfigMessage = true;
 }

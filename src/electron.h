@@ -74,6 +74,15 @@ namespace Electron {
         return t.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
     }
 
+    static std::string read_file(const std::string& filename) {
+        std::string buffer;
+        std::ifstream in(filename.c_str(), std::ios_base::binary | std::ios_base::ate);
+        in.exceptions(std::ios_base::badbit | std::ios_base::failbit | std::ios_base::eofbit);
+        buffer.resize(in.tellg());
+        in.seekg(0, std::ios_base::beg);
+        in.read(&buffer[0], buffer.size());
+        return buffer;
+    }
     
     template <typename T>
     std::basic_string<T> lowercase(const std::basic_string<T>& s) {

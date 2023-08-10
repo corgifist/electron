@@ -9,7 +9,7 @@
 #define MAX_DEPTH 100000000
 #define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.*"
 
-#define RENDER_THREADS_MULTIPLIER 8
+#define RENDER_THREADS_MULTIPLIER 1
 
 namespace Electron {
 
@@ -45,8 +45,12 @@ namespace Electron {
         int beginX, endX, beginY, endY;
         std::vector<float> backgroundColor;
         RenderBuffer* rbo;
+        int offsetX, offsetY;
 
-        RenderRequestMetadata() {}
+        RenderRequestMetadata() {
+            this->offsetX = 0;
+            this->offsetY = 0;
+        }
     };
 
     enum class TextureUnionType {
@@ -54,12 +58,10 @@ namespace Electron {
     };
 
     class PixelBuffer {
-    private:
-        std::vector<Pixel> pixels;
-
     public:
         int width, height;
         static int filtering;
+        std::vector<Pixel> pixels;
 
         PixelBuffer(int width, int height);
         PixelBuffer(std::vector<Pixel> pixels, int width, int height);
@@ -126,12 +128,18 @@ namespace Electron {
 
     class RenderBuffer {
     public:
-        PixelBuffer color;
-        PixelBuffer uv;
-        PixelBuffer depth;
+        GLuint colorBuffer;
+        GLuint uvBuffer;
+        GLuint depthBuffer;
+        int width, height;
 
-        RenderBuffer(int width, int height);
-        RenderBuffer() = default;
+        RenderBuffer(GraphicsCore* core, int width, int height);
+        RenderBuffer() {
+            this->width = 0;
+            this->height = 0;
+        };
+
+        ~RenderBuffer();
     };
 
     struct AssetRegistry {
@@ -174,6 +182,7 @@ namespace Electron {
         int beginFrame, endFrame, frameOffset;
         std::string layerLibrary;
         json_t properties;
+        json_t internalData;
         Electron_LayerImplF layerProcedure;
         Electron_PropertyRenderImplF initializationProcedure;
         Electron_PropertyRenderImplF propertiesProcedure;
@@ -182,6 +191,7 @@ namespace Electron {
         bool initialized;
         std::string layerPublicName;
         float renderTime;
+        std::vector<std::any> anyData;
 
 
         RenderLayer(std::string layerLibrary); 
@@ -196,6 +206,17 @@ namespace Electron {
         void SortKeyframes(json_t& keyframes);
         json_t InterpolateProperty(json_t property);
         json_t ExtractExactValue(json_t property);
+    };
+
+    struct ResizableGPUTexture {
+        GLuint texture;
+        int width, height;
+        GraphicsCore* core;
+
+        ResizableGPUTexture(GraphicsCore* core, int width, int height);
+        ResizableGPUTexture() {}
+
+        void CheckForResize(RenderBuffer* rbo);
     };
 
     class GraphicsCore {
@@ -213,11 +234,26 @@ namespace Electron {
         GraphicsCore();
 
         void RequestRenderBufferCleaningWithinRegion(RenderRequestMetadata metadata);
+        void RequestTextureCollectionCleaning(GLuint color, GLuint uv, GLuint depth, int width, int height, RenderRequestMetadata metadata);
         std::vector<float> RequestRenderWithinRegion(RenderRequestMetadata metadata);
         void ResizeRenderBuffer(int width, int height);
         void CleanPreviewGPUTexture();
         void BuildPreviewGPUTexture();
-        PixelBuffer& GetPreviewBufferByOutputType();
+        GLuint GetPreviewBufferByOutputType();
+
+        GLuint CompileComputeShader(std::string path);
+        void UseShader(GLuint shader);
+        void DispatchComputeShader(int grid_x, int grid_y, int grid_z);
+        void ComputeMemoryBarier(GLbitfield barrier);
+        GLuint GenerateGPUTexture(int width, int height, int unit);
+        void BindGPUTexture(GLuint texture, int unit);
+        PixelBuffer PBOFromGPUTexture(GLuint texture, int width, int height);
+        void ShaderSetUniform(GLuint program, std::string name, int x, int y);
+        void ShaderSetUniform(GLuint program, std::string name, glm::vec3 vec);
+        void ShaderSetUniform(GLuint program, std::string name, float f);
+        void ShaderSetUniform(GLuint program, std::string name, glm::vec2 vec);
+
+        void CallCompositor(ResizableGPUTexture color, ResizableGPUTexture uv, ResizableGPUTexture depth);
 
         PixelBuffer CreateBufferFromImage(const char* filename);
 
