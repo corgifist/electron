@@ -99,20 +99,20 @@ extern "C" {
         }
 
         bool canTexture = (asset != nullptr && texturingEnabled);
-        std::unique_ptr<PixelBuffer> maybePBO;
-        if (canTexture) {
-            maybePBO = std::make_unique<PixelBuffer>(std::get<PixelBuffer>(asset->as));
-        }
 
         GraphicsImplBindGPUTexture(owner->graphicsOwner, colorTexture.texture, 0);
         GraphicsImplBindGPUTexture(owner->graphicsOwner, uvTexture.texture, 1);
         GraphicsImplBindGPUTexture(owner->graphicsOwner, depthTexture.texture, 2);
+        if (canTexture) {
+            GraphicsImplBindGPUTexture(owner->graphicsOwner, asset->pboGpuTexture, 3);
+        }
         GraphicsImplUseShader(owner->graphicsOwner, sdf2d_compute);
         GraphicsImplShaderSetUniformII(owner->graphicsOwner, sdf2d_compute, "pboResolution", pbo->width, pbo->height);
         GraphicsImplShaderSetUniformFF(owner->graphicsOwner, sdf2d_compute, "position", position);
         GraphicsImplShaderSetUniformFF(owner->graphicsOwner, sdf2d_compute, "size", size);
         GraphicsImplShaderSetUniformF(owner->graphicsOwner, sdf2d_compute, "angle", angle);
         GraphicsImplShaderSetUniformFFF(owner->graphicsOwner, sdf2d_compute, "color", color);
+        GraphicsImplShaderSetUniformI(owner->graphicsOwner, sdf2d_compute, "canTexture", canTexture ? 1 : 0);
         GraphicsImplDispatchComputeShader(owner->graphicsOwner, std::ceil(pbo->width / 8), std::ceil(pbo->height / 4), 1);
         GraphicsImplMemoryBarrier(owner->graphicsOwner, GL_ALL_BARRIER_BITS);
 
@@ -122,6 +122,7 @@ extern "C" {
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
         AppInstance* instance = layer->graphicsOwner->owner;
+        RenderBuffer* pbo = &layer->graphicsOwner->renderBuffer;
 
         json_t& position = layer->properties["Position"];
         RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec2, position, "Position");
@@ -158,8 +159,10 @@ extern "C" {
             } else if (!textureAsset->IsTextureCompatible()) {
                 UIText(CSTR("Asset with ID '" + textureID + "' is not texture-compatible"));
             } else {
+                glm::vec2 textureDimensions = TextureUnionImplGetDimensions(textureAsset);
                 UIText(CSTR("Asset name: " + textureAsset->name));
                 UIText(CSTR("Asset type: " + textureAsset->strType));
+                UIText(CSTR("SDF-Type asset size" + std::string(": ") + std::to_string((textureDimensions.y / pbo->height)) + "x" + std::to_string((textureDimensions.x / pbo->width))));
             }
             }
         }

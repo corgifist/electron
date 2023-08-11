@@ -155,7 +155,9 @@ UI_EXPORT  void GraphicsImplCallCompositor(Electron::GraphicsCore* core, Electro
 UI_EXPORT  void GraphicsImplShaderSetUniformFF(Electron::GraphicsCore* core, GLuint program, std::string name, glm::vec2 vec2) ;
 UI_EXPORT  void GraphicsImplShaderSetUniformFFF(Electron::GraphicsCore* core, GLuint program, std::string name, glm::vec3 vec) ;
 UI_EXPORT  void GraphicsImplShaderSetUniformF(Electron::GraphicsCore* core, GLuint program, std::string name, float f) ;
+UI_EXPORT  void GraphicsImplShaderSetUniformI(Electron::GraphicsCore* core, GLuint program, std::string name, int f) ;
 UI_EXPORT  void GraphicsImplRequestTextureCollectionCleaning(Electron::GraphicsCore* core, GLuint color, GLuint uv, GLuint depth, int width, int height, Electron::RenderRequestMetadata metadata) ;
+UI_EXPORT  glm::vec2 TextureUnionImplGetDimensions(Electron::TextureUnion* un) ;
 
 }
 #undef UI_EXPORT

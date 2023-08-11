@@ -34,20 +34,20 @@ GLuint Electron::PixelBuffer::BuildGPUTexture() {
     GLuint id;
     glGenTextures(1, &id);
     glBindTexture(GL_TEXTURE_2D, id);
-    std::vector<uint8_t> textureConversion(this->width * this->height * 4);
+    std::vector<float> textureConversion(this->width * this->height * 4);
     for (int x = 0; x < this->width; x++) {
         for (int y = 0; y < this->height; y++) {
             int index = (x + y * width) * 4;
             Pixel pixel = GetPixel(x, y);
-            textureConversion[index + 0] = (uint8_t) (std::clamp(pixel.r, 0.0f, 1.0f)* 255);
-            textureConversion[index + 1] = (uint8_t) (std::clamp(pixel.g, 0.0f, 1.0f) * 255);
-            textureConversion[index + 2] = (uint8_t) (std::clamp(pixel.b, 0.0f, 1.0f) * 255);
-            textureConversion[index + 3] = (uint8_t) (std::clamp(pixel.a, 0.0f, 1.0f) * 255);
+            textureConversion[index + 0] = pixel.r;
+            textureConversion[index + 1] = pixel.g;
+            textureConversion[index + 2] = pixel.b;
+            textureConversion[index + 3] = pixel.a;
         }
     }
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureConversion.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, textureConversion.data());
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
@@ -88,9 +88,21 @@ void Electron::TextureUnion::RebuildAssetData(GraphicsCore* owner) {
         pboGpuTexture = std::get<PixelBuffer>(as).BuildGPUTexture();
         return;
     } else invalid = false;
-    previousPboGpuTexture = -1;
-    pboGpuTexture = -1;
+    PixelBuffer::DestroyGPUTexture(pboGpuTexture);
+    pboGpuTexture = 0;
     *this = assetOwner->LoadAssetFromPath(path).result;
+}
+
+glm::vec2 Electron::TextureUnion::GetDimensions() {
+    switch (type) {
+        case TextureUnionType::Texture: {
+            PixelBuffer pbo = std::get<PixelBuffer>(as);
+            return {pbo.width, pbo.height};
+        }
+        default: {
+            return {0, 0};
+        }
+    }
 }
 
 void Electron::TextureUnion::GenerateUVTexture() {
@@ -605,6 +617,10 @@ void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name, 
 
 void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name, glm::vec2 vec) {
     glUniform2f(glGetUniformLocation(program, name.c_str()), vec.x, vec.y);
+}
+
+void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name, int x) {
+    glUniform1i(glGetUniformLocation(program, name.c_str()), x);
 }
 
 Electron::PixelBuffer Electron::GraphicsCore::PBOFromGPUTexture(GLuint texture, int width, int height) {

@@ -563,6 +563,14 @@ HEADER_TARGET void GraphicsImplShaderSetUniformF(Electron::GraphicsCore* core, G
     core->ShaderSetUniform(program, name, f);
 }
 
+HEADER_TARGET void GraphicsImplShaderSetUniformI(Electron::GraphicsCore* core, GLuint program, std::string name, int f) {
+    core->ShaderSetUniform(program, name, f);
+}
+
 HEADER_TARGET void GraphicsImplRequestTextureCollectionCleaning(Electron::GraphicsCore* core, GLuint color, GLuint uv, GLuint depth, int width, int height, Electron::RenderRequestMetadata metadata) {
     core->RequestTextureCollectionCleaning(color, uv, depth, width, height, metadata);
+}
+
+HEADER_TARGET glm::vec2 TextureUnionImplGetDimensions(Electron::TextureUnion* un) {
+    return un->GetDimensions();
 }

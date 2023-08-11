@@ -96,7 +96,6 @@ namespace Electron {
 
         TextureUnion() {
             this->previewScale = 1.0f;
-            this->pboGpuTexture = -1;
             this->invalid = false;
         }
         ~TextureUnion() {
@@ -107,6 +106,8 @@ namespace Electron {
         }
 
         void RebuildAssetData(GraphicsCore* owner);
+
+        glm::vec2 GetDimensions();
 
         void GenerateUVTexture();
     }; 
@@ -252,6 +253,7 @@ namespace Electron {
         void ShaderSetUniform(GLuint program, std::string name, glm::vec3 vec);
         void ShaderSetUniform(GLuint program, std::string name, float f);
         void ShaderSetUniform(GLuint program, std::string name, glm::vec2 vec);
+        void ShaderSetUniform(GLuint program, std::string name, int x);
 
         void CallCompositor(ResizableGPUTexture color, ResizableGPUTexture uv, ResizableGPUTexture depth);
 
