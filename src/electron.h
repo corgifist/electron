@@ -125,6 +125,14 @@ namespace Electron {
         return rand();
     }
 
+    static void update_log() {
+        std::stringstream sstream;
+        std::cout.rdbuf(sstream.rdbuf());
+        
+        std::ofstream file("electron.log");
+        file << sstream.str();
+    }
+
     struct ElectronVector2f {
         float x, y;
 

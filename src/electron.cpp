@@ -1,3 +1,4 @@
+#include "electron.h"
 #include "app.h"
 
 bool Electron::Rect::contains(Electron::Point p) {
@@ -23,9 +24,14 @@ std::string Electron::exec(const char* cmd) {
 }
 
 int main(int argc, char *argv[]) {
-    if (std::filesystem::exists("G:/ProgrammingProjects/Electron/corgi.png")) {
-        print("LOL EXISTS");
-    }
+    std::ofstream tempStream("electron.log");
+    tempStream << "[ELECTRON LOG BEGIN]";
+    
+    /* std::ios_base::sync_with_stdio(false);
+    std::cin.tie(0);
+    std::cout.rdbuf(tempStream.rdbuf()); */
+    freopen("electron.log", "w", stdout);
+
     try {
         Electron::AppInstance instance;
         instance.AddUIContent(new Electron::ProjectConfiguration());
