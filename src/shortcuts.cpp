@@ -22,3 +22,7 @@ void Electron::Shortcuts::Ctrl_W_L() {
 void Electron::Shortcuts::Ctrl_W_A() {
     owner->ExecuteSignal(ElectronSignal_SpawnAssetManager);
 }
+
+void Electron::Shortcuts::Ctrl_W_T() {
+    owner->ExecuteSignal(ElectronSignal_SpawnTimeline);
+}

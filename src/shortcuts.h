@@ -24,6 +24,8 @@ namespace Electron {
         void Ctrl_W_L();
 
         void Ctrl_W_A();
+
+        void Ctrl_W_T();
     };
 }
 

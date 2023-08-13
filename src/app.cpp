@@ -235,6 +235,10 @@ void Electron::AppInstance::ExecuteSignal(ElectronSignal signal, int windowIndex
             AddUIContent(new AssetManager());
             break;
         }
+        case ElectronSignal_SpawnTimeline: {
+            AddUIContent(new Timeline());
+            break;
+        }
         case ElectronSignal_A: {
             print("Signal A");
             break;

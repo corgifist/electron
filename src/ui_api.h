@@ -161,3 +161,4 @@ IMPLEMENT_UI_VOID_WRAPPER(GraphicsImplShaderSetUniformF, (Electron::GraphicsCore
 IMPLEMENT_UI_VOID_WRAPPER(GraphicsImplShaderSetUniformI, (Electron::GraphicsCore* core,GLuint program,std::string name,int f), (core ,program ,name ,f), (Electron::GraphicsCore* ,GLuint ,std::string ,int))
 IMPLEMENT_UI_VOID_WRAPPER(GraphicsImplRequestTextureCollectionCleaning, (Electron::GraphicsCore* core,GLuint color,GLuint uv,GLuint depth,int width,int height,Electron::RenderRequestMetadata metadata), (core ,color ,uv ,depth ,width ,height ,metadata), (Electron::GraphicsCore* ,GLuint ,GLuint ,GLuint ,int ,int ,Electron::RenderRequestMetadata))
 IMPLEMENT_UI_WRAPPER(TextureUnionImplGetDimensions, (Electron::TextureUnion* un), (un), (Electron::TextureUnion*), glm::vec2)
+IMPLEMENT_UI_VOID_WRAPPER(ShortcutsImplCtrlWT, (Electron::AppInstance* instance), (instance), (Electron::AppInstance*))

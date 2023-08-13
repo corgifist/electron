@@ -55,6 +55,9 @@ extern "C" {
                     if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE"), "Ctrl+W+A")) {
                         ShortcutsImplCtrlWA(instance);
                     }
+                    if (UIMenuItem("Timeline", "Ctrl+W+T")) {
+                        ShortcutsImplCtrlWT(instance);
+                    }
                     UIEndMenu();
                 }
                 MenuBarEndProc();

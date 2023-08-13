@@ -49,6 +49,7 @@ namespace Electron {
         ElectronSignal_SpawnLayerProperties,
         ElectronSignal_ReloadSystem,
         ElectronSignal_SpawnAssetManager,
+        ElectronSignal_SpawnTimeline,
         ElectronSignal_A,
         ElectronSignal_B,
         ElectronSignal_None

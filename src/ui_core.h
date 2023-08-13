@@ -158,6 +158,7 @@ UI_EXPORT  void GraphicsImplShaderSetUniformF(Electron::GraphicsCore* core, GLui
 UI_EXPORT  void GraphicsImplShaderSetUniformI(Electron::GraphicsCore* core, GLuint program, std::string name, int f) ;
 UI_EXPORT  void GraphicsImplRequestTextureCollectionCleaning(Electron::GraphicsCore* core, GLuint color, GLuint uv, GLuint depth, int width, int height, Electron::RenderRequestMetadata metadata) ;
 UI_EXPORT  glm::vec2 TextureUnionImplGetDimensions(Electron::TextureUnion* un) ;
+UI_EXPORT  void ShortcutsImplCtrlWT(Electron::AppInstance* instance) ;
 
 }
 #undef UI_EXPORT

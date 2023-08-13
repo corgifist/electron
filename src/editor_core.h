@@ -15,6 +15,7 @@ namespace Electron {
 
     class AppInstance;
     class RenderPreview;
+    class Timeline;
 
 #ifndef ELECTRON_IMPLEMENTATION_MODE
     struct ImplDylibs {
@@ -53,9 +54,9 @@ namespace Electron {
         virtual void Render(AppInstance* owner) = 0;
     };
 
-
     typedef void (*Electron_ImplF)(AppInstance*);
     typedef void (*Electron_RenderPreviewImplF)(AppInstance*, RenderPreview*);
+    typedef void (*Electron_TimelineF)(AppInstance* owner, Timeline*);
 
     class ProjectConfiguration : public ElectronUI {
     private:
@@ -97,6 +98,16 @@ namespace Electron {
 
     public:
         AssetManager();
+
+        void Render(AppInstance* instance);
+    };
+
+#define TIMELINE_MAX_ZOOM 100.0f
+#define TIMELINE_DEFAULT_ZOOM 5.0f
+#define TIMELINE_MIN_ZOOM 0.1f
+    class Timeline : public ElectronUI {    
+    public:
+        Timeline();
 
         void Render(AppInstance* instance);
     };

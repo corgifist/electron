@@ -574,3 +574,7 @@ HEADER_TARGET void GraphicsImplRequestTextureCollectionCleaning(Electron::Graphi
 HEADER_TARGET glm::vec2 TextureUnionImplGetDimensions(Electron::TextureUnion* un) {
     return un->GetDimensions();
 }
+
+HEADER_TARGET void ShortcutsImplCtrlWT(Electron::AppInstance* instance) {
+    SHORTCUT(Ctrl_W_T)();
+}
