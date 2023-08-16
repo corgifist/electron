@@ -40,10 +40,9 @@ namespace Electron {
     };
 
     class AppInstance {
-    private:
+    public:
         GLFWwindow* displayHandle;
         std::vector<ElectronUI*> content;
-    public:
         json_t localizationMap, configMap;
         GraphicsCore graphics;
         ProjectMap project;
@@ -54,6 +53,7 @@ namespace Electron {
         ImGuiID nativeWindowCentralDockID;
         int selectedRenderLayer;
         AssetRegistry assets;
+        float fontSize;
 
         ImFont* largeFont;
         

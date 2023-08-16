@@ -193,6 +193,7 @@ namespace Electron {
         std::string layerPublicName;
         float renderTime;
         std::vector<std::any> anyData;
+        glm::vec4 layerColor;
 
 
         RenderLayer(std::string layerLibrary); 

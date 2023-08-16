@@ -9,6 +9,7 @@ using namespace glm;
 extern "C" {
 
     ELECTRON_EXPORT std::string LayerName = "SDF2D";
+    ELECTRON_EXPORT glm::vec4 LayerTimelineColor = {0.58, 0.576, 1, 1};
     GLuint sdf2d_compute = -1;
 
     mat2 rotationMatrix(float angle) {

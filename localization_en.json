@@ -69,6 +69,8 @@
     "ASSET_MANAGER_BROWSE_ASSET_PATH": "Browse asset path",
     "ASSET_MANAGER_ASSET_ID": "Asset ID",
     "ASSET_MANAGER_SEARCH": "Search",
+    "TIMELINE_TITLE": "Timeline",
+    "TIMELINE_ZOOM": "Zoom",
     "GENERIC_COPY_TO_CLIPBOARD": "Copy to clipboard",
     "GENERIC_BROWSE": "Browse",
     "GENERIC_INVALID": "Invalid",

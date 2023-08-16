@@ -70,8 +70,9 @@ Electron::AppInstance::AppInstance() {
 
     SetupImGuiStyle();
 
-    io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, 16.0f * uiScaling);
-    this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, 32.0f * uiScaling);
+    this->fontSize = 16.0f * uiScaling;
+    io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize);
+    this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize * 2.0f);
 
     ImGui_ImplGlfw_InitForOpenGL(this->displayHandle, true);
     ImGui_ImplOpenGL3_Init();
