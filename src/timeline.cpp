@@ -96,12 +96,12 @@ namespace Electron {
         RectBounds fullscreenTicksMask = RectBounds(ImVec2(0, 2), ImVec2(canvasSize.x, canvasSize.y));
         ImGui::BeginChild("projectlegend", legendSize, true);
         DrawRect(fillerTicksBackground, ImVec4(0.045f, 0.045f, 0.045f, 1));
-        float propertiesStep = 30;
+        float propertiesStep = 22;
         float propertiesCoordAcc = 0;
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
             ImGui::SetCursorPosY(ticksBackgroundHeight + 2 + propertiesCoordAcc);
-            if (ImGui::CollapsingHeader(layer->layerPublicName.c_str())) {
+            if (ImGui::CollapsingHeader((layer->layerPublicName + "##" + std::to_string(i)).c_str())) {
 
             }
             propertiesCoordAcc += propertiesStep;
@@ -138,26 +138,38 @@ namespace Electron {
         }
 
         for (auto& stamp : stamps) {
-            ImGui::GetWindowDrawList()->AddText(canvasPos + stamp.position + ImVec2(legendSize.x, 0), ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, 1)), std::to_string(stamp.frame).c_str());
+            ImGui::GetWindowDrawList()->AddText(canvasPos + stamp.position + ImVec2(legendSize.x - ImGui::GetScrollX(), 0), ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, 1)), formatToTimestamp(stamp.frame, instance->graphics.renderFramerate).c_str());
         }
         PopClipRect();
 
         float layerOffsetY = ticksBackgroundHeight;
-        float layerSizeY = 23;
+        float layerSizeY = 22;
         static std::vector<DragStructure> universalLayerDrags;
         if (universalLayerDrags.size() != instance->graphics.layers.size()) {
             universalLayerDrags = std::vector<DragStructure>(instance->graphics.layers.size());
         }
+        static std::vector<float> layerSeparatorTargets{};
+        for (auto& separatorY : layerSeparatorTargets) {
+            RectBounds separatorBounds = RectBounds(ImVec2(0 + ImGui::GetScrollX(), separatorY + ImGui::GetScrollY()), ImVec2(canvasSize.x, 2.0f));
+            DrawRect(separatorBounds, ImVec4(0, 0, 0, 1));
+        }
+        layerSeparatorTargets.clear();
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
             DragStructure& universalDrag = universalLayerDrags[i];
             ImGui::SetCursorPosY(layerOffsetY + 1);
             ImGui::SetCursorPosX(pixelsPerFrame * layer->beginFrame);
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{layer->layerColor.r, layer->layerColor.g, layer->layerColor.b, layer->layerColor.a});
-            if (ImGui::Button(layer->layerPublicName.c_str(), ImVec2(pixelsPerFrame * (layer->endFrame - layer->beginFrame), layerSizeY))) {
+            if (ImGui::Button((layer->layerPublicName + "##" + std::to_string(i)).c_str(), ImVec2(pixelsPerFrame * (layer->endFrame - layer->beginFrame), layerSizeY))) {
                 instance->selectedRenderLayer = i;
             } 
-            if (ImGui::IsItemHovered()) {
+
+            bool anyOtherButtonsDragged = false;
+            for (auto& drag : universalLayerDrags) {
+                if (drag.isActive) anyOtherButtonsDragged = true;
+            }
+
+            if (ImGui::IsItemHovered() && !anyOtherButtonsDragged) {
                 universalDrag.Activate();
             }
 
@@ -169,8 +181,9 @@ namespace Electron {
 
                 layer->beginFrame = glm::max(layer->beginFrame, 0);
                 layer->endFrame = glm::max(layer->endFrame, 0);
-            }
+            } else universalDrag.Deactivate();
             ImGui::PopStyleColor();
+            layerSeparatorTargets.push_back(layerOffsetY);
             layerOffsetY += layerSizeY;
         }
         ImGui::EndChild();

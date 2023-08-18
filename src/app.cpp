@@ -93,6 +93,7 @@ Electron::AppInstance::AppInstance() {
     sampleRect.endFrame = 60;
 
     graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
 }
 
 Electron::AppInstance::~AppInstance() {
@@ -103,7 +104,11 @@ Electron::AppInstance::~AppInstance() {
 }
 
 void Electron::AppInstance::Run() {
+    static float showDemoWindow = false;
     while (!glfwWindowShouldClose(this->displayHandle)) {
+        if (glfwGetKey(displayHandle, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && glfwGetKey(displayHandle, GLFW_KEY_I) == GLFW_PRESS) {
+            showDemoWindow = !showDemoWindow;
+        }
         ImGuiIO& io = ImGui::GetIO();
         if (projectOpened) {
             project.SaveProject();
@@ -121,6 +126,12 @@ void Electron::AppInstance::Run() {
         if (projectOpened) {
             configMap["LastProject"] = project.path;
         }
+
+        int renderLengthCandidate = 0;
+        for (auto& layer : graphics.layers) {
+            renderLengthCandidate = glm::max(renderLengthCandidate, layer.endFrame);
+        }
+        graphics.renderLength = renderLengthCandidate;
 
         PixelBuffer::filtering = configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
 
@@ -140,6 +151,9 @@ void Electron::AppInstance::Run() {
 
         int windowIndex = 0;
         int destroyWindowTarget = -1;
+        if (showDemoWindow) {
+            ImGui::ShowDemoWindow();
+        }
         if (showBadConfigMessage) {
             ImGui::Begin(ELECTRON_GET_LOCALIZATION(this, "CORRUPTED_CONFIG_MESSAGE_TITLE"), nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_AlwaysAutoResize);
                 ImGui::FocusWindow(ImGui::GetCurrentWindow());

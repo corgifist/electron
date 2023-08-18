@@ -44,12 +44,11 @@ extern "C" {
                     // render image preview
                     switch (asset.type) {
                         case TextureUnionType::Texture: {
-                            PixelBuffer& pbo = std::get<PixelBuffer>(asset.as);
-
-                            UISetCursorX((windowSize.x / 2.0f) - ((pbo.width * asset.previewScale) / 2.0f));
-                            UIImage(asset.pboGpuTexture, ImVec2{pbo.width * asset.previewScale, pbo.height * asset.previewScale});
+                            glm::vec2 textureDimensions = TextureUnionImplGetDimensions(&asset);
+                            UISetCursorX((windowSize.x / 2.0f) - ((textureDimensions.x * asset.previewScale) / 2.0f));
+                            UIImage(asset.pboGpuTexture, ImVec2(textureDimensions.x, textureDimensions.y) * asset.previewScale);
                             UISliderFloat(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_PREVIEW_SCALE") + std::string("##") + std::to_string((uint64_t) &asset)), &asset.previewScale, 0.1f, 2.0f, "%0.1f", 0);
-                            UIText(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION") + std::string(": ") + std::to_string(pbo.width) + "x" + std::to_string(pbo.height)));
+                            UIText(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION") + std::string(": ") + std::to_string((int) textureDimensions.x) + "x" + std::to_string((int) textureDimensions.y)));
                             break;
                         }
                     }

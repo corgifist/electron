@@ -101,6 +101,13 @@ namespace Electron {
         return s2;
     }
 
+    static std::string formatToTimestamp(int frame, int framerate) {
+        float transformedFrame = (float) frame / (float) framerate;
+        float minutes = glm::floor(transformedFrame / (float) framerate);
+        float seconds = glm::floor((int) transformedFrame % 60);
+        return "0" + std::to_string((int) minutes) + ":" + std::to_string((int) seconds);
+    }
+
     static std::ifstream::pos_type filesize(const char* filename) {
         std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
         return in.tellg(); 

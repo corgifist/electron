@@ -85,14 +85,11 @@ extern "C" {
 
             ImVec2 scaledPreviewSize = {resolutionVariants[0].width, resolutionVariants[0].height};
 
-            float scaleFactor = ((availZone.x / scaledPreviewSize.x * 0.1f) + (availZone.y / scaledPreviewSize.y * 0.1f)) / 2.0f;
-            scaledPreviewSize.x += scaledPreviewSize.x * scaleFactor;
-            scaledPreviewSize.y += scaledPreviewSize.y * scaleFactor;
-            scaledPreviewSize.x *= previewScale;
-            scaledPreviewSize.y *= previewScale;
+            ImVec2 acceptedResolution = windowSize * 0.8f;
+            float xAspect = scaledPreviewSize.x / acceptedResolution.x;
+            scaledPreviewSize = ImVec2{acceptedResolution.x, resolutionVariants[0].height / xAspect} * previewScale;
 
 
-            instance->graphics.renderLength = 60;
             instance->graphics.renderFramerate = JSON_AS_TYPE(instance->project.propertiesMap["Framerate"], int);
             RenderRequestMetadata metadata;
             metadata.backgroundColor = JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>);

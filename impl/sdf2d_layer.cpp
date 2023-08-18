@@ -46,8 +46,6 @@ extern "C" {
 
         if (sdf2d_compute == -1) {
             sdf2d_compute = GraphicsImplCompileComputeShader(owner->graphicsOwner, "sdf2d.compute");
-            print("compiled sdf2d.compute");
-            DUMP_VAR(sdf2d_compute);
         }
     }
 
