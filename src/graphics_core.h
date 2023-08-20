@@ -193,6 +193,7 @@ namespace Electron {
         float renderTime;
         std::vector<std::any> anyData;
         glm::vec4 layerColor;
+        std::string layerUsername;
         int registryIndex;
 
 

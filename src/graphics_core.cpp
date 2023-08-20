@@ -225,6 +225,8 @@ Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     RenderLayerRegistry::Registry.push_back(this);
     this->registryIndex = RenderLayerRegistry::Registry.size() - 1;
 
+    this->layerUsername = layerPublicName + " Layer";
+
 }
 
 Electron::RenderLayer::~RenderLayer() {

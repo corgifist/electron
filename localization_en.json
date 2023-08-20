@@ -54,6 +54,7 @@
     "LAYER_PROPERTIES_ADD_KEYFRAME": "Add keyframe",
     "LAYER_PROPERTIES_DYNAMIC_LIBRARY": "Dynamic library",
     "LAYER_PROPERTIES_RENDER_BOUNDS": "Render bounds",
+    "LAYER_PROPERTIES_LAYER_NAME": "Layer name",
     "RELOAD_APPLICATION": "Reload editor",
     "ASSET_MANAGER_TITLE": "Asset Manager",
     "ASSET_MANAGER_ASSETS_SIZE_IN_RAM": "Assets size in RAM",

@@ -136,7 +136,7 @@ namespace Electron {
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
             ImGui::SetCursorPosY(ticksBackgroundHeight + 2 + propertiesCoordAcc);
-            if (ImGui::CollapsingHeader((layer->layerPublicName + "##" + std::to_string(i)).c_str())) {
+            if (ImGui::CollapsingHeader((layer->layerUsername + "##" + std::to_string(i)).c_str())) {
 
             }
             propertiesCoordAcc += propertiesStep;
@@ -198,6 +198,7 @@ namespace Electron {
             DrawRect(separatorBounds, ImVec4(0, 0, 0, 1));
         }
         layerSeparatorTargets.clear();
+        int layerDeleteionTarget = -1;
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
             DragStructure& universalDrag = universalLayerDrags[i];
@@ -208,11 +209,15 @@ namespace Electron {
             ImGui::SetCursorPosY(layerOffsetY + 2);
             ImGui::SetCursorPosX(pixelsPerFrame * layer->beginFrame);
             ImGui::PushStyleColor(ImGuiCol_Button, layerColor);
-            if (ImGui::Button((layer->layerPublicName + "##" + std::to_string(i)).c_str(), ImVec2(pixelsPerFrame * layerDuration, layerSizeY))) {
+            if (ImGui::Button((layer->layerUsername + "##" + std::to_string(i)).c_str(), ImVec2(pixelsPerFrame * layerDuration, layerSizeY))) {
                 instance->selectedRenderLayer = i;
             } 
+            if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
+                ImGui::OpenPopup(string_format("TimelineLayerPopup%i", i).c_str());
+            }
             ImGui::SetCursorPos(ImVec2{0, 0});
-            ImVec2 dragSize = ImVec2(30, layerSizeY);
+            ImVec2 dragSize = ImVec2(layerDuration * pixelsPerFrame / 10, layerSizeY);
+            dragSize.x = glm::clamp(dragSize.x, 1.0f, 30.0f);
             RectBounds forwardDragBounds = RectBounds(ImVec2(pixelsPerFrame * layer->beginFrame + pixelsPerFrame * layerDuration - dragSize.x, layerOffsetY + 2), dragSize);
             DrawRect(forwardDragBounds, layerColor * ImVec4(0.9f, 0.9f, 0.9f, 1));
             RectBounds backwardDragBounds = RectBounds(ImVec2(pixelsPerFrame * layer->beginFrame, layerOffsetY + 2), dragSize);
@@ -255,8 +260,6 @@ namespace Electron {
                 layer->beginFrame = (windowMouseCoords.x + ImGui::GetScrollX()) / pixelsPerFrame;
             } else backwardDrag.Deactivate();
 
-            
-
             if (isWindowFocused) {
                 if (forwardDrag.isActive) {
                     ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
@@ -271,7 +274,7 @@ namespace Electron {
                 float halfLayerDuration = layerDuration / 2.0f;
                 float tempBeginFrame = midpointFrame - halfLayerDuration;
                 float tempEndFrame = midpointFrame + halfLayerDuration;
-                if (tempBeginFrame > 0) {
+                if (tempBeginFrame > 0 && glm::abs(universalDragDistance) > 1.0f) {
                     layer->beginFrame = tempBeginFrame;
                     layer->endFrame = tempEndFrame;
                 }
@@ -280,6 +283,17 @@ namespace Electron {
                 layer->endFrame = glm::max(layer->endFrame, 0);
                 timelineDrag.Deactivate();
             } else universalDrag.Deactivate();
+
+            ImGui::PopStyleVar(2);
+            if (ImGui::BeginPopup(string_format("TimelineLayerPopup%i", i).c_str())) {
+                ImGui::SeparatorText(layer->layerUsername.c_str());
+                if (ImGui::Selectable("Delete layer")) {
+                    layerDeleteionTarget = i;
+                }
+                ImGui::EndPopup();
+            }
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
             ImGui::PopStyleColor();
             layerSeparatorTargets.push_back(layerOffsetY);
@@ -309,7 +323,7 @@ namespace Electron {
 
         float timelineDragDist;
         if (timelineDrag.GetDragDistance(timelineDragDist) && !anyLayerDragged) {
-            instance->graphics.renderFrame = (windowMouseCoords.x - ImGui::GetScrollX()) / pixelsPerFrame;
+            instance->graphics.renderFrame = (windowMouseCoords.x) / pixelsPerFrame;
         } else timelineDrag.Deactivate();
 
         RectBounds endTimelineBounds = RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderLength, 0), ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
@@ -319,6 +333,10 @@ namespace Electron {
 
         ImGui::End();
         ImGui::PopStyleVar(2);
+        if (layerDeleteionTarget != -1) {
+            auto& layers = instance->graphics.layers;
+            layers.erase(layers.begin() + layerDeleteionTarget);
+        }
 
     }
 }

@@ -28,11 +28,12 @@ extern "C" {
 
             RenderLayer* targetLayer = instance->graphics.layers.data() + instance->selectedRenderLayer;
             UIPushFont(instance->largeFont);
-                UIText(CSTR(std::string(targetLayer->layerPublicName) + "<" + std::to_string(instance->selectedRenderLayer) + ">"));
+                UIText(CSTR(targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(instance->selectedRenderLayer) + ">" + ")"));
             UIPopFont();
             UISpacing();
             UIText(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_DYNAMIC_LIBRARY")) + ": " + targetLayer->layerLibrary));
             UIText(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_RENDER_BOUNDS")) + ": " + std::to_string(targetLayer->beginFrame) + " -> " + std::to_string(targetLayer->endFrame)));
+            UIInputField(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_LAYER_NAME"))), &targetLayer->layerUsername, 0);
             UISpacing();
             UISeparator();
             UISpacing();

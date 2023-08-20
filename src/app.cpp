@@ -134,6 +134,8 @@ void Electron::AppInstance::Run() {
         int renderLengthCandidate = 0;
         for (auto& layer : graphics.layers) {
             renderLengthCandidate = glm::max(renderLengthCandidate, layer.endFrame);
+
+            layer.beginFrame = glm::clamp(layer.beginFrame, 0, layer.endFrame);
         }
         graphics.renderLength = renderLengthCandidate;
         graphics.renderFrame = glm::clamp((float) graphics.renderFrame, 0.0f, (float) graphics.renderLength);
