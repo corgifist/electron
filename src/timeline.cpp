@@ -2,6 +2,8 @@
 
 namespace Electron {
 
+    int UICounters::TimelineCounter = 0;
+
     struct DragStructure {
         bool isActive;
 
@@ -68,11 +70,32 @@ namespace Electron {
     }
 
     Timeline::Timeline() {
-        
+        UICounters::TimelineCounter++;
+    }
+
+    Timeline::~Timeline() {
+        UICounters::TimelineCounter--;
+    }
+
+    static float pixelsPerFrame = 3.0f;
+
+    static void IncreasePixelsPerFrame() {
+        pixelsPerFrame += 0.1f;
+    }
+
+    static void DecreasePixelsPerFrame() {
+        pixelsPerFrame -= 0.1f;
     }
 
     void Timeline::Render(AppInstance* instance) {
+        static bool shortcutsSetup = false;
+        if (!shortcutsSetup) {
+            shortcutsSetup = true;
+            instance->AddShortcut({ImGuiKey_KeypadAdd}, IncreasePixelsPerFrame);
+            instance->AddShortcut({ImGuiKey_KeypadSubtract}, DecreasePixelsPerFrame);
+        }
         bool pOpen = true;
+
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
@@ -81,12 +104,24 @@ namespace Electron {
             ImGui::End();
             throw ElectronSignal_CloseWindow;
         }
+        if (!instance->projectOpened) {
+            ImVec2 windowSize = ImGui::GetWindowSize();
+            std::string noProjectOpened = ELECTRON_GET_LOCALIZATION(instance, "GENERIC_NO_PROJECT_IS_OPENED");
+            ImVec2 textSize = ImGui::CalcTextSize(noProjectOpened.c_str());
+            ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - textSize.x / 2.0f, windowSize.y / 2.0f - textSize.y / 2.0f});
+            ImGui::Text(noProjectOpened.c_str());
+            ImGui::End();
+            ImGui::PopStyleVar(2);
+            return;
+        }
         bool isWindowFocused = ImGui::IsWindowFocused();
         ImVec2 canvasSize = ImGui::GetContentRegionAvail();
         ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        static float pixelsPerFrame = 3.0f;
+        ImVec2 windowMouseCoords = ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
+        pixelsPerFrame = glm::clamp(pixelsPerFrame, 2.0f, 10.0f);
 
+        static DragStructure timelineDrag{};
 
         static float legendWidth = 0.2f;
         ImVec2 legendSize(canvasSize.x * legendWidth, canvasSize.y);
@@ -112,10 +147,11 @@ namespace Electron {
         ImGui::SameLine();
 
         ImGui::BeginChild("projectTimeline", ImVec2(canvasSize.x - legendSize.x, canvasSize.y), false, ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_AlwaysVerticalScrollbar);
+        windowMouseCoords = ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
         PushClipRect(fullscreenTicksMask);
         std::vector<TimeStampTarget> stamps{};
         DrawRect(ticksBackground, ImVec4(0.045f, 0.045f, 0.045f, 1));
-        int desiredTicksCount = 5;
+        int desiredTicksCount = pixelsPerFrame * 2;
         float tickStep = (float) instance->graphics.renderFramerate / (float) desiredTicksCount;
         float tickPositionStep = tickStep * pixelsPerFrame;
         float tickPositionAccumulator = 0;
@@ -145,8 +181,12 @@ namespace Electron {
         float layerOffsetY = ticksBackgroundHeight;
         float layerSizeY = 22;
         static std::vector<DragStructure> universalLayerDrags;
+        static std::vector<DragStructure> forwardLayerDrags;
         if (universalLayerDrags.size() != instance->graphics.layers.size()) {
             universalLayerDrags = std::vector<DragStructure>(instance->graphics.layers.size());
+        }
+        if (forwardLayerDrags.size() != instance->graphics.layers.size()) {
+            forwardLayerDrags = std::vector<DragStructure>(instance->graphics.layers.size());
         }
         static std::vector<float> layerSeparatorTargets{};
         for (auto& separatorY : layerSeparatorTargets) {
@@ -157,45 +197,99 @@ namespace Electron {
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
             DragStructure& universalDrag = universalLayerDrags[i];
-            ImGui::SetCursorPosY(layerOffsetY + 1);
+            DragStructure& forwardDrag = forwardLayerDrags[i];
+            float layerDuration = layer->endFrame - layer->beginFrame;
+            ImVec4 layerColor = ImVec4{layer->layerColor.r, layer->layerColor.g, layer->layerColor.b, layer->layerColor.a};
+            ImGui::SetCursorPosY(layerOffsetY + 2);
             ImGui::SetCursorPosX(pixelsPerFrame * layer->beginFrame);
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{layer->layerColor.r, layer->layerColor.g, layer->layerColor.b, layer->layerColor.a});
-            if (ImGui::Button((layer->layerPublicName + "##" + std::to_string(i)).c_str(), ImVec2(pixelsPerFrame * (layer->endFrame - layer->beginFrame), layerSizeY))) {
+            ImGui::PushStyleColor(ImGuiCol_Button, layerColor);
+            if (ImGui::Button((layer->layerPublicName + "##" + std::to_string(i)).c_str(), ImVec2(pixelsPerFrame * layerDuration, layerSizeY))) {
                 instance->selectedRenderLayer = i;
             } 
+            ImGui::SetCursorPos(ImVec2{0, 0});
+            ImVec2 dragSize = ImVec2(30, layerSizeY);
+            RectBounds forwardDragBounds = RectBounds(ImVec2(pixelsPerFrame * layer->beginFrame + pixelsPerFrame * layerDuration - dragSize.x, layerOffsetY + 2), dragSize);
+            DrawRect(forwardDragBounds, layerColor * ImVec4(0.9f, 0.9f, 0.9f, 1));
 
             bool anyOtherButtonsDragged = false;
             for (auto& drag : universalLayerDrags) {
                 if (drag.isActive) anyOtherButtonsDragged = true;
             }
 
-            if (ImGui::IsItemHovered() && !anyOtherButtonsDragged) {
+            for (auto& drag : forwardLayerDrags) {
+                if (drag.isActive) anyOtherButtonsDragged = true;
+            }
+
+            if (MouseHoveringBounds(forwardDragBounds) && !anyOtherButtonsDragged && !timelineDrag.isActive) {
+                forwardDrag.Activate();
+            }
+
+            if (ImGui::IsItemHovered() && !anyOtherButtonsDragged && !timelineDrag.isActive && !forwardDrag.isActive) {
                 universalDrag.Activate();
             }
 
             float universalDragDistance;
-            if (universalDrag.GetDragDistance(universalDragDistance)) {
-                int frameAddition = glm::ceil(universalDragDistance / pixelsPerFrame);
-                layer->beginFrame += frameAddition;
-                layer->endFrame += frameAddition;
+            float forwardDragDistance;
+
+            if (forwardDrag.GetDragDistance(forwardDragDistance) && !timelineDrag.isActive) {
+                layer->endFrame = (windowMouseCoords.x + ImGui::GetScrollX()) / pixelsPerFrame;
+            } else forwardDrag.Deactivate();
+
+            if (forwardDrag.isActive) {
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+            } else {
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+            }
+
+            if (universalDrag.GetDragDistance(universalDragDistance) && universalDragDistance != 0 && !timelineDrag.isActive) {
+                float midpointFrame = (windowMouseCoords.x) / pixelsPerFrame;
+                float halfLayerDuration = layerDuration / 2.0f;
+                float tempBeginFrame = midpointFrame - halfLayerDuration;
+                float tempEndFrame = midpointFrame + halfLayerDuration;
+                if (tempBeginFrame > 0) {
+                    layer->beginFrame = tempBeginFrame;
+                    layer->endFrame = tempEndFrame;
+                }
 
                 layer->beginFrame = glm::max(layer->beginFrame, 0);
                 layer->endFrame = glm::max(layer->endFrame, 0);
             } else universalDrag.Deactivate();
+
             ImGui::PopStyleColor();
             layerSeparatorTargets.push_back(layerOffsetY);
             layerOffsetY += layerSizeY;
         }
+
+        ImGui::SetCursorPos({0, 0});
+        RectBounds timelineBounds = RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderFrame, 0), ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
+        DrawRect(timelineBounds, ImVec4(0.871, 0.204, 0.204, 1));
+
+        if (MouseHoveringBounds(timelineBounds) || MouseHoveringBounds(ticksBackground)) {
+            timelineDrag.Activate();
+        }
+
+        bool anyLayerDragged = false;
+        for (auto& drag : universalLayerDrags) {
+            if (drag.isActive) anyLayerDragged = true;
+            if (anyLayerDragged) break;
+        }
+        for (auto& drag : forwardLayerDrags) {
+            if (drag.isActive) anyLayerDragged = true;
+            if (anyLayerDragged) break;
+        }
+
+        float timelineDragDist;
+        if (timelineDrag.GetDragDistance(timelineDragDist) && !anyLayerDragged) {
+            instance->graphics.renderFrame = (windowMouseCoords.x - ImGui::GetScrollX()) / pixelsPerFrame;
+        } else timelineDrag.Deactivate();
+
+        RectBounds endTimelineBounds = RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderLength, 0), ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
+        DrawRect(endTimelineBounds, ImVec4(1, 1, 0, 1));
+
         ImGui::EndChild();
 
         ImGui::End();
         ImGui::PopStyleVar(2);
 
-        if (glfwGetKey(instance->displayHandle, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && glfwGetKey(instance->displayHandle, GLFW_KEY_KP_ADD) == GLFW_PRESS) {
-            pixelsPerFrame += 0.1f;
-        } 
-        if (glfwGetKey(instance->displayHandle, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && glfwGetKey(instance->displayHandle, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS) {
-            pixelsPerFrame -= 0.1f;
-        }
     }
 }

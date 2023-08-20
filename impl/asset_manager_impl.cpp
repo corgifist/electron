@@ -8,6 +8,15 @@ extern "C" {
         UIBegin(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE") + std::string("##") + std::to_string(CounterGetAssetManager())), ElectronSignal_CloseWindow, 0);
             ImVec2 windowSize = UIGetWindowSize();
 
+            if (!instance->projectOpened) {
+                std::string noProjectOpened = ELECTRON_GET_LOCALIZATION(instance, "GENERIC_NO_PROJECT_IS_OPENED");
+                ImVec2 textSize = UICalcTextSize(CSTR(noProjectOpened));
+                UISetCursorPos(ImVec2{windowSize.x / 2.0f - textSize.x / 2.0f, windowSize.y / 2.0f - textSize.y / 2.0f});
+                UIText(CSTR(noProjectOpened));
+                UIEnd();
+                return;
+            }
+
             static std::string importErrorMessage = "";
             static int targetAssetBrowsePath = -1;
 

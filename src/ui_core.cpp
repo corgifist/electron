@@ -578,3 +578,27 @@ HEADER_TARGET glm::vec2 TextureUnionImplGetDimensions(Electron::TextureUnion* un
 HEADER_TARGET void ShortcutsImplCtrlWT(Electron::AppInstance* instance) {
     SHORTCUT(Ctrl_W_T)();
 }
+
+HEADER_TARGET int CounterGetTimelineCounter() {
+    return Electron::UICounters::TimelineCounter;
+}
+
+HEADER_TARGET bool IOCtrl() {
+    return ImGui::GetIO().KeyCtrl;
+}
+
+HEADER_TARGET bool IOKeyPressed(ImGuiKey key) {
+    return ImGui::IsKeyPressed(ImGui::GetKeyIndex(key));
+}
+
+HEADER_TARGET ImVec2 UIGetCursorPos() {
+    return ImGui::GetCursorPos();
+}
+
+HEADER_TARGET float UIGetScrollX() {
+    return ImGui::GetScrollX();
+}
+
+HEADER_TARGET float UIGetScrollY() {
+    return ImGui::GetScrollY();
+}

@@ -74,6 +74,7 @@
     "GENERIC_COPY_TO_CLIPBOARD": "Copy to clipboard",
     "GENERIC_BROWSE": "Browse",
     "GENERIC_INVALID": "Invalid",
+    "GENERIC_NO_PROJECT_IS_OPENED": "No project is opened!",
     "GENERIC_OK": "OK",
     "GENERIC_NO": "NO",
     "GENERIC_YES": "YES",

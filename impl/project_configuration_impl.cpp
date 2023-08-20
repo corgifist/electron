@@ -46,16 +46,16 @@ extern "C" {
                     UIEndMenu();
                 }
                 if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))) {
-                    if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU_RENDER_PREVIEW"), "Ctrl+W+R")) {
+                    if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU_RENDER_PREVIEW"), "Ctrl+W+R", CounterGetRenderPreview() != 1)) {
                         ShortcutsImplCtrlWR(instance);
                     }
-                    if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_TITLE"), "Ctrl+W+L")) {
+                    if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_TITLE"), "Ctrl+W+L", CounterGetLayerProperties() != 1)) {
                         ShortcutsImplCtrlWL(instance);
                     }
-                    if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE"), "Ctrl+W+A")) {
+                    if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE"), "Ctrl+W+A", CounterGetAssetManager() != 1)) {
                         ShortcutsImplCtrlWA(instance);
                     }
-                    if (UIMenuItem("Timeline", "Ctrl+W+T")) {
+                    if (UIMenuItemEnhanced("Timeline", "Ctrl+W+T", CounterGetTimelineCounter() != 1)) {
                         ShortcutsImplCtrlWT(instance);
                     }
                     UIEndMenu();

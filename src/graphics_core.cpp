@@ -497,11 +497,13 @@ void Electron::GraphicsCore::RequestTextureCollectionCleaning(GLuint color, GLui
 }
 
 std::vector<float> Electron::GraphicsCore::RequestRenderWithinRegion(RenderRequestMetadata metadata) {
-    std::vector<float> renderTimes{};
+    std::vector<float> renderTimes(layers.size());
+    int layerIndex = 0;
     for (auto& layer : layers) {
         float first = glfwGetTime();
         layer.Render(this, metadata);
-        renderTimes.push_back(glfwGetTime() - first);
+        renderTimes[layerIndex] = (glfwGetTime() - first);
+        layerIndex++;
     }
     return renderTimes;
 }

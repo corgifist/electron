@@ -1,16 +1,19 @@
 #include "editor_core.h"
 
-dylib Electron::ImplDylibs::RenderPreviewDylib{};
-int Electron::UICounters::RenderPreviewCounter;
+namespace Electron {
+    dylib ImplDylibs::RenderPreviewDylib{};
+    int UICounters::RenderPreviewCounter;
 
-Electron::RenderPreview::RenderPreview() {
-    this->implFunction = ImplDylibs::RenderPreviewDylib.get_function<void(AppInstance*, RenderPreview*)>("RenderPreviewRender");
-    UICounters::RenderPreviewCounter++;
-}
+    RenderPreview::RenderPreview() {
+        this->implFunction = ImplDylibs::RenderPreviewDylib.get_function<void(AppInstance*, RenderPreview*)>("RenderPreviewRender");
+        UICounters::RenderPreviewCounter++;
+    }
 
-Electron::RenderPreview::~RenderPreview() {
-}
+    RenderPreview::~RenderPreview() {
+        UICounters::RenderPreviewCounter--;
+    }
 
-void Electron::RenderPreview::Render(AppInstance* instance) {
-    this->implFunction(instance, this);
+    void RenderPreview::Render(AppInstance* instance) {
+        this->implFunction(instance, this);
+    }
 }

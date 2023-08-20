@@ -117,6 +117,7 @@ extern "C" {
                 }
             }
 
+
             float translatedTimelineValue = (float) instance->graphics.renderFrame / 60.0f;
             float translatedRenderLength = (float) instance->graphics.renderLength / 60.0f;
         

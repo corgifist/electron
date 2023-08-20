@@ -75,6 +75,17 @@ namespace Electron {
         return t.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
     }
 
+    
+    template<typename ... Args>
+    static std::string string_format( const std::string& format, Args ... args ) {
+        int size_s = std::snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+        if( size_s <= 0 ){ throw std::runtime_error( "Error during formatting." ); }
+        auto size = static_cast<size_t>( size_s );
+        std::unique_ptr<char[]> buf( new char[ size ] );
+        std::snprintf( buf.get(), size, format.c_str(), args ... );
+        return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+    }
+
     static std::string read_file(const std::string& filename) {
         std::string buffer;
         std::ifstream in(filename.c_str(), std::ios_base::binary | std::ios_base::ate);
@@ -102,10 +113,10 @@ namespace Electron {
     }
 
     static std::string formatToTimestamp(int frame, int framerate) {
-        float transformedFrame = (float) frame / (float) framerate;
+        float transformedFrame = (float) frame / 60.0f;
         float minutes = glm::floor(transformedFrame / (float) framerate);
         float seconds = glm::floor((int) transformedFrame % 60);
-        return "0" + std::to_string((int) minutes) + ":" + std::to_string((int) seconds);
+        return string_format("%02i:%02i", (int) minutes, (int) seconds);
     }
 
     static std::ifstream::pos_type filesize(const char* filename) {
@@ -128,7 +139,6 @@ namespace Electron {
     }
 
     static int seedrand() {
-        print("generating seed");
         srand(time(NULL));
         return rand();
     }

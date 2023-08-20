@@ -39,6 +39,14 @@ namespace Electron {
         void SaveProject();
     };
 
+    typedef void (*Electron_ShortcutF)();
+    struct ShortcutPair {
+        std::vector<ImGuiKey> keys;
+        Electron_ShortcutF impl;
+
+        ShortcutPair() {}
+    };
+
     class AppInstance {
     public:
         GLFWwindow* displayHandle;
@@ -54,6 +62,7 @@ namespace Electron {
         int selectedRenderLayer;
         AssetRegistry assets;
         float fontSize;
+        std::vector<ShortcutPair> shortcutsPair;
 
         ImFont* largeFont;
         
@@ -75,6 +84,13 @@ namespace Electron {
 
         void AddUIContent(ElectronUI* ui) {
             this->content.push_back(ui);
+        }
+        
+        void AddShortcut(std::vector<ImGuiKey> keys, Electron_ShortcutF impl) {
+            ShortcutPair pair{};
+            pair.keys = keys;
+            pair.impl = impl;
+            shortcutsPair.push_back(pair);
         }
 
         bool ButtonCenteredOnLine(const char* label, float alignment = 0.5f);

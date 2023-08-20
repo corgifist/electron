@@ -35,6 +35,10 @@ int main(int argc, char *argv[]) {
     try {
         Electron::AppInstance instance;
         instance.AddUIContent(new Electron::ProjectConfiguration());
+        instance.AddUIContent(new Electron::RenderPreview());
+        instance.AddUIContent(new Electron::LayerProperties());
+        instance.AddUIContent(new Electron::AssetManager());
+        instance.AddUIContent(new Electron::Timeline());
         try {
             instance.Run();
         } catch (Electron::ElectronSignal signal) {

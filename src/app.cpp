@@ -103,12 +103,16 @@ Electron::AppInstance::~AppInstance() {
     this->content.clear();
 }
 
+static bool showDemoWindow = false;
+
+static void ChangeShowDemoWindow() {
+    showDemoWindow = !showDemoWindow;
+}
+
 void Electron::AppInstance::Run() {
-    static float showDemoWindow = false;
+    AddShortcut({ImGuiKey_I}, ChangeShowDemoWindow);
     while (!glfwWindowShouldClose(this->displayHandle)) {
-        if (glfwGetKey(displayHandle, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && glfwGetKey(displayHandle, GLFW_KEY_I) == GLFW_PRESS) {
-            showDemoWindow = !showDemoWindow;
-        }
+        
         ImGuiIO& io = ImGui::GetIO();
         if (projectOpened) {
             project.SaveProject();
@@ -132,6 +136,7 @@ void Electron::AppInstance::Run() {
             renderLengthCandidate = glm::max(renderLengthCandidate, layer.endFrame);
         }
         graphics.renderLength = renderLengthCandidate;
+        graphics.renderFrame = glm::clamp((float) graphics.renderFrame, 0.0f, (float) graphics.renderLength);
 
         PixelBuffer::filtering = configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
 
@@ -154,6 +159,15 @@ void Electron::AppInstance::Run() {
         if (showDemoWindow) {
             ImGui::ShowDemoWindow();
         }
+
+        for (auto& sc : shortcutsPair) {
+            bool keysPressed = ImGui::GetIO().KeyCtrl;
+            for (auto& key : sc.keys) {
+                if (!ImGui::IsKeyPressed(key)) keysPressed = false;
+            }
+            if (keysPressed) sc.impl();
+        }
+
         if (showBadConfigMessage) {
             ImGui::Begin(ELECTRON_GET_LOCALIZATION(this, "CORRUPTED_CONFIG_MESSAGE_TITLE"), nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_AlwaysAutoResize);
                 ImGui::FocusWindow(ImGui::GetCurrentWindow());

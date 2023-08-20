@@ -64,6 +64,7 @@ namespace Electron {
         static int RenderPreviewCounter;
         static int LayerPropertiesCounter;
         static int AssetManagerCounter;
+        static int TimelineCounter;
     };
 
     class ElectronUI {
@@ -105,6 +106,7 @@ namespace Electron {
     
     public:
         LayerProperties();
+        ~LayerProperties();
 
         void Render(AppInstance* instance);
     };
@@ -115,6 +117,7 @@ namespace Electron {
 
     public:
         AssetManager();
+        ~AssetManager();
 
         void Render(AppInstance* instance);
     };
@@ -132,6 +135,8 @@ namespace Electron {
         Timeline();
 
         void Render(AppInstance* instance);
+
+        ~Timeline();
     };
 }
 

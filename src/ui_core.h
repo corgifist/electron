@@ -159,6 +159,12 @@ UI_EXPORT  void GraphicsImplShaderSetUniformI(Electron::GraphicsCore* core, GLui
 UI_EXPORT  void GraphicsImplRequestTextureCollectionCleaning(Electron::GraphicsCore* core, GLuint color, GLuint uv, GLuint depth, int width, int height, Electron::RenderRequestMetadata metadata) ;
 UI_EXPORT  glm::vec2 TextureUnionImplGetDimensions(Electron::TextureUnion* un) ;
 UI_EXPORT  void ShortcutsImplCtrlWT(Electron::AppInstance* instance) ;
+UI_EXPORT  int CounterGetTimelineCounter() ;
+UI_EXPORT  bool IOCtrl() ;
+UI_EXPORT  bool IOKeyPressed(ImGuiKey key) ;
+UI_EXPORT  ImVec2 UIGetCursorPos() ;
+UI_EXPORT  float UIGetScrollX() ;
+UI_EXPORT  float UIGetScrollY() ;
 
 }
 #undef UI_EXPORT
