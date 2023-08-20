@@ -4,6 +4,7 @@
 int Electron::PixelBuffer::filtering = GL_LINEAR;
 
 static std::unordered_map<std::string, dylib> dylibRegistry{};
+std::vector<Electron::RenderLayer*> Electron::RenderLayerRegistry::Registry;
 
 static GLuint basic_compute = 0;
 static GLuint compositor_compute = 0;
@@ -157,6 +158,11 @@ Electron::AssetLoadInfo Electron::AssetRegistry::LoadAssetFromPath(std::string p
         retMessage = "Unsupported file format '" + path + "'";
         invalid = true;
     }
+    std::string pathExtension = std::filesystem::path(path).extension().string();
+    if (!std::filesystem::exists(owner->projectPath + "/" + base_name(path))) {
+         std::filesystem::copy_file(path, owner->projectPath + "/" + base_name(path));
+    }
+    path = owner->projectPath + "/" + base_name(path);
 
     TextureUnion assetUnion{};
     assetUnion.type = targetAssetType;
@@ -211,6 +217,21 @@ Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     this->endFrame = 0;
     this->frameOffset = 0;
 
+    this->FetchImplementation();
+
+    initializationProcedure(this);
+    initialized = true;
+
+    RenderLayerRegistry::Registry.push_back(this);
+    this->registryIndex = RenderLayerRegistry::Registry.size() - 1;
+
+}
+
+Electron::RenderLayer::~RenderLayer() {
+    RenderLayerRegistry::Registry.erase(RenderLayerRegistry::Registry.begin() + registryIndex);
+}
+
+void Electron::RenderLayer::FetchImplementation() {
     dylib* implementation = nullptr;
     if (dylibRegistry.find(layerLibrary) == dylibRegistry.end()) {
         dylibRegistry[layerLibrary] = dylib("layers", layerLibrary);
@@ -223,10 +244,6 @@ Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     this->layerPublicName = implementation->get_variable<std::string>("LayerName");
     this->layerColor = implementation->get_variable<glm::vec4>("LayerTimelineColor");
     if (!layerProcedure) throw std::runtime_error("bad layer procedure!");
-
-    initializationProcedure(this);
-    initialized = true;
-
 }
 
 void Electron::RenderLayer::Render(GraphicsCore* graphics, RenderRequestMetadata metadata) {

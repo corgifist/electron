@@ -182,11 +182,15 @@ namespace Electron {
         float layerSizeY = 22;
         static std::vector<DragStructure> universalLayerDrags;
         static std::vector<DragStructure> forwardLayerDrags;
+        static std::vector<DragStructure> backwardLayerDrags;
         if (universalLayerDrags.size() != instance->graphics.layers.size()) {
             universalLayerDrags = std::vector<DragStructure>(instance->graphics.layers.size());
         }
         if (forwardLayerDrags.size() != instance->graphics.layers.size()) {
             forwardLayerDrags = std::vector<DragStructure>(instance->graphics.layers.size());
+        }
+        if (backwardLayerDrags.size() != instance->graphics.layers.size()) {
+            backwardLayerDrags = std::vector<DragStructure>(instance->graphics.layers.size());
         }
         static std::vector<float> layerSeparatorTargets{};
         for (auto& separatorY : layerSeparatorTargets) {
@@ -198,6 +202,7 @@ namespace Electron {
             RenderLayer* layer = &instance->graphics.layers[i];
             DragStructure& universalDrag = universalLayerDrags[i];
             DragStructure& forwardDrag = forwardLayerDrags[i];
+            DragStructure& backwardDrag = backwardLayerDrags[i];
             float layerDuration = layer->endFrame - layer->beginFrame;
             ImVec4 layerColor = ImVec4{layer->layerColor.r, layer->layerColor.g, layer->layerColor.b, layer->layerColor.a};
             ImGui::SetCursorPosY(layerOffsetY + 2);
@@ -210,6 +215,8 @@ namespace Electron {
             ImVec2 dragSize = ImVec2(30, layerSizeY);
             RectBounds forwardDragBounds = RectBounds(ImVec2(pixelsPerFrame * layer->beginFrame + pixelsPerFrame * layerDuration - dragSize.x, layerOffsetY + 2), dragSize);
             DrawRect(forwardDragBounds, layerColor * ImVec4(0.9f, 0.9f, 0.9f, 1));
+            RectBounds backwardDragBounds = RectBounds(ImVec2(pixelsPerFrame * layer->beginFrame, layerOffsetY + 2), dragSize);
+            DrawRect(backwardDragBounds, layerColor * ImVec4(0.9f, 0.9f, 0.9f, 1));
 
             bool anyOtherButtonsDragged = false;
             for (auto& drag : universalLayerDrags) {
@@ -220,8 +227,16 @@ namespace Electron {
                 if (drag.isActive) anyOtherButtonsDragged = true;
             }
 
+            for (auto& drag : backwardLayerDrags) {
+                if (drag.isActive) anyOtherButtonsDragged = true;
+            }
+
             if (MouseHoveringBounds(forwardDragBounds) && !anyOtherButtonsDragged && !timelineDrag.isActive) {
                 forwardDrag.Activate();
+            }
+
+            if (MouseHoveringBounds(backwardDragBounds) && !anyOtherButtonsDragged && !timelineDrag.isActive) {
+                backwardDrag.Activate();
             }
 
             if (ImGui::IsItemHovered() && !anyOtherButtonsDragged && !timelineDrag.isActive && !forwardDrag.isActive) {
@@ -230,18 +245,28 @@ namespace Electron {
 
             float universalDragDistance;
             float forwardDragDistance;
+            float backwardDragDistance;
 
             if (forwardDrag.GetDragDistance(forwardDragDistance) && !timelineDrag.isActive) {
                 layer->endFrame = (windowMouseCoords.x + ImGui::GetScrollX()) / pixelsPerFrame;
             } else forwardDrag.Deactivate();
 
-            if (forwardDrag.isActive) {
-                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-            } else {
-                ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+            if (backwardDrag.GetDragDistance(backwardDragDistance) && !timelineDrag.isActive) {
+                layer->beginFrame = (windowMouseCoords.x + ImGui::GetScrollX()) / pixelsPerFrame;
+            } else backwardDrag.Deactivate();
+
+            
+
+            if (isWindowFocused) {
+                if (forwardDrag.isActive) {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+                } else {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
+                }
             }
 
-            if (universalDrag.GetDragDistance(universalDragDistance) && universalDragDistance != 0 && !timelineDrag.isActive) {
+            RectBounds layerFullheightBounds = RectBounds(ImVec2(pixelsPerFrame * layer->beginFrame, 0), ImVec2(pixelsPerFrame * layerDuration, canvasSize.y));
+            if (((universalDrag.GetDragDistance(universalDragDistance) && universalDragDistance != 0 && !timelineDrag.isActive) || (MouseHoveringBounds(layerFullheightBounds) && universalDrag.isActive && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])) && backwardDrag.isActive == false) {
                 float midpointFrame = (windowMouseCoords.x) / pixelsPerFrame;
                 float halfLayerDuration = layerDuration / 2.0f;
                 float tempBeginFrame = midpointFrame - halfLayerDuration;
@@ -253,6 +278,7 @@ namespace Electron {
 
                 layer->beginFrame = glm::max(layer->beginFrame, 0);
                 layer->endFrame = glm::max(layer->endFrame, 0);
+                timelineDrag.Deactivate();
             } else universalDrag.Deactivate();
 
             ImGui::PopStyleColor();
@@ -264,18 +290,21 @@ namespace Electron {
         RectBounds timelineBounds = RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderFrame, 0), ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
         DrawRect(timelineBounds, ImVec4(0.871, 0.204, 0.204, 1));
 
-        if (MouseHoveringBounds(timelineBounds) || MouseHoveringBounds(ticksBackground)) {
-            timelineDrag.Activate();
-        }
-
+        
         bool anyLayerDragged = false;
         for (auto& drag : universalLayerDrags) {
             if (drag.isActive) anyLayerDragged = true;
-            if (anyLayerDragged) break;
         }
         for (auto& drag : forwardLayerDrags) {
             if (drag.isActive) anyLayerDragged = true;
-            if (anyLayerDragged) break;
+        }
+
+        for (auto& drag : backwardLayerDrags) {
+            if (drag.isActive) anyLayerDragged = true;
+        }
+
+        if (MouseHoveringBounds(timelineBounds) || (MouseHoveringBounds(ticksBackground) && !anyLayerDragged)) {
+            timelineDrag.Activate();
         }
 
         float timelineDragDist;

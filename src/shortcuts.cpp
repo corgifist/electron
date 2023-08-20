@@ -7,6 +7,7 @@ void Electron::Shortcuts::Ctrl_W_R() {
 void Electron::Shortcuts::Ctrl_P_O(ProjectMap projectMap) {
     owner->projectOpened = true;
     owner->project = projectMap;
+    owner->graphics.projectPath = projectMap.path;
 
     owner->assets.LoadFromProject(projectMap.propertiesMap);
 }

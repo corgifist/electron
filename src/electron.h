@@ -75,6 +75,11 @@ namespace Electron {
         return t.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
     }
 
+    template<class T>
+    static T base_name(T const & path, T const & delims = "/\\") {
+        return path.substr(path.find_last_of(delims) + 1);
+    }
+
     
     template<typename ... Args>
     static std::string string_format( const std::string& format, Args ... args ) {

@@ -165,6 +165,7 @@ UI_EXPORT  bool IOKeyPressed(ImGuiKey key) ;
 UI_EXPORT  ImVec2 UIGetCursorPos() ;
 UI_EXPORT  float UIGetScrollX() ;
 UI_EXPORT  float UIGetScrollY() ;
+UI_EXPORT  void UISetMouseCursor(ImGuiMouseCursor cursor) ;
 
 }
 #undef UI_EXPORT

@@ -602,3 +602,7 @@ HEADER_TARGET float UIGetScrollX() {
 HEADER_TARGET float UIGetScrollY() {
     return ImGui::GetScrollY();
 }
+
+HEADER_TARGET void UISetMouseCursor(ImGuiMouseCursor cursor) {
+    ImGui::SetMouseCursor(cursor);
+}

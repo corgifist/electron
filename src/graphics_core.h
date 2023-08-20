@@ -177,9 +177,8 @@ namespace Electron {
 
 
     class RenderLayer {
-    private:
-        dylib layerImplementation;
     public:
+        dylib layerImplementation;
         int beginFrame, endFrame, frameOffset;
         std::string layerLibrary;
         json_t properties;
@@ -194,12 +193,15 @@ namespace Electron {
         float renderTime;
         std::vector<std::any> anyData;
         glm::vec4 layerColor;
+        int registryIndex;
 
 
         RenderLayer(std::string layerLibrary); 
         RenderLayer() {};
 
-        ~RenderLayer() {};
+        ~RenderLayer();
+
+        void FetchImplementation();
 
         void Render(GraphicsCore* graphics, RenderRequestMetadata metadata);
         void RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName);
@@ -208,6 +210,10 @@ namespace Electron {
         void SortKeyframes(json_t& keyframes);
         json_t InterpolateProperty(json_t property);
         json_t ExtractExactValue(json_t property);
+    };
+
+    struct RenderLayerRegistry {
+        static std::vector<RenderLayer*> Registry;
     };
 
     struct ResizableGPUTexture {
@@ -229,6 +235,7 @@ namespace Electron {
         GLuint renderBufferTexture;
         std::vector<RenderLayer> layers;
         AppInstance* owner;
+        std::string projectPath;
 
         float renderFrame;
         int renderLength, renderFramerate;
