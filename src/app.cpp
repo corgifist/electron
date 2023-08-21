@@ -94,6 +94,30 @@ Electron::AppInstance::AppInstance() {
 
     graphics.layers.push_back(sampleRect);
     graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
+    graphics.layers.push_back(sampleRect);
 }
 
 Electron::AppInstance::~AppInstance() {

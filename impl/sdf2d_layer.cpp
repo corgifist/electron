@@ -10,6 +10,9 @@ extern "C" {
 
     ELECTRON_EXPORT std::string LayerName = "SDF2D";
     ELECTRON_EXPORT glm::vec4 LayerTimelineColor = {0.58, 0.576, 1, 1};
+    ELECTRON_EXPORT json_t LayerPreviewProperties = {
+        "Position", "Size", "Color", "Angle"
+    };
     GLuint sdf2d_compute = -1;
 
     mat2 rotationMatrix(float angle) {

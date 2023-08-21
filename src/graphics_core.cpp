@@ -245,6 +245,7 @@ void Electron::RenderLayer::FetchImplementation() {
     this->sortingProcedure = implementation->get_function<void(RenderLayer*)>("LayerSortKeyframes");
     this->layerPublicName = implementation->get_variable<std::string>("LayerName");
     this->layerColor = implementation->get_variable<glm::vec4>("LayerTimelineColor");
+    this->previewProperties = implementation->get_variable<json_t>("LayerPreviewProperties");
     if (!layerProcedure) throw std::runtime_error("bad layer procedure!");
 }
 

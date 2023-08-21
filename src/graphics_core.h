@@ -183,6 +183,7 @@ namespace Electron {
         std::string layerLibrary;
         json_t properties;
         json_t internalData;
+        json_t previewProperties;
         Electron_LayerImplF layerProcedure;
         Electron_PropertyRenderImplF initializationProcedure;
         Electron_PropertyRenderImplF propertiesProcedure;

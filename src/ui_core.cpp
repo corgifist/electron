@@ -606,3 +606,87 @@ HEADER_TARGET float UIGetScrollY() {
 HEADER_TARGET void UISetMouseCursor(ImGuiMouseCursor cursor) {
     ImGui::SetMouseCursor(cursor);
 }
+
+HEADER_TARGET ImGuiContext* UIGetCurrentContext() {
+    return ImGui::GetCurrentContext();
+}
+
+HEADER_TARGET void DestroyContext() {
+    ImGui::DestroyContext();
+}
+
+HEADER_TARGET ImGuiIO& UIGetIO() {
+    return ImGui::GetIO();
+}
+
+HEADER_TARGET ImGuiStyle& UIGetStyle() {
+    return ImGui::GetStyle();
+}
+
+HEADER_TARGET ImDrawData* UIGetDrawData() {
+    return ImGui::GetDrawData();
+}
+
+HEADER_TARGET void UIShowDemoWindow() {
+    ImGui::ShowDemoWindow();
+}
+
+HEADER_TARGET std::string UIGetVersion() {
+    return ImGui::GetVersion();
+}
+
+HEADER_TARGET bool UIBeginChild(const char* std, ImVec2 size, bool border, ImGuiWindowFlags flags) {
+    return ImGui::BeginChild(std, size, border, flags);
+}
+
+HEADER_TARGET void UIEndChild() {
+    ImGui::EndChild();
+}
+
+HEADER_TARGET bool UIWindowIsAppearing() {
+    return ImGui::IsWindowAppearing();
+}
+
+HEADER_TARGET bool UIWindowCollapsed() {
+    return ImGui::IsWindowCollapsed();
+}
+
+HEADER_TARGET bool UIWindowFocused(ImGuiFocusedFlags flags) {
+    return ImGui::IsWindowFocused(flags);
+}
+
+HEADER_TARGET bool UIWindowHovered(ImGuiHoveredFlags flags) {
+    return ImGui::IsWindowHovered(flags);
+}
+
+HEADER_TARGET ImDrawList* UIGetWindowDrawList() {
+    return ImGui::GetWindowDrawList();
+}
+
+HEADER_TARGET float UIGetWindowDpiScale() {
+    return ImGui::GetWindowDpiScale();
+}
+
+HEADER_TARGET ImVec2 UIGetWindowPos() {
+    return ImGui::GetWindowPos();
+}
+
+HEADER_TARGET ImGuiViewport* UIGetWindowViewport() {
+    return ImGui::GetWindowViewport();
+}
+
+HEADER_TARGET void UISetNextWindowSizeConstraints(ImVec2 size_min, ImVec2 size_max, ImGuiSizeCallback custom_callback, void* custom_data) {
+    ImGui::SetNextWindowSizeConstraints(size_min, size_max, custom_callback, custom_data);
+}
+
+HEADER_TARGET void UISetNextWindowCollapsed(bool collapsed, ImGuiCond cond) {
+    ImGui::SetNextWindowCollapsed(collapsed, cond);
+}
+
+HEADER_TARGET void UISetNextWindowFocus() {
+    return ImGui::SetNextWindowFocus();
+}
+
+HEADER_TARGET void UISetNextWindowScroll(ImVec2 scroll) {
+    ImGui::SetNextWindowScroll(scroll);
+}

@@ -122,14 +122,20 @@ namespace Electron {
         pixelsPerFrame = glm::clamp(pixelsPerFrame, 2.0f, 10.0f);
 
         static DragStructure timelineDrag{};
+        static std::vector<float> layersPropertiesOffset{};
+        if (layersPropertiesOffset.size() != instance->graphics.layers.size()) {
+            layersPropertiesOffset = std::vector<float>(instance->graphics.layers.size());
+        }
 
         static float legendWidth = 0.2f;
         ImVec2 legendSize(canvasSize.x * legendWidth, canvasSize.y);
         float ticksBackgroundHeight = canvasSize.y * 0.05f;
-        RectBounds fillerTicksBackground = RectBounds(ImVec2(0, 0), ImVec2(legendSize.x, ticksBackgroundHeight));
-        RectBounds ticksBackground = RectBounds(ImVec2(0, 2), ImVec2(canvasSize.x, ticksBackgroundHeight));
+        RectBounds fillerTicksBackground = RectBounds(ImVec2(0, 0 + ImGui::GetScrollX()), ImVec2(legendSize.x, ticksBackgroundHeight));
+        RectBounds ticksBackground = RectBounds(ImVec2(0, 2 + ImGui::GetScrollX()), ImVec2(canvasSize.x, ticksBackgroundHeight));
         RectBounds fullscreenTicksMask = RectBounds(ImVec2(0, 2), ImVec2(canvasSize.x, canvasSize.y));
-        ImGui::BeginChild("projectlegend", legendSize, true);
+        static float legendScrollY = 0;
+        ImGui::BeginChild("projectlegend", legendSize, true, ImGuiWindowFlags_NoScrollbar);
+        ImGui::SetScrollY(legendScrollY);
         DrawRect(fillerTicksBackground, ImVec4(0.045f, 0.045f, 0.045f, 1));
         float propertiesStep = 22;
         float propertiesCoordAcc = 0;
@@ -137,9 +143,17 @@ namespace Electron {
             RenderLayer* layer = &instance->graphics.layers[i];
             ImGui::SetCursorPosY(ticksBackgroundHeight + 2 + propertiesCoordAcc);
             if (ImGui::CollapsingHeader((layer->layerUsername + "##" + std::to_string(i)).c_str())) {
+                float firstCursorY = ImGui::GetCursorPosY();
 
-            }
-            propertiesCoordAcc += propertiesStep;
+                json_t previewTargets = layer->previewProperties;
+                for (int i = 0; i < previewTargets.size(); i++) {
+                    ImGui::Text(JSON_AS_TYPE(previewTargets.at(i), std::string).c_str());
+                }
+
+                float propertiesHeight = ImGui::GetCursorPosY() - firstCursorY;
+                layersPropertiesOffset[i] = propertiesHeight;
+            } else layersPropertiesOffset[i] = 0;
+            propertiesCoordAcc += propertiesStep + layersPropertiesOffset[i];
         }
             
         ImGui::EndChild();
@@ -148,6 +162,7 @@ namespace Electron {
 
         ImGui::BeginChild("projectTimeline", ImVec2(canvasSize.x - legendSize.x, canvasSize.y), false, ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_AlwaysVerticalScrollbar);
         windowMouseCoords = ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
+        legendScrollY = ImGui::GetScrollY();
         PushClipRect(fullscreenTicksMask);
         std::vector<TimeStampTarget> stamps{};
         DrawRect(ticksBackground, ImVec4(0.045f, 0.045f, 0.045f, 1));
@@ -159,7 +174,7 @@ namespace Electron {
         while (tickAccumulator <= instance->graphics.renderLength) {
             bool majorTick = remainder(tickAccumulator, instance->graphics.renderFramerate) == 0.0f;
             float tickHeight = majorTick ? 0 : 2.0f;
-            RectBounds tickBounds = RectBounds(ImVec2(tickPositionAccumulator, 0), ImVec2(TIMELINE_TICK_WIDTH, majorTick ? canvasSize.y : 6.0f));
+            RectBounds tickBounds = RectBounds(ImVec2(tickPositionAccumulator, 0 + ImGui::GetScrollY()), ImVec2(TIMELINE_TICK_WIDTH, majorTick ? canvasSize.y : 6.0f));
             DrawRect(tickBounds, ImVec4(0.1f, 0.1f, 0.1f, 1));
 
             if (majorTick) {
@@ -192,12 +207,20 @@ namespace Electron {
         if (backwardLayerDrags.size() != instance->graphics.layers.size()) {
             backwardLayerDrags = std::vector<DragStructure>(instance->graphics.layers.size());
         }
+        RectBounds innerTicksZone = RectBounds(ImVec2(0 + ImGui::GetScrollX(), ticksBackgroundHeight + ImGui::GetScrollY() + 2), canvasSize);
+        PushClipRect(innerTicksZone);
+
         static std::vector<float> layerSeparatorTargets{};
+        static std::vector<RectBounds> layerPreviewHeights{};
+        for (auto& height : layerPreviewHeights) {
+            DrawRect(height, ImVec4(0.15f, 0.15f, 0.15f, 1));
+        }
         for (auto& separatorY : layerSeparatorTargets) {
-            RectBounds separatorBounds = RectBounds(ImVec2(0 + ImGui::GetScrollX(), separatorY + ImGui::GetScrollY()), ImVec2(canvasSize.x, 2.0f));
+            RectBounds separatorBounds = RectBounds(ImVec2(0 + ImGui::GetScrollX(), separatorY), ImVec2(canvasSize.x, 2.0f));
             DrawRect(separatorBounds, ImVec4(0, 0, 0, 1));
         }
         layerSeparatorTargets.clear();
+        layerPreviewHeights.clear();
         int layerDeleteionTarget = -1;
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
@@ -297,11 +320,13 @@ namespace Electron {
 
             ImGui::PopStyleColor();
             layerSeparatorTargets.push_back(layerOffsetY);
-            layerOffsetY += layerSizeY;
+            layerPreviewHeights.push_back(RectBounds(ImVec2(0 + ImGui::GetScrollX(), layerOffsetY + layerSizeY), ImVec2(canvasSize.x, layersPropertiesOffset[i])));
+            layerOffsetY += layerSizeY + layersPropertiesOffset[i];
         }
 
+
         ImGui::SetCursorPos({0, 0});
-        RectBounds timelineBounds = RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderFrame, 0), ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
+        RectBounds timelineBounds = RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderFrame, 0 + ImGui::GetScrollY()), ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
         DrawRect(timelineBounds, ImVec4(0.871, 0.204, 0.204, 1));
 
         
@@ -326,8 +351,9 @@ namespace Electron {
             instance->graphics.renderFrame = (windowMouseCoords.x) / pixelsPerFrame;
         } else timelineDrag.Deactivate();
 
-        RectBounds endTimelineBounds = RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderLength, 0), ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
+        RectBounds endTimelineBounds = RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderLength, 0 + ImGui::GetScrollY()), ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
         DrawRect(endTimelineBounds, ImVec4(1, 1, 0, 1));
+        PopClipRect();
 
         ImGui::EndChild();
 

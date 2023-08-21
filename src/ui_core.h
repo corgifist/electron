@@ -166,6 +166,27 @@ UI_EXPORT  ImVec2 UIGetCursorPos() ;
 UI_EXPORT  float UIGetScrollX() ;
 UI_EXPORT  float UIGetScrollY() ;
 UI_EXPORT  void UISetMouseCursor(ImGuiMouseCursor cursor) ;
+UI_EXPORT  ImGuiContext* UIGetCurrentContext() ;
+UI_EXPORT  void DestroyContext() ;
+UI_EXPORT  ImGuiIO& UIGetIO() ;
+UI_EXPORT  ImGuiStyle& UIGetStyle() ;
+UI_EXPORT  ImDrawData* UIGetDrawData() ;
+UI_EXPORT  void UIShowDemoWindow() ;
+UI_EXPORT  std::string UIGetVersion() ;
+UI_EXPORT  bool UIBeginChild(const char* std, ImVec2 size, bool border, ImGuiWindowFlags flags) ;
+UI_EXPORT  void UIEndChild() ;
+UI_EXPORT  bool UIWindowIsAppearing() ;
+UI_EXPORT  bool UIWindowCollapsed() ;
+UI_EXPORT  bool UIWindowFocused(ImGuiFocusedFlags flags) ;
+UI_EXPORT  bool UIWindowHovered(ImGuiHoveredFlags flags) ;
+UI_EXPORT  ImDrawList* UIGetWindowDrawList() ;
+UI_EXPORT  float UIGetWindowDpiScale() ;
+UI_EXPORT  ImVec2 UIGetWindowPos() ;
+UI_EXPORT  ImGuiViewport* UIGetWindowViewport() ;
+UI_EXPORT  void UISetNextWindowSizeConstraints(ImVec2 size_min, ImVec2 size_max, ImGuiSizeCallback custom_callback, void* custom_data) ;
+UI_EXPORT  void UISetNextWindowCollapsed(bool collapsed, ImGuiCond cond) ;
+UI_EXPORT  void UISetNextWindowFocus() ;
+UI_EXPORT  void UISetNextWindowScroll(ImVec2 scroll) ;
 
 }
 #undef UI_EXPORT
