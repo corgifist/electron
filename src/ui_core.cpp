@@ -802,3 +802,7 @@ HEADER_TARGET bool UISmallButton(const char* label) {
 HEADER_TARGET void UIBullet() {
     ImGui::Bullet();
 }
+
+HEADER_TARGET Electron::RenderLayer* GraphicsImplGetLayerByID(Electron::GraphicsCore* core, int id) {
+    return core->GetLayerByID(id);
+}

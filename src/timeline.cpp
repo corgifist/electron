@@ -350,7 +350,7 @@ namespace Electron {
             ImGui::SetCursorPosX(pixelsPerFrame * layer->beginFrame);
             ImGui::PushStyleColor(ImGuiCol_Button, layerColor);
             if (ImGui::Button((layer->layerUsername + "##" + std::to_string(i)).c_str(), ImVec2(pixelsPerFrame * layerDuration, layerSizeY))) {
-                instance->selectedRenderLayer = i;
+                instance->selectedRenderLayer = layer->id;
             } 
             if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
                 ImGui::OpenPopup(string_format("TimelineLayerPopup%i", i).c_str());

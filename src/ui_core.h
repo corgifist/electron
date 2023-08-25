@@ -215,6 +215,7 @@ UI_EXPORT  void UIEndGroup() ;
 UI_EXPORT  void BulletText(const char* text) ;
 UI_EXPORT  bool UISmallButton(const char* label) ;
 UI_EXPORT  void UIBullet() ;
+UI_EXPORT  Electron::RenderLayer* GraphicsImplGetLayerByID(Electron::GraphicsCore* core, int id) ;
 
 }
 #undef UI_EXPORT

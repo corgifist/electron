@@ -81,5 +81,6 @@
     "GENERIC_NO": "NO",
     "GENERIC_YES": "YES",
     "GENERIC_DELETE": "Delete",
+    "GENERIC_COPY_ID": "Copy ID",
     "GENERIC_PLACEHOLDER": "Imagine here a powerful video editor with tons of effects and plugins available"
 }

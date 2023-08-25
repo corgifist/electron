@@ -197,6 +197,7 @@ namespace Electron {
         glm::vec4 layerColor;
         std::string layerUsername;
         int registryIndex;
+        int id;
 
         static GraphicsCore* globalCore;
 
@@ -253,6 +254,8 @@ namespace Electron {
         void FetchAllLayers();
 
         static DylibRegistry GetImplementationsRegistry();
+
+        RenderLayer* GetLayerByID(int id);
 
         void RequestRenderBufferCleaningWithinRegion(RenderRequestMetadata metadata);
         void RequestTextureCollectionCleaning(GLuint color, GLuint uv, GLuint depth, int width, int height, RenderRequestMetadata metadata);

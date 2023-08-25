@@ -228,6 +228,7 @@ Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     this->registryIndex = RenderLayerRegistry::Registry.size() - 1;
 
     this->layerUsername = layerPublicName + " Layer";
+    this->id = seedrand();
 
 }
 
@@ -505,6 +506,14 @@ void Electron::ResizableGPUTexture::CheckForResize(RenderBuffer* pbo) {
         PixelBuffer::DestroyGPUTexture(texture);
         this->texture = core->GenerateGPUTexture(width, height, 0);
     }
+}
+
+Electron::RenderLayer* Electron::GraphicsCore::GetLayerByID(int id) {
+    for (auto& layer : layers) {
+        if (layer.id == id) return &layer;
+    }
+
+    throw std::runtime_error(string_format("cannot find layer with id %i", id));
 }
 
 void Electron::GraphicsCore::AddRenderLayer(RenderLayer layer) {

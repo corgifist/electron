@@ -21,7 +21,7 @@ MessageCallback( GLenum source,
 }
 
 Electron::AppInstance::AppInstance() {
-    this->selectedRenderLayer = 0;
+    this->selectedRenderLayer = -1;
     this->showBadConfigMessage = false;
 
     glfwSetErrorCallback(electronGlfwError);
