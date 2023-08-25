@@ -3,11 +3,12 @@
 
 int Electron::PixelBuffer::filtering = GL_LINEAR;
 
-static std::unordered_map<std::string, dylib> dylibRegistry{};
 std::vector<Electron::RenderLayer*> Electron::RenderLayerRegistry::Registry;
 
 static GLuint basic_compute = 0;
 static GLuint compositor_compute = 0;
+
+Electron::GraphicsCore* Electron::RenderLayer::globalCore = nullptr;
 
 Electron::PixelBuffer::PixelBuffer(int width, int height) {
     this->pixels = std::vector<Pixel>(width * height);
@@ -210,11 +211,12 @@ void Electron::AssetRegistry::Clear() {
 }
 
 Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
+    this->graphicsOwner = globalCore;
     this->layerLibrary = layerLibrary;
     print("Loading dylib " + layerLibrary);
 
-    this->beginFrame = 0;
-    this->endFrame = 0;
+    this->beginFrame = graphicsOwner->renderFrame;
+    this->endFrame = graphicsOwner->renderFrame + graphicsOwner->renderFramerate;
     this->frameOffset = 0;
 
     this->FetchImplementation();
@@ -236,6 +238,7 @@ Electron::RenderLayer::~RenderLayer() {
 void Electron::RenderLayer::FetchImplementation() {
     dylib* implementation = nullptr;
     if (dylibRegistry.find(layerLibrary) == dylibRegistry.end()) {
+        print(layerLibrary << " is not loaded; loading");
         dylibRegistry[layerLibrary] = dylib("layers", layerLibrary);
     }   
     implementation = &dylibRegistry[layerLibrary];
@@ -470,6 +473,20 @@ Electron::GraphicsCore::GraphicsCore() {
     this->outputBufferType = PreviewOutputBufferType_Color;
 }
 
+void Electron::GraphicsCore::FetchAllLayers() {
+    auto iterator = std::filesystem::directory_iterator("layers");
+    for (auto& entry : iterator) {
+        std::string transformedPath = std::regex_replace(base_name(entry.path().string()), std::regex(".dll|.so"), "");
+        print("Pre-render fetching " << transformedPath);
+        dylibRegistry[transformedPath] = dylib("layers", transformedPath);
+    }
+    print("Fetched all layers");
+}
+
+DylibRegistry Electron::GraphicsCore::GetImplementationsRegistry() {
+    return dylibRegistry;
+}
+
 void Electron::GraphicsCore::ResizeRenderBuffer(int width, int height) {
     this->renderBuffer = RenderBuffer(this, width, height);
 }
@@ -490,6 +507,10 @@ void Electron::ResizableGPUTexture::CheckForResize(RenderBuffer* pbo) {
     }
 }
 
+void Electron::GraphicsCore::AddRenderLayer(RenderLayer layer) {
+    layer.graphicsOwner = this;
+    layers.push_back(layer);
+}
 
 void Electron::GraphicsCore::RequestRenderBufferCleaningWithinRegion(RenderRequestMetadata metadata) {
     /* this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0], metadata.backgroundColor[1], metadata.backgroundColor[2], 1), metadata);

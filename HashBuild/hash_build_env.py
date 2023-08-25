@@ -17,6 +17,8 @@ compile_definitions = []
 link_options = []
 include_path = None
 
+dump_compilation_process = False
+
 def cat(a, b):
     return a + b
 
@@ -49,6 +51,7 @@ def object_compile(source, arch):
                 std_cxx_override_exists = 'std_cxx' in var_env
                 std_c_override_exists = 'std_c' in var_env
                 compile_command = f"{'g++' if extension == 'cpp' else 'gcc'} {'-I' + include_path if include_path != None else ''} -c {file} {machine_bit} -o {output_file} {' '.join(compile_definitions)} {('-std=c++' + var_env['std_cxx'] if std_cxx_override_exists else '') if extension == 'cpp' else ''} {('-std=c' + var_env['std_c'] if std_c_override_exists else '') if extension == 'c' else ''}{' ' + ' '.join(compile_options) if len(compile_options) != 0 else ''}"
+                info(compile_command)
                 info(f"[{progress}/{len(source)}] compiling {file} ({output_file})")
                 compilation_process = subprocess.run(list(filter(lambda x: x != '', compile_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)
                 if (compilation_process.returncode != 0):
@@ -133,6 +136,7 @@ functions = {
     'cat': cat,
     "object_compile": object_compile,
     "object_add_compile_options": lambda x: compile_options.append("-" + x),
+    "dump_compilation_commands": lambda x: [dump_compilation_commands := True][0],
     "dump_var_env": dump_var_env,
     "glob_files": glob_files,
     "object_clean": object_clean,

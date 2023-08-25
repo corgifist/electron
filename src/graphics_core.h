@@ -1,7 +1,6 @@
 #pragma once
 
 #include "electron.h"
-#include "dylib.hpp"
 #include "time.h"
 #include "ImGui/imgui.h"
 #include "GLEW/include/GL/glew.h"
@@ -10,6 +9,8 @@
 #define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.*"
 
 #define RENDER_THREADS_MULTIPLIER 1
+
+static DylibRegistry dylibRegistry{};
 
 namespace Electron {
 
@@ -197,6 +198,8 @@ namespace Electron {
         std::string layerUsername;
         int registryIndex;
 
+        static GraphicsCore* globalCore;
+
 
         RenderLayer(std::string layerLibrary); 
         RenderLayer() {};
@@ -238,11 +241,18 @@ namespace Electron {
         std::vector<RenderLayer> layers;
         AppInstance* owner;
         std::string projectPath;
+        bool firePlay;
+
 
         float renderFrame;
         int renderLength, renderFramerate;
         
         GraphicsCore();
+
+        void AddRenderLayer(RenderLayer layer);
+        void FetchAllLayers();
+
+        static DylibRegistry GetImplementationsRegistry();
 
         void RequestRenderBufferCleaningWithinRegion(RenderRequestMetadata metadata);
         void RequestTextureCollectionCleaning(GLuint color, GLuint uv, GLuint depth, int width, int height, RenderRequestMetadata metadata);

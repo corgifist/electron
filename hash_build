@@ -8,13 +8,17 @@ if eq(get_platform(), windows) {
     dylib_prefix = ".so"
 }
 
+std_cxx = "20"
+
 object_add_link_options(m64)
 
 impl_target_file = null
 
 object_add_compile_options(fPIC)
 object_add_compile_options(g) # include debug symbols
-object_add_compile_options("O2")
+object_add_compile_options("I /usr/include/")
+
+dump_compilation_commands(0)
 
 target_impls = [
     project_configuration_impl,
@@ -40,11 +44,11 @@ scenario build_core {
         list_append($deps, opengl32)
         list_append($deps, glfw3)
         deps = [
-            opengl32, glfw3, windowscodecs, ole32, shlwapi, pthread
+            opengl32, glfw3, windowscodecs, ole32, shlwapi, pthread, dbgeng, backtrace, dbgeng, bfd, dbghelp
         ]
     } else {
         deps = [
-            glut, glfw, GL, GLU, m, Xrandr, Xi, X11, pthread, "stdc++", dl, pthread
+            glut, glfw, GL, GLU, m, Xrandr, Xi, X11, pthread, "stdc++", dl, pthread, backtrace, bfd
         ]
     }
 
@@ -63,11 +67,11 @@ scenario build_impl {
     impl_deps = list()
     if eq(get_platform(), windows) {
         impl_deps = [
-            opengl32, glfw3, pthread
+            opengl32, glfw3, pthread, dbgeng, backtrace, bfd, dbghelp
         ]
     } else {
         impl_deps = [
-            "stdc++", dl, pthread
+            "stdc++", dl, pthread, backtrace, bfd, dl
         ]
     }
     link_executable($impl_objects, $shared_library_name, $impl_deps, shared)

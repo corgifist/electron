@@ -1,4 +1,5 @@
 #include "editor_core.h"
+#define LEGEND_LAYER_DRAG_DROP "LEGEND_LAYER_DRAG_DROP"
 
 namespace Electron {
 
@@ -30,10 +31,14 @@ namespace Electron {
 
     struct RectBounds {
         ImVec2 UL, BR;
+        ImVec2 pos, size;
 
         RectBounds(ImVec2 pos, ImVec2 size) {
             ImVec2 canvasPos = ImGui::GetCursorScreenPos();
             ImVec2 canvasSize = ImGui::GetContentRegionAvail();  
+
+            this->size = size;
+            this->pos = pos;
 
             UL = canvasPos + pos;
             BR = canvasPos + pos + size; 
@@ -134,6 +139,9 @@ namespace Electron {
         RectBounds ticksBackground = RectBounds(ImVec2(0, 2 + ImGui::GetScrollX()), ImVec2(canvasSize.x, ticksBackgroundHeight));
         RectBounds fullscreenTicksMask = RectBounds(ImVec2(0, 2), ImVec2(canvasSize.x, canvasSize.y));
         static float legendScrollY = 0;
+
+        std::vector<float> propertiesSeparatorsY{};
+
         ImGui::BeginChild("projectlegend", legendSize, true, ImGuiWindowFlags_NoScrollbar);
         ImGui::SetScrollY(legendScrollY);
         DrawRect(fillerTicksBackground, ImVec4(0.045f, 0.045f, 0.045f, 1));
@@ -142,17 +150,118 @@ namespace Electron {
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
             ImGui::SetCursorPosY(ticksBackgroundHeight + 2 + propertiesCoordAcc);
+            bool active = false;
+            ImGuiDragDropFlags src_flags = 0;
+            src_flags |= ImGuiDragDropFlags_SourceNoDisableHover; 
+            src_flags |= ImGuiDragDropFlags_SourceNoHoldToOpenOthers;
+            ImGuiDragDropFlags target_flags = 0;
+            target_flags |= ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
+            ImGui::SetItemAllowOverlap();
             if (ImGui::CollapsingHeader((layer->layerUsername + "##" + std::to_string(i)).c_str())) {
+                active = true;
+                if (ImGui::BeginDragDropSource(src_flags)) {
+                    ImGui::SetDragDropPayload(LEGEND_LAYER_DRAG_DROP, &i, sizeof(i));
+                    ImGui::EndDragDropSource();
+                }
+
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(LEGEND_LAYER_DRAG_DROP, target_flags)) {
+                        int from = *((int*) payload->Data);
+                        int to = i;
+                        std::swap(instance->graphics.layers[from], instance->graphics.layers[i]);
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+                propertiesSeparatorsY.push_back(ImGui::GetCursorPosY());
+                ImGui::PopStyleVar(2);
                 float firstCursorY = ImGui::GetCursorPosY();
 
                 json_t previewTargets = layer->previewProperties;
+                float layerViewTime = instance->graphics.renderFrame - layer->beginFrame;
                 for (int i = 0; i < previewTargets.size(); i++) {
-                    ImGui::Text(JSON_AS_TYPE(previewTargets.at(i), std::string).c_str());
+                    json_t& propertyMap = layer->properties[previewTargets.at(i)];
+                    GeneralizedPropertyType propertyType = static_cast<GeneralizedPropertyType>(JSON_AS_TYPE(propertyMap.at(0), int));
+                    bool keyframeAlreadyExists = false;
+                    int keyframeIndex = -1;
+                    for (int j = 1; j < propertyMap.size(); j++) {
+                        json_t specificKeyframe = propertyMap.at(j);
+                        if (JSON_AS_TYPE(specificKeyframe.at(0), int) == (int) layerViewTime) {
+                            keyframeAlreadyExists = true;
+                            keyframeIndex = j;
+                            break;
+                        }
+                    }
+                    ImGui::SetCursorPosX(8.0f);
+                    switch (propertyType) {
+                        case GeneralizedPropertyType::Float: {
+                            float x = JSON_AS_TYPE(layer->InterpolateProperty(propertyMap).at(0), float);
+                            if (ImGui::InputFloat((JSON_AS_TYPE(previewTargets.at(i), std::string) + "##" + std::to_string(i)).c_str(), &x, 0, 0, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue)) {
+                                if (!keyframeAlreadyExists) {
+                                    propertyMap.push_back({(int) layerViewTime, x});
+                                } else {
+                                    propertyMap.at(keyframeIndex).at(1) = x;
+                                }
+                            }
+                            break;
+                        }
+                        case GeneralizedPropertyType::Vec2: {
+                            json_t x = layer->InterpolateProperty(propertyMap);
+                            std::vector<float> raw = {JSON_AS_TYPE(x.at(0), float), JSON_AS_TYPE(x.at(1), float)};
+                            if (ImGui::InputFloat2((JSON_AS_TYPE(previewTargets.at(i), std::string) + "##" + std::to_string(i)).c_str(), raw.data(), "%.3f", ImGuiInputTextFlags_EnterReturnsTrue)) {
+                                if (!keyframeAlreadyExists) {
+                                    propertyMap.push_back({(int) layerViewTime, raw.at(0), raw.at(1)});
+                                } else {
+                                    propertyMap.at(keyframeIndex).at(1) = raw.at(0);
+                                    propertyMap.at(keyframeIndex).at(2) = raw.at(1);
+                                }
+                            }
+                            break;
+                        }
+                        case GeneralizedPropertyType::Vec3:
+                        case GeneralizedPropertyType::Color3: {
+                            json_t x = layer->InterpolateProperty(propertyMap);
+                            std::vector<float> raw = {JSON_AS_TYPE(x.at(0), float), JSON_AS_TYPE(x.at(1), float), JSON_AS_TYPE(x.at(2), float)};
+                            if (propertyType == GeneralizedPropertyType::Vec3 ? 
+                                        ImGui::InputFloat3((JSON_AS_TYPE(previewTargets.at(i), std::string) + "##" + std::to_string(i)).c_str(), raw.data(), "%.3f", ImGuiInputTextFlags_EnterReturnsTrue) :
+                                        ImGui::ColorEdit3((JSON_AS_TYPE(previewTargets.at(i), std::string) + "##" + std::to_string(i)).c_str(), raw.data(), 0)) {
+                                if (!keyframeAlreadyExists) {
+                                    propertyMap.push_back({(int) layerViewTime, raw.at(0), raw.at(1), raw.at(1)});
+                                } else {
+                                    propertyMap.at(keyframeIndex).at(1) = raw.at(0);
+                                    propertyMap.at(keyframeIndex).at(2) = raw.at(1);
+                                    propertyMap.at(keyframeIndex).at(3) = raw.at(2);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    if (i + 1 != previewTargets.size()) propertiesSeparatorsY.push_back(ImGui::GetCursorPosY());
+                    ImGui::SetCursorPosX(0);
                 }
 
                 float propertiesHeight = ImGui::GetCursorPosY() - firstCursorY;
                 layersPropertiesOffset[i] = propertiesHeight;
+                propertiesSeparatorsY.push_back(ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y);
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
             } else layersPropertiesOffset[i] = 0;
+
+            if (!active) {
+                if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoDisableHover)) {
+                    ImGui::SetDragDropPayload(LEGEND_LAYER_DRAG_DROP, &i, sizeof(i));
+                    ImGui::EndDragDropSource();
+                }
+
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(LEGEND_LAYER_DRAG_DROP, ImGuiDragDropFlags_SourceNoDisableHover)) {
+                        int from = *((int*) payload->Data);
+                        int to = i;
+                        std::swap(instance->graphics.layers[from], instance->graphics.layers[i]);
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+            }
+
             propertiesCoordAcc += propertiesStep + layersPropertiesOffset[i];
         }
             
@@ -213,15 +322,23 @@ namespace Electron {
         static std::vector<float> layerSeparatorTargets{};
         static std::vector<RectBounds> layerPreviewHeights{};
         for (auto& height : layerPreviewHeights) {
-            DrawRect(height, ImVec4(0.15f, 0.15f, 0.15f, 1));
+            ImGui::SetCursorPos(height.pos);
+            ImGui::Dummy(height.size);
+            DrawRect(height, ImVec4(0.1f, 0.1f, 0.1f, 1));
+        }
+        for (auto& separatorY : propertiesSeparatorsY) {
+            ImGui::SetCursorPos({0, 0});
+            DrawRect(RectBounds(ImVec2(0 + ImGui::GetScrollX(), separatorY), ImVec2(canvasSize.x, 2.0f)), ImVec4(0, 0, 0, 1));
         }
         for (auto& separatorY : layerSeparatorTargets) {
+            ImGui::SetCursorPos({0, 0});
             RectBounds separatorBounds = RectBounds(ImVec2(0 + ImGui::GetScrollX(), separatorY), ImVec2(canvasSize.x, 2.0f));
             DrawRect(separatorBounds, ImVec4(0, 0, 0, 1));
         }
         layerSeparatorTargets.clear();
         layerPreviewHeights.clear();
         int layerDeleteionTarget = -1;
+        int layerDuplicationTarget = -1;
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
             DragStructure& universalDrag = universalLayerDrags[i];
@@ -313,6 +430,9 @@ namespace Electron {
                 if (ImGui::Selectable("Delete layer")) {
                     layerDeleteionTarget = i;
                 }
+                if (ImGui::Selectable("Duplicate layer")) {
+                    layerDuplicationTarget = i;
+                }
                 ImGui::EndPopup();
             }
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -348,7 +468,7 @@ namespace Electron {
 
         float timelineDragDist;
         if (timelineDrag.GetDragDistance(timelineDragDist) && !anyLayerDragged) {
-            instance->graphics.renderFrame = (windowMouseCoords.x) / pixelsPerFrame;
+            instance->graphics.renderFrame = (int) ((windowMouseCoords.x) / pixelsPerFrame);
         } else timelineDrag.Deactivate();
 
         RectBounds endTimelineBounds = RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderLength, 0 + ImGui::GetScrollY()), ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
@@ -362,6 +482,16 @@ namespace Electron {
         if (layerDeleteionTarget != -1) {
             auto& layers = instance->graphics.layers;
             layers.erase(layers.begin() + layerDeleteionTarget);
+        }
+
+        if (layerDuplicationTarget != -1) {
+            auto& layers = instance->graphics.layers;
+            layers.insert(layers.begin() + layerDuplicationTarget, layers[layerDuplicationTarget]);
+        }
+
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Space)) && isWindowFocused) {
+            instance->graphics.firePlay = true;
+            print("Space");
         }
 
     }

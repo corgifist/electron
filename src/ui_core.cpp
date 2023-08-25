@@ -690,3 +690,115 @@ HEADER_TARGET void UISetNextWindowFocus() {
 HEADER_TARGET void UISetNextWindowScroll(ImVec2 scroll) {
     ImGui::SetNextWindowScroll(scroll);
 }
+
+HEADER_TARGET DylibRegistry InternalGetDylibRegistry() {
+    return Electron::GraphicsCore::GetImplementationsRegistry();
+}
+
+HEADER_TARGET void GraphicsImplAddRenderLayer(Electron::GraphicsCore* core, std::string path) {
+    core->AddRenderLayer(Electron::RenderLayer(path));
+}
+
+HEADER_TARGET void UISetNextWindowBgAlpha(float alpha) {
+    ImGui::SetNextWindowBgAlpha(alpha);
+}
+
+HEADER_TARGET ImVec2 UIGetContentRegionAvail() {
+    return ImGui::GetContentRegionAvail();
+}
+
+HEADER_TARGET ImVec2 UIGetContentRegionMax() {
+    return ImGui::GetContentRegionMax();
+}
+
+HEADER_TARGET ImVec2 UIGetWindowContentRegionMin() {
+    return ImGui::GetWindowContentRegionMin();
+}
+
+HEADER_TARGET ImVec2 UIGetWindowContentRegionMax() {
+    return ImGui::GetWindowContentRegionMax();
+}
+
+HEADER_TARGET void UISetScrollX(float x) {
+    ImGui::SetScrollX(x);
+}
+
+HEADER_TARGET void UISetScrollY(float y) {
+    ImGui::SetScrollY(y);
+}
+
+HEADER_TARGET float UIGetScrollMaxX() {
+    return ImGui::GetScrollMaxX();
+}
+
+HEADER_TARGET float UIGetScrollMaxY() {
+    return ImGui::GetScrollMaxY();
+}
+
+HEADER_TARGET void UISetScrollHereX(float x) {
+    ImGui::SetScrollHereX(x);
+}
+
+HEADER_TARGET void UISetScrollHereY(float y) {
+    ImGui::SetScrollHereY(y);
+}
+
+HEADER_TARGET void UISetScrollFromPosX(float x, float center) {
+    ImGui::SetScrollFromPosX(x, center);
+}
+
+HEADER_TARGET void UISetScrollFromPosY(float y, float center) {
+    ImGui::SetScrollFromPosY(y, center);
+}
+
+HEADER_TARGET void UIPushButtonRepeat(bool repeat) {
+    ImGui::PushButtonRepeat(repeat);
+}
+
+HEADER_TARGET void UIPopButtonRepeat() {
+    ImGui::PopButtonRepeat();
+}
+
+HEADER_TARGET void UISetNextItemWidth(float item_width) {
+    ImGui::SetNextItemWidth(item_width);
+}
+
+HEADER_TARGET void UIPushTextWrapPos(float x) {
+    ImGui::PushTextWrapPos(x);
+}
+
+HEADER_TARGET void UIPopTextWrapPos() {
+    ImGui::PopTextWrapPos();
+}
+
+HEADER_TARGET float UIGetFontSize() {
+    return ImGui::GetFontSize();
+}
+
+HEADER_TARGET ImFont* UIGetFont() {
+    return ImGui::GetFont();
+}
+
+HEADER_TARGET ImU32 UIGetColorU32(ImVec4 color) {
+    return ImGui::GetColorU32(color);
+}
+
+HEADER_TARGET void UIBeginGroup() {
+    ImGui::BeginGroup();
+}
+
+HEADER_TARGET void UIEndGroup() {
+    ImGui::EndGroup();
+}
+
+HEADER_TARGET void BulletText(const char* text) {
+    ImGui::BulletText(text);
+}
+
+HEADER_TARGET bool UISmallButton(const char* label) {
+    return ImGui::SmallButton(label);
+}
+
+HEADER_TARGET void UIBullet() {
+    ImGui::Bullet();
+}

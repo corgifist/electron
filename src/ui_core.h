@@ -187,6 +187,34 @@ UI_EXPORT  void UISetNextWindowSizeConstraints(ImVec2 size_min, ImVec2 size_max,
 UI_EXPORT  void UISetNextWindowCollapsed(bool collapsed, ImGuiCond cond) ;
 UI_EXPORT  void UISetNextWindowFocus() ;
 UI_EXPORT  void UISetNextWindowScroll(ImVec2 scroll) ;
+UI_EXPORT  DylibRegistry InternalGetDylibRegistry() ;
+UI_EXPORT  void GraphicsImplAddRenderLayer(Electron::GraphicsCore* core, std::string path) ;
+UI_EXPORT  void UISetNextWindowBgAlpha(float alpha) ;
+UI_EXPORT  ImVec2 UIGetContentRegionAvail() ;
+UI_EXPORT  ImVec2 UIGetContentRegionMax() ;
+UI_EXPORT  ImVec2 UIGetWindowContentRegionMin() ;
+UI_EXPORT  ImVec2 UIGetWindowContentRegionMax() ;
+UI_EXPORT  void UISetScrollX(float x) ;
+UI_EXPORT  void UISetScrollY(float y) ;
+UI_EXPORT  float UIGetScrollMaxX() ;
+UI_EXPORT  float UIGetScrollMaxY() ;
+UI_EXPORT  void UISetScrollHereX(float x) ;
+UI_EXPORT  void UISetScrollHereY(float y) ;
+UI_EXPORT  void UISetScrollFromPosX(float x, float center) ;
+UI_EXPORT  void UISetScrollFromPosY(float y, float center) ;
+UI_EXPORT  void UIPushButtonRepeat(bool repeat) ;
+UI_EXPORT  void UIPopButtonRepeat() ;
+UI_EXPORT  void UISetNextItemWidth(float item_width) ;
+UI_EXPORT  void UIPushTextWrapPos(float x) ;
+UI_EXPORT  void UIPopTextWrapPos() ;
+UI_EXPORT  float UIGetFontSize() ;
+UI_EXPORT  ImFont* UIGetFont() ;
+UI_EXPORT  ImU32 UIGetColorU32(ImVec4 color) ;
+UI_EXPORT  void UIBeginGroup() ;
+UI_EXPORT  void UIEndGroup() ;
+UI_EXPORT  void BulletText(const char* text) ;
+UI_EXPORT  bool UISmallButton(const char* label) ;
+UI_EXPORT  void UIBullet() ;
 
 }
 #undef UI_EXPORT

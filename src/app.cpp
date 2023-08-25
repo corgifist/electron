@@ -87,37 +87,11 @@ Electron::AppInstance::AppInstance() {
     this->assets.owner = &graphics;
 
     InitializeDylibs();
-    
-    RenderLayer sampleRect("sdf2d_layer");
-    sampleRect.beginFrame = 0;
-    sampleRect.endFrame = 60;
+    this->graphics.FetchAllLayers();
 
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
-    graphics.layers.push_back(sampleRect);
+    RenderLayer::globalCore = &graphics;
+    
+    graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
 }
 
 Electron::AppInstance::~AppInstance() {

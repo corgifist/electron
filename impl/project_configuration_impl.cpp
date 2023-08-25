@@ -45,6 +45,15 @@ extern "C" {
                     }
                     UIEndMenu();
                 }
+                if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))) {
+                    for (auto& entry : InternalGetDylibRegistry()) {
+                        std::string key = entry.first;
+                        if (UIMenuItem(key.c_str(), "")) {
+                            GraphicsImplAddRenderLayer(&instance->graphics, key);
+                        }
+                    }
+                    UIEndMenu();
+                }
                 if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))) {
                     if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU_RENDER_PREVIEW"), "Ctrl+W+R", CounterGetRenderPreview() != 1)) {
                         ShortcutsImplCtrlWR(instance);

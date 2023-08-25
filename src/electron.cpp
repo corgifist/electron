@@ -17,7 +17,6 @@ std::string Electron::exec(const char* cmd) {
         }
     } catch (...) {
         pclose(pipe);
-        throw;
     }
     pclose(pipe);
     return result;
@@ -30,9 +29,10 @@ int main(int argc, char *argv[]) {
     /* std::ios_base::sync_with_stdio(false);
     std::cin.tie(0);
     std::cout.rdbuf(tempStream.rdbuf()); */
-    freopen("electron.log", "w", stdout);
 
-    try {
+    
+
+
         Electron::AppInstance instance;
         instance.AddUIContent(new Electron::ProjectConfiguration());
         instance.AddUIContent(new Electron::RenderPreview());
@@ -47,10 +47,7 @@ int main(int argc, char *argv[]) {
                 goto system_reloaded;
             }
         }
-    } catch (const std::exception& ex) {
-        print("\t\tFatal error occured!");
-        print("\t" + std::string(ex.what()));
-    }
+
     return 0;
 
     system_reloaded:

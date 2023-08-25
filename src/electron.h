@@ -1,5 +1,6 @@
 #pragma once
 
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -25,6 +26,7 @@
 #include <chrono>
 #include "json.hpp"
 #include "clip.h"
+#include "dylib.hpp"
 #define GLM_FORCE_SWIZZLE
 #include "glm/glm.hpp"
 #include "glm/gtx/matrix_transform_2d.hpp"
@@ -32,11 +34,15 @@
 #include "GLEW/include/GL/glew.h"
 #include "GLFW/glfw3.h"
 
+
+typedef std::unordered_map<std::string, dylib> DylibRegistry;
+
 #define print(expr) std::cout << expr << std::endl
 #define JSON_AS_TYPE(x, type) (x).template get<type>()
 #define ELECTRON_GET_LOCALIZATION(instance, localization) (((instance->localizationMap[localization]).template get<std::string>()).c_str())
 
 #define DUMP_VAR(var) print(#var << " = " << (var))
+
 
 namespace Electron {
 

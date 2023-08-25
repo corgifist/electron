@@ -89,16 +89,20 @@ public:
         explicit symbol_error(const std::string &message) : exception(message) {}
     };
 
-    dylib(const dylib&) = default;
-    dylib& operator=(const dylib&) = default;
+    dylib(const dylib& d) {
+        this->m_handle = d.m_handle;
+    }
+    dylib& operator=(const dylib& d) {
+        this->m_handle = d.m_handle;
+        return *this;
+    }
 
     dylib(dylib &&other) noexcept : m_handle(other.m_handle) {
         other.m_handle = nullptr;
     }
 
     dylib& operator=(dylib &&other) noexcept {
-        if (this != &other)
-            std::swap(m_handle, other.m_handle);
+        this->m_handle = other.m_handle;
         return *this;
     }
 
@@ -164,8 +168,6 @@ public:
     }
 
     ~dylib() {
-        if (m_handle)
-            close(m_handle);
     }
 
     /**
