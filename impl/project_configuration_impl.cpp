@@ -46,9 +46,11 @@ extern "C" {
                     UIEndMenu();
                 }
                 if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))) {
-                    for (auto& entry : InternalGetDylibRegistry()) {
+                    auto registry = InternalGetDylibRegistry();
+                    for (auto& entry : registry) {
                         std::string key = entry.first;
-                        if (UIMenuItem(key.c_str(), "")) {
+
+                        if (UIMenuItem(registry.at(key).get_variable<std::string>("LayerName").c_str(), "")) {
                             GraphicsImplAddRenderLayer(&instance->graphics, key);
                         }
                     }

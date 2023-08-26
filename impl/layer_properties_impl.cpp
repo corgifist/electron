@@ -26,10 +26,14 @@ extern "C" {
                 return;
             }
 
-            RenderLayer* targetLayer = instance->graphics.layers.data() + instance->selectedRenderLayer;
+            RenderLayer* targetLayer = GraphicsImplGetLayerByID(&instance->graphics, instance->selectedRenderLayer);
             UIPushFont(instance->largeFont);
-                UIText(CSTR(targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(instance->selectedRenderLayer) + ">" + ")"));
+                UIText(CSTR(targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(targetLayer->id) + ">" + ")"));
             UIPopFont();
+            UISameLine();
+            if (UIButton(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY_ID"))) {
+                ClipSetText(std::to_string(targetLayer->id));
+            }
             UISpacing();
             UIText(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_DYNAMIC_LIBRARY")) + ": " + targetLayer->layerLibrary));
             UIText(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_RENDER_BOUNDS")) + ": " + std::to_string(targetLayer->beginFrame) + " -> " + std::to_string(targetLayer->endFrame)));

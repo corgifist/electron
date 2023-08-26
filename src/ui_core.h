@@ -10,6 +10,7 @@
 #include "graphics_core.h"
 #include "ImGuiFileDialog.h"
 #include "ImGui/imgui_internal.h"
+#include "ImGui/implot.h"
 
 #if defined(WIN32) || defined(WIN64)
     #define UI_EXPORT __declspec(dllexport) __stdcall
@@ -216,6 +217,8 @@ UI_EXPORT  void BulletText(const char* text) ;
 UI_EXPORT  bool UISmallButton(const char* label) ;
 UI_EXPORT  void UIBullet() ;
 UI_EXPORT  Electron::RenderLayer* GraphicsImplGetLayerByID(Electron::GraphicsCore* core, int id) ;
+UI_EXPORT  void UIPlotLines(std::string label, std::vector<float> values, int values_offset, float min, float max) ;
+UI_EXPORT  float UIGetTime() ;
 
 }
 #undef UI_EXPORT

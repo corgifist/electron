@@ -187,10 +187,29 @@ extern "C" {
             if (instance->graphics.layers.size() == 0) {
                 UIText(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_NOTHING_TO_PROFILE_HERE"));
             }
+
+            static std::vector<float> plottingRenderAverages(90);
+            static int plottingCounter = 0;
+            float renderAverage = 0;
             for (int i = 0; i < instance->graphics.layers.size(); i++) {
                 RenderLayer& layer = instance->graphics.layers[i];
                 float renderTime = renderTimes[i];
-                UIText(CSTR(layer.layerPublicName + "<" + std::to_string(i) + ">: " + std::to_string(renderTime)));
+                renderAverage += renderTime;
+            }
+            renderAverage = renderAverage / instance->graphics.layers.size();
+            if (plottingCounter == plottingRenderAverages.size()) 
+                plottingCounter = 0;
+            plottingRenderAverages[plottingCounter++] = renderAverage;
+
+            UIPlotLines(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_RENDER_STATISTICS"), plottingRenderAverages, plottingCounter, -1, 2);
+
+            UISpacing();
+            if (UICollapsingHeader(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_ADVANCED_RENDER_PROFILING"))) {
+                for (int i = 0; i < instance->graphics.layers.size(); i++) {
+                    RenderLayer& layer = instance->graphics.layers[i];
+                    float renderTime = renderTimes[i];
+                    UIText(CSTR(layer.layerPublicName + "<" + std::to_string(i) + ">: " + std::to_string(renderTime)));
+                }
             }
             UISpacing();
         UIEnd();

@@ -806,3 +806,11 @@ HEADER_TARGET void UIBullet() {
 HEADER_TARGET Electron::RenderLayer* GraphicsImplGetLayerByID(Electron::GraphicsCore* core, int id) {
     return core->GetLayerByID(id);
 }
+
+HEADER_TARGET void UIPlotLines(std::string label, std::vector<float> values, int values_offset, float min, float max) {
+    ImGui::PlotLines(label.c_str(), values.data(), values.size(), values_offset, NULL, min, max);
+}
+
+HEADER_TARGET float UIGetTime() {
+    return ImGui::GetTime();
+}
