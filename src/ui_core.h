@@ -219,6 +219,9 @@ UI_EXPORT  void UIBullet() ;
 UI_EXPORT  Electron::RenderLayer* GraphicsImplGetLayerByID(Electron::GraphicsCore* core, int id) ;
 UI_EXPORT  void UIPlotLines(std::string label, std::vector<float> values, int values_offset, float min, float max) ;
 UI_EXPORT  float UIGetTime() ;
+UI_EXPORT  void UIOpenPopup(std::string popup, ImGuiPopupFlags flags) ;
+UI_EXPORT  bool UIBeginPopup(std::string popup, ImGuiPopupFlags flags) ;
+UI_EXPORT  void UIEndPopup() ;
 
 }
 #undef UI_EXPORT

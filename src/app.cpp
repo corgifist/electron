@@ -163,7 +163,7 @@ void Electron::AppInstance::Run() {
         for (auto& sc : shortcutsPair) {
             bool keysPressed = ImGui::GetIO().KeyCtrl;
             for (auto& key : sc.keys) {
-                if (!ImGui::IsKeyPressed(key)) keysPressed = false;
+                if (!ImGui::IsKeyPressed(key) || ImGui::IsAnyItemFocused()) keysPressed = false;
             }
             if (keysPressed) sc.impl();
         }

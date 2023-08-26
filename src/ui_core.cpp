@@ -814,3 +814,16 @@ HEADER_TARGET void UIPlotLines(std::string label, std::vector<float> values, int
 HEADER_TARGET float UIGetTime() {
     return ImGui::GetTime();
 }
+
+HEADER_TARGET void UIOpenPopup(std::string popup, ImGuiPopupFlags flags) {
+    ImGui::OpenPopup(popup.c_str(), flags);
+}
+
+
+HEADER_TARGET bool UIBeginPopup(std::string popup, ImGuiPopupFlags flags) {
+    return ImGui::BeginPopup(popup.c_str(), flags);
+}
+
+HEADER_TARGET void UIEndPopup() {
+    ImGui::EndPopup();
+}

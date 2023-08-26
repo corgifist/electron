@@ -243,6 +243,7 @@ namespace Electron {
         AppInstance* owner;
         std::string projectPath;
         bool firePlay;
+        bool isPlaying;
 
 
         float renderFrame;

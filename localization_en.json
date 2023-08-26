@@ -43,6 +43,8 @@
     "RENDER_PREVIEW_PROFILING": "Render profiling",
     "RENDER_PREVIEW_PLAY": "Play",
     "RENDER_PREVIEW_PAUSE": "Pause",
+    "RENDER_PREVIEW_RENDER_STATISTICS": "Render statistics",
+    "RENDER_PREVIEW_ADVANCED_RENDER_PROFILING": "Advanced render profiling",
     "RENDER_PREVIEW_NOTHING_TO_PROFILE_HERE": "Nothing to profile here yet!",
     "RENDER_PREVIEW_LOOP_PLAYBACK": "Loop playback",
     "CORRUPTED_CONFIG_MESSAGE_TITLE": "Config was factory reset",
@@ -73,6 +75,7 @@
     "ASSET_MANAGER_SEARCH": "Search",
     "TIMELINE_TITLE": "Timeline",
     "TIMELINE_ZOOM": "Zoom",
+    "TIMELINE_ADD_KEYFRAME": "Add keyframe",
     "GENERIC_COPY_TO_CLIPBOARD": "Copy to clipboard",
     "GENERIC_BROWSE": "Browse",
     "GENERIC_INVALID": "Invalid",
@@ -81,6 +84,7 @@
     "GENERIC_NO": "NO",
     "GENERIC_YES": "YES",
     "GENERIC_DELETE": "Delete",
+    "GENERIC_DUPLICATE": "Duplicate",
     "GENERIC_COPY_ID": "Copy ID",
     "GENERIC_PLACEHOLDER": "Imagine here a powerful video editor with tons of effects and plugins available"
 }

@@ -54,9 +54,10 @@ extern "C" {
         static bool looping = false;
 
         if (instance->graphics.firePlay) {
-            playing = true;
+            playing = !playing;
             instance->graphics.firePlay = false;
         }
+        instance->graphics.isPlaying = playing;
 
         UISetNextWindowSize({640, 480}, ImGuiCond_Once);
         UIBegin(CSTR(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE") + std::string("##") + std::to_string(CounterGetRenderPreview())), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);

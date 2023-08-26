@@ -182,7 +182,8 @@ namespace Electron {
                     json_t& propertyMap = layer->properties[previewTargets.at(i)];
                     GeneralizedPropertyType propertyType = static_cast<GeneralizedPropertyType>(JSON_AS_TYPE(propertyMap.at(0), int));
                     bool keyframeAlreadyExists = false;
-                    int keyframeIndex = -1;
+                    bool customKeyframesExist = (propertyMap.size() - 1) > 1;
+                    int keyframeIndex = 1;
                     for (int j = 1; j < propertyMap.size(); j++) {
                         json_t specificKeyframe = propertyMap.at(j);
                         if (JSON_AS_TYPE(specificKeyframe.at(0), int) == (int) layerViewTime) {
@@ -192,29 +193,32 @@ namespace Electron {
                         }
                     }
                     ImGui::SetCursorPosX(8.0f);
+                    int propertySize = 1;
                     switch (propertyType) {
                         case GeneralizedPropertyType::Float: {
                             float x = JSON_AS_TYPE(layer->InterpolateProperty(propertyMap).at(0), float);
                             if (ImGui::InputFloat((JSON_AS_TYPE(previewTargets.at(i), std::string) + "##" + std::to_string(i)).c_str(), &x, 0, 0, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue)) {
-                                if (!keyframeAlreadyExists) {
+                                if (!keyframeAlreadyExists && customKeyframesExist) {
                                     propertyMap.push_back({(int) layerViewTime, x});
                                 } else {
                                     propertyMap.at(keyframeIndex).at(1) = x;
                                 }
                             }
+                            propertySize = 1;
                             break;
                         }
                         case GeneralizedPropertyType::Vec2: {
                             json_t x = layer->InterpolateProperty(propertyMap);
                             std::vector<float> raw = {JSON_AS_TYPE(x.at(0), float), JSON_AS_TYPE(x.at(1), float)};
                             if (ImGui::InputFloat2((JSON_AS_TYPE(previewTargets.at(i), std::string) + "##" + std::to_string(i)).c_str(), raw.data(), "%.3f", ImGuiInputTextFlags_EnterReturnsTrue)) {
-                                if (!keyframeAlreadyExists) {
+                                if (!keyframeAlreadyExists && customKeyframesExist) {
                                     propertyMap.push_back({(int) layerViewTime, raw.at(0), raw.at(1)});
                                 } else {
                                     propertyMap.at(keyframeIndex).at(1) = raw.at(0);
                                     propertyMap.at(keyframeIndex).at(2) = raw.at(1);
                                 }
                             }
+                            propertySize = 2;
                             break;
                         }
                         case GeneralizedPropertyType::Vec3:
@@ -224,7 +228,7 @@ namespace Electron {
                             if (propertyType == GeneralizedPropertyType::Vec3 ? 
                                         ImGui::InputFloat3((JSON_AS_TYPE(previewTargets.at(i), std::string) + "##" + std::to_string(i)).c_str(), raw.data(), "%.3f", ImGuiInputTextFlags_EnterReturnsTrue) :
                                         ImGui::ColorEdit3((JSON_AS_TYPE(previewTargets.at(i), std::string) + "##" + std::to_string(i)).c_str(), raw.data(), 0)) {
-                                if (!keyframeAlreadyExists) {
+                                if (!keyframeAlreadyExists && customKeyframesExist) {
                                     propertyMap.push_back({(int) layerViewTime, raw.at(0), raw.at(1), raw.at(1)});
                                 } else {
                                     propertyMap.at(keyframeIndex).at(1) = raw.at(0);
@@ -232,8 +236,21 @@ namespace Electron {
                                     propertyMap.at(keyframeIndex).at(3) = raw.at(2);
                                 }
                             }
+                            propertySize = 3;
                             break;
                         }
+                    }
+                    if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
+                        ImGui::OpenPopup(string_format("LegendProperty%i%i", i, layer->id).c_str());
+                    }
+                    if (ImGui::BeginPopup(string_format("LegendProperty%i%i", i, layer->id).c_str())) {
+                        ImGui::SeparatorText(string_format("%s", (JSON_AS_TYPE(previewTargets.at(i), std::string)).c_str()).c_str());
+                        if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_ADD_KEYFRAME"))) {
+                            json_t xKeyframe = propertyMap.at(keyframeIndex);
+                            xKeyframe.at(0) = (int) layerViewTime;
+                            propertyMap.push_back(xKeyframe);
+                        }
+                        ImGui::EndPopup();
                     }
                     if (i + 1 != previewTargets.size()) propertiesSeparatorsY.push_back(ImGui::GetCursorPosY());
                     ImGui::SetCursorPosX(0);
@@ -427,10 +444,10 @@ namespace Electron {
             ImGui::PopStyleVar(2);
             if (ImGui::BeginPopup(string_format("TimelineLayerPopup%i", i).c_str())) {
                 ImGui::SeparatorText(layer->layerUsername.c_str());
-                if (ImGui::Selectable("Delete layer")) {
+                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE"))) {
                     layerDeleteionTarget = i;
                 }
-                if (ImGui::Selectable("Duplicate layer")) {
+                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DUPLICATE"))) {
                     layerDuplicationTarget = i;
                 }
                 ImGui::EndPopup();
@@ -475,7 +492,15 @@ namespace Electron {
         DrawRect(endTimelineBounds, ImVec4(1, 1, 0, 1));
         PopClipRect();
 
+        if (instance->graphics.isPlaying) {
+            ImGui::SetScrollX(pixelsPerFrame * instance->graphics.renderFrame - ((canvasSize.x - legendSize.x) * 0.4f));
+        }
+
         ImGui::EndChild();
+
+        if (ImGui::Shortcut(ImGuiKey_Space | ImGuiMod_Ctrl)) {
+            instance->graphics.firePlay = true;
+        }
 
         ImGui::End();
         ImGui::PopStyleVar(2);
@@ -486,12 +511,9 @@ namespace Electron {
 
         if (layerDuplicationTarget != -1) {
             auto& layers = instance->graphics.layers;
-            layers.insert(layers.begin() + layerDuplicationTarget, layers[layerDuplicationTarget]);
-        }
-
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Space)) && isWindowFocused) {
-            instance->graphics.firePlay = true;
-            print("Space");
+            RenderLayer layer = layers[layerDuplicationTarget];
+            layer.id = seedrand();
+            layers.insert(layers.begin() + layerDuplicationTarget, layer);
         }
 
     }

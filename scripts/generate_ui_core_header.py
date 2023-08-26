@@ -14,6 +14,7 @@ UI_CORE_HEADER_BEGIN = '''
 #include "graphics_core.h"
 #include "ImGuiFileDialog.h"
 #include "ImGui/imgui_internal.h"
+#include "ImGui/implot.h"
 
 #if defined(WIN32) || defined(WIN64)
     #define UI_EXPORT __declspec(dllexport) __stdcall
