@@ -2,11 +2,15 @@ build_arch = "64"
 if eq(get_platform(), windows) {
     target_exec = "Electron.exe"
     dylib_prefix = ".dll"
+    dylib_id = ""
     object_add_link_options(mwindows)
 } else {
     target_exec = "Electron"
     dylib_prefix = ".so"
+    dylib_id = "lib"
 }
+
+load_module("scripts/electron_build_utils.py")
 
 std_cxx = "20"
 
@@ -34,8 +38,16 @@ target_layers = [
 scenario build_core {
     info("starting Electron build")
     object_add_compile_definition("GLEW_STATIC")
+    compilation_targets = cat(glob_files("src", "cpp"), glob_files("src", "c"))
+    compilation_targets = filter_list_from_string($compilation_targets, "clip")
+    list_append($compilation_targets, "src/clip.cpp")
+    if eq(get_platform(), windows) {
+        list_append($compilation_targets, "src/clip_win.cpp")
+    } else {
+        list_append($compilation_targets, "src/clip_x11.cpp")
+    }
     objects = object_compile(
-        cat(glob_files("src", "cpp"), glob_files("src", "c")),
+        $compilation_targets,
         $build_arch
     )
 
@@ -48,19 +60,23 @@ scenario build_core {
         ]
     } else {
         deps = [
-            glut, glfw, GL, GLU, m, Xrandr, Xi, X11, pthread, "stdc++", dl, pthread, backtrace, bfd
+            glut, glfw, GL, GLU, m, Xrandr, Xi, X11, pthread, "stdc++", dl, pthread, backtrace, bfd, xcb
         ]
     }
 
-    object_add_link_options(static)
-    object_add_link_options("static-libstdc++")
+    if eq(get_platform(), windows) {
+        object_add_link_options(static)
+        object_add_link_options("static-libstdc++")
+    } else {
+        object_add_link_options("rdynamic")
+    }
     link_executable($objects, $target_exec, $deps)
 }
 
 scenario build_impl {
     info(cat("compiling impl ", $impl_target_file))
 
-    shared_library_name = cat($impl_target_file, $dylib_prefix)
+    shared_library_name = cat($dylib_id, cat($impl_target_file, $dylib_prefix))
     object_set_include_path("src/")
     impl_objects = object_compile(cat(cat("impl/", $impl_target_file), ".cpp"), $build_arch)
 
@@ -79,7 +95,7 @@ scenario build_impl {
 
 scenario build_layer {
     call_scenario(build_impl)
-    mv(cat($impl_target_file, $dylib_prefix), cat("layers/", cat($impl_target_file, $dylib_prefix)))
+    mv(cat($dylib_id, cat($impl_target_file, $dylib_prefix)), cat("layers/", cat($dylib_id, cat($impl_target_file, $dylib_prefix))))
 }
 
 scenario clean {
