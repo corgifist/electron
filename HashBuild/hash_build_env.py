@@ -101,6 +101,7 @@ def link_executable(objects, out, link_libraries=[], shared='null'):
     for lib in link_libraries:
         transformed_libraries.append("-l" + lib)
     link_command = f"g++ {'-shared' if shared else ''} -o {out} {str_objects}{' ' if len(link_libraries) != 0 else ''}{' '.join(transformed_libraries)} {' '.join(link_options)}"
+    info(" ".join(list(filter(lambda x: x != '', link_command.split(" ")))))
     info(f"linking {'executable' if not shared else 'shared library'} {out}")
     link_process = subprocess.run(list(filter(lambda x: x != '', link_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)
     if link_process.returncode != 0:
@@ -131,6 +132,12 @@ def for_each(iterable, var_name, callee):
 def object_add_link_options(option):
     link_options.append("-" + option)
 
+def string_contains(x, y):
+    return x.contains(y)
+
+def load_module(path):
+    return exec(open(path).read())
+
 functions = {
     "print": print,
     'cat': cat,
@@ -147,6 +154,7 @@ functions = {
     "rm": os.remove,
     "rmtree": shutil.rmtree,
     "mkdir": os.mkdir,
+    "string_contains": string_contains,
     "path_exists": os.path.exists,
     "object_add_compile_definition": object_add_compile_definition,
     "object_set_include_path": object_set_include_path,
@@ -159,8 +167,14 @@ functions = {
     "info": info,
     "fatal": fatal,
     'not': _not,
-    "mv": shutil.move
+    "mv": shutil.move,
+    "load_module": load_module
 }
 
 def arg_wrapper(func, args):
-    return func(*args)
+    try:
+        return func(*args)
+    except Exception as ex:
+        fatal(f"fatal error at arg_wrapper: {str(func)}, {str(args)}")
+        print(str(ex))
+        exit(1)
