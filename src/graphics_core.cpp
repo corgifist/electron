@@ -82,6 +82,7 @@ Electron::RenderBuffer::~RenderBuffer() {
 }
 
 void Electron::TextureUnion::RebuildAssetData(GraphicsCore* owner) {
+    std::string oldName = name;
     if (!file_exists(path)) {
         invalid = true;
         type = TextureUnionType::Texture;
@@ -93,6 +94,7 @@ void Electron::TextureUnion::RebuildAssetData(GraphicsCore* owner) {
     PixelBuffer::DestroyGPUTexture(pboGpuTexture);
     pboGpuTexture = 0;
     *this = assetOwner->LoadAssetFromPath(path).result;
+    this->name = oldName;
 }
 
 glm::vec2 Electron::TextureUnion::GetDimensions() {
@@ -477,7 +479,7 @@ Electron::GraphicsCore::GraphicsCore() {
 void Electron::GraphicsCore::FetchAllLayers() {
     auto iterator = std::filesystem::directory_iterator("layers");
     for (auto& entry : iterator) {
-        std::string transformedPath = std::regex_replace(base_name(entry.path().string()), std::regex(".dll|.so"), "");
+        std::string transformedPath = std::regex_replace(base_name(entry.path().string()), std::regex(".dll|.so|lib"), "");
         print("Pre-render fetching " << transformedPath);
         dylibRegistry[transformedPath] = dylib("layers", transformedPath);
     }
