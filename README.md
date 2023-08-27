@@ -17,7 +17,3 @@ Read `HashBuild/README.md` to get more info about HashBuild
 ## Screenshot gallery
 * August 11 2023
 ![Screenshot 3](gallery/GalleryImage3.png "Added Compute Shader support")
-* July 31 2023
-![Screenshot 2](gallery/GalleryImage2.png "Added some basic layers, working on asset management")
-* July 20 2023 (WIP)
-![Screenshot 1](gallery/GalleryImage1.png "Very very WIP screenshot")
