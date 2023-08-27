@@ -2,6 +2,9 @@
 Cross-Platform Extensible Mostly-GPU Video Editor
 
 ## Building
+* Be sure that backtrace, GLFW, GLUT (linux) and GLM are installed on your machine before trying to build Electron
+
+
 Electron uses it's own build system to make development faster and smoother.
 HashBuild is maybe the most minimalistic build system ever that can provide straightforward way to build your project
 
