@@ -518,6 +518,16 @@ Electron::RenderLayer* Electron::GraphicsCore::GetLayerByID(int id) {
     throw std::runtime_error(string_format("cannot find layer with id %i", id));
 }
 
+int Electron::GraphicsCore::GetLayerIndexByID(int id) {
+    int index;
+    for (auto& layer : layers) {
+        if (layer.id == id) return index;
+        index++;
+    }
+
+    throw std::runtime_error(string_format("cannot find layer with id %i", id));
+}
+
 void Electron::GraphicsCore::AddRenderLayer(RenderLayer layer) {
     layer.graphicsOwner = this;
     layers.push_back(layer);

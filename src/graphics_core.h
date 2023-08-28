@@ -257,6 +257,7 @@ namespace Electron {
         static DylibRegistry GetImplementationsRegistry();
 
         RenderLayer* GetLayerByID(int id);
+        int GetLayerIndexByID(int id);
 
         void RequestRenderBufferCleaningWithinRegion(RenderRequestMetadata metadata);
         void RequestTextureCollectionCleaning(GLuint color, GLuint uv, GLuint depth, int width, int height, RenderRequestMetadata metadata);

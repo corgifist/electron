@@ -102,6 +102,7 @@ namespace Electron {
         bool pOpen = true;
 
 
+        static RenderLayer copyContainer;
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
         ImGui::Begin(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE"), &pOpen, 0);
@@ -135,8 +136,8 @@ namespace Electron {
         static float legendWidth = 0.2f;
         ImVec2 legendSize(canvasSize.x * legendWidth, canvasSize.y);
         float ticksBackgroundHeight = canvasSize.y * 0.05f;
-        RectBounds fillerTicksBackground = RectBounds(ImVec2(0, 0 + ImGui::GetScrollX()), ImVec2(legendSize.x, ticksBackgroundHeight));
-        RectBounds ticksBackground = RectBounds(ImVec2(0, 2 + ImGui::GetScrollX()), ImVec2(canvasSize.x, ticksBackgroundHeight));
+        RectBounds fillerTicksBackground = RectBounds(ImVec2(0, 0 + ImGui::GetScrollY()), ImVec2(legendSize.x, ticksBackgroundHeight));
+        RectBounds ticksBackground = RectBounds(ImVec2(0, 2 + ImGui::GetScrollY()), ImVec2(canvasSize.x, ticksBackgroundHeight));
         RectBounds fullscreenTicksMask = RectBounds(ImVec2(0, 2), ImVec2(canvasSize.x, canvasSize.y));
         static float legendScrollY = 0;
 
@@ -356,6 +357,7 @@ namespace Electron {
         layerPreviewHeights.clear();
         int layerDeleteionTarget = -1;
         int layerDuplicationTarget = -1;
+        int layerCopyTarget = -1;
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
             DragStructure& universalDrag = universalLayerDrags[i];
@@ -393,7 +395,7 @@ namespace Electron {
                 if (drag.isActive) anyOtherButtonsDragged = true;
             }
 
-            if (MouseHoveringBounds(forwardDragBounds) && !anyOtherButtonsDragged && !timelineDrag.isActive) {
+            if (MouseHoveringBounds(forwardDragBounds) && !anyOtherButtonsDragged && !MouseHoveringBounds(ticksBackground) && !timelineDrag.isActive) {
                 forwardDrag.Activate();
             }
 
@@ -444,11 +446,20 @@ namespace Electron {
             ImGui::PopStyleVar(2);
             if (ImGui::BeginPopup(string_format("TimelineLayerPopup%i", i).c_str())) {
                 ImGui::SeparatorText(layer->layerUsername.c_str());
-                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE"))) {
-                    layerDeleteionTarget = i;
+                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY"))) {
+                    copyContainer = *layer;
+                }
+                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_PASTE"))) {
+                    layerCopyTarget = i;
                 }
                 if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DUPLICATE"))) {
                     layerDuplicationTarget = i;
+                }
+                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE"))) {
+                    layerDeleteionTarget = i;
+                    if (layer->id == instance->selectedRenderLayer) {
+                        instance->selectedRenderLayer = -1;
+                    }
                 }
                 ImGui::EndPopup();
             }
@@ -515,6 +526,18 @@ namespace Electron {
             layer.id = seedrand();
             layers.insert(layers.begin() + layerDuplicationTarget, layer);
         }
+
+        if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_L | ImGuiKey_V)) {
+            layerCopyTarget = instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
+        }
+
+        if (layerCopyTarget != -1) {
+            auto& layers = instance->graphics.layers;
+            RenderLayer layer = copyContainer;
+            layer.id = seedrand();
+            layers.insert(layers.begin() + layerCopyTarget + 1, layer);
+        }
+
 
     }
 }

@@ -15,7 +15,7 @@ MessageCallback( GLenum source,
                  const void* userParam )
 {
     if (type != GL_DEBUG_TYPE_ERROR) return;
-  fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+  printf("GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
            ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
             type, severity, message );
 }
@@ -71,8 +71,8 @@ Electron::AppInstance::AppInstance() {
     SetupImGuiStyle();
 
     this->fontSize = 16.0f * uiScaling;
-    io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize);
-    this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize * 2.0f);
+    io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize, NULL, io.Fonts->GetGlyphRangesCyrillic());
+    this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize * 2.0f, NULL, io.Fonts->GetGlyphRangesCyrillic());
 
     ImGui_ImplGlfw_InitForOpenGL(this->displayHandle, true);
     ImGui_ImplOpenGL3_Init();
