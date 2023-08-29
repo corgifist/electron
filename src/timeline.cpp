@@ -146,7 +146,7 @@ namespace Electron {
         ImGui::BeginChild("projectlegend", legendSize, true, ImGuiWindowFlags_NoScrollbar);
         ImGui::SetScrollY(legendScrollY);
         DrawRect(fillerTicksBackground, ImVec4(0.045f, 0.045f, 0.045f, 1));
-        float propertiesStep = 22;
+        float propertiesStep = glm::floor(22 * JSON_AS_TYPE(instance->configMap["UIScaling"], float));
         float propertiesCoordAcc = 0;
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
@@ -321,7 +321,7 @@ namespace Electron {
         PopClipRect();
 
         float layerOffsetY = ticksBackgroundHeight;
-        float layerSizeY = 22;
+        float layerSizeY = 22 * JSON_AS_TYPE(instance->configMap["UIScaling"], float);
         static std::vector<DragStructure> universalLayerDrags;
         static std::vector<DragStructure> forwardLayerDrags;
         static std::vector<DragStructure> backwardLayerDrags;
