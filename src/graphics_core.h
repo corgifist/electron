@@ -203,7 +203,9 @@ namespace Electron {
 
 
         RenderLayer(std::string layerLibrary); 
-        RenderLayer() {};
+        RenderLayer() {
+            this->initialized = false;
+        };
 
         ~RenderLayer();
 

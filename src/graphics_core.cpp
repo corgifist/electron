@@ -474,6 +474,8 @@ Electron::GraphicsCore::GraphicsCore() {
     this->renderLength = 0;
 
     this->outputBufferType = PreviewOutputBufferType_Color;
+
+    this->firePlay = false;
 }
 
 void Electron::GraphicsCore::FetchAllLayers() {
@@ -519,13 +521,14 @@ Electron::RenderLayer* Electron::GraphicsCore::GetLayerByID(int id) {
 }
 
 int Electron::GraphicsCore::GetLayerIndexByID(int id) {
-    int index;
+    int index = 0;
     for (auto& layer : layers) {
         if (layer.id == id) return index;
         index++;
     }
 
     throw std::runtime_error(string_format("cannot find layer with id %i", id));
+    return index;
 }
 
 void Electron::GraphicsCore::AddRenderLayer(RenderLayer layer) {

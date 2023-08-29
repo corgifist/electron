@@ -446,16 +446,16 @@ namespace Electron {
             ImGui::PopStyleVar(2);
             if (ImGui::BeginPopup(string_format("TimelineLayerPopup%i", i).c_str())) {
                 ImGui::SeparatorText(layer->layerUsername.c_str());
-                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY"))) {
+                if (ImGui::Selectable(string_format("%s [%s]", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY"), "Ctrl+C").c_str())) {
                     copyContainer = *layer;
                 }
-                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_PASTE"))) {
+                if (ImGui::Selectable(string_format("%s [%s]", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_PASTE"), "Ctrl+V").c_str())) {
                     layerCopyTarget = i;
                 }
-                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DUPLICATE"))) {
+                if (ImGui::Selectable(string_format("%s [%s]", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DUPLICATE"), "Ctrl+D").c_str())) {
                     layerDuplicationTarget = i;
                 }
-                if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE"))) {
+                if (ImGui::Selectable(string_format("%s [%s]", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE"), "Delete").c_str())) {
                     layerDeleteionTarget = i;
                     if (layer->id == instance->selectedRenderLayer) {
                         instance->selectedRenderLayer = -1;
@@ -513,6 +513,20 @@ namespace Electron {
             instance->graphics.firePlay = true;
         }
 
+        if (ImGui::Shortcut(ImGuiKey_C | ImGuiMod_Ctrl)) {
+            copyContainer = *instance->graphics.GetLayerByID(instance->selectedRenderLayer);
+            print("Copied layer with ID " << copyContainer.id);
+        }
+
+        if (ImGui::Shortcut( ImGuiKey_V | ImGuiMod_Ctrl) && copyContainer.initialized) {
+            layerCopyTarget = instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
+        }
+
+        if (ImGui::Shortcut(ImGuiKey_Delete) && instance->selectedRenderLayer > 0) {
+            layerDeleteionTarget = instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
+            instance->selectedRenderLayer = -1;
+        }
+
         ImGui::End();
         ImGui::PopStyleVar(2);
         if (layerDeleteionTarget != -1) {
@@ -527,17 +541,12 @@ namespace Electron {
             layers.insert(layers.begin() + layerDuplicationTarget, layer);
         }
 
-        if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_L | ImGuiKey_V)) {
-            layerCopyTarget = instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
-        }
-
-        if (layerCopyTarget != -1) {
+        if (layerCopyTarget != -1 && copyContainer.initialized) {
             auto& layers = instance->graphics.layers;
             RenderLayer layer = copyContainer;
+            layer.FetchImplementation();
             layer.id = seedrand();
             layers.insert(layers.begin() + layerCopyTarget + 1, layer);
         }
-
-
     }
 }
