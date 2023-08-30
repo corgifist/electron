@@ -76,6 +76,7 @@
     "TIMELINE_TITLE": "Timeline",
     "TIMELINE_ZOOM": "Zoom",
     "TIMELINE_ADD_KEYFRAME": "Add keyframe",
+    "TIMELINE_ADD_LAYER": "Add layer",
     "GENERIC_COPY_TO_CLIPBOARD": "Copy to clipboard",
     "GENERIC_BROWSE": "Browse",
     "GENERIC_INVALID": "Invalid",
@@ -86,5 +87,8 @@
     "GENERIC_DELETE": "Delete",
     "GENERIC_DUPLICATE": "Duplicate",
     "GENERIC_COPY_ID": "Copy ID",
+    "GENERIC_COPY": "Copy",
+    "GENERIC_PASTE": "Paste", 
+    "GENERIC_LAYERS": "Layers",
     "GENERIC_PLACEHOLDER": "Imagine here a powerful video editor with tons of effects and plugins available"
 }

@@ -142,6 +142,12 @@ namespace Electron {
         static float legendScrollY = 0;
 
         std::vector<float> propertiesSeparatorsY{};
+        int layerDeleteionTarget = -1;
+        int layerDuplicationTarget = -1;
+        int layerCopyTarget = -1;
+
+        bool anyPopupsOpen = false;
+
 
         ImGui::BeginChild("projectlegend", legendSize, true, ImGuiWindowFlags_NoScrollbar);
         ImGui::SetScrollY(legendScrollY);
@@ -158,7 +164,22 @@ namespace Electron {
             ImGuiDragDropFlags target_flags = 0;
             target_flags |= ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
             ImGui::SetItemAllowOverlap();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1, 0, 0, 1));
+            ImGui::PopStyleVar(2);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.5f, 0));
+                if (ImGui::Button(string_format("%s %s", ICON_FA_TRASH_CAN, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE")).c_str())) {
+                    layerDeleteionTarget = i;
+                    if (instance->selectedRenderLayer == layer->id) {
+                        instance->selectedRenderLayer = -1;
+                    }
+                }
+            ImGui::PopStyleColor();
+            ImGui::SameLine();
+            ImGui::PopStyleVar();
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
             if (ImGui::CollapsingHeader((layer->layerUsername + "##" + std::to_string(i)).c_str())) {
+                ImGui::Spacing();
                 active = true;
                 if (ImGui::BeginDragDropSource(src_flags)) {
                     ImGui::SetDragDropPayload(LEGEND_LAYER_DRAG_DROP, &i, sizeof(i));
@@ -245,8 +266,9 @@ namespace Electron {
                         ImGui::OpenPopup(string_format("LegendProperty%i%i", i, layer->id).c_str());
                     }
                     if (ImGui::BeginPopup(string_format("LegendProperty%i%i", i, layer->id).c_str())) {
+                        anyPopupsOpen = true;
                         ImGui::SeparatorText(string_format("%s", (JSON_AS_TYPE(previewTargets.at(i), std::string)).c_str()).c_str());
-                        if (ImGui::Selectable(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_ADD_KEYFRAME"))) {
+                        if (ImGui::MenuItem(string_format("%s %s", ICON_FA_PLUS, ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_ADD_KEYFRAME")).c_str())) {
                             json_t xKeyframe = propertyMap.at(keyframeIndex);
                             xKeyframe.at(0) = (int) layerViewTime;
                             propertyMap.push_back(xKeyframe);
@@ -355,9 +377,6 @@ namespace Electron {
         }
         layerSeparatorTargets.clear();
         layerPreviewHeights.clear();
-        int layerDeleteionTarget = -1;
-        int layerDuplicationTarget = -1;
-        int layerCopyTarget = -1;
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
             RenderLayer* layer = &instance->graphics.layers[i];
             DragStructure& universalDrag = universalLayerDrags[i];
@@ -445,17 +464,18 @@ namespace Electron {
 
             ImGui::PopStyleVar(2);
             if (ImGui::BeginPopup(string_format("TimelineLayerPopup%i", i).c_str())) {
+                anyPopupsOpen = true;
                 ImGui::SeparatorText(layer->layerUsername.c_str());
-                if (ImGui::Selectable(string_format("%s [%s]", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY"), "Ctrl+C").c_str())) {
+                if (ImGui::MenuItem(string_format("%s %s", ICON_FA_COPY, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY")).c_str(), "Ctrl+C")) {
                     copyContainer = *layer;
                 }
-                if (ImGui::Selectable(string_format("%s [%s]", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_PASTE"), "Ctrl+V").c_str())) {
+                if (ImGui::MenuItem(string_format("%s %s", ICON_FA_PASTE, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_PASTE")).c_str(), "Ctrl+V")) {
                     layerCopyTarget = i;
                 }
-                if (ImGui::Selectable(string_format("%s [%s]", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DUPLICATE"), "Ctrl+D").c_str())) {
+                if (ImGui::MenuItem(string_format("%s %s", ICON_FA_PASTE, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DUPLICATE")).c_str(), "Ctrl+D")) {
                     layerDuplicationTarget = i;
                 }
-                if (ImGui::Selectable(string_format("%s [%s]", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE"), "Delete").c_str())) {
+                if (ImGui::MenuItem(string_format("%s %s", ICON_FA_TRASH_CAN, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE")).c_str(), "Delete")) {
                     layerDeleteionTarget = i;
                     if (layer->id == instance->selectedRenderLayer) {
                         instance->selectedRenderLayer = -1;
@@ -506,6 +526,27 @@ namespace Electron {
         if (instance->graphics.isPlaying) {
             ImGui::SetScrollX(pixelsPerFrame * instance->graphics.renderFrame - ((canvasSize.x - legendSize.x) * 0.4f));
         }
+
+        if (!anyPopupsOpen && MouseHoveringBounds(fullscreenTicksMask) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
+            ImGui::OpenPopup("TimelinePopup");
+        }
+
+        ImGui::PopStyleVar(2);
+        if (ImGui::BeginPopup("TimelinePopup")) {
+            anyPopupsOpen = true;
+            ImGui::SeparatorText(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE"));
+            if (ImGui::BeginMenu(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_ADD_LAYER"))) {
+                for (auto& entry : dylibRegistry) {
+                    if (ImGui::MenuItem(entry.second.get_variable<std::string>("LayerName").c_str())) {
+                        instance->graphics.layers.push_back(RenderLayer(entry.first));
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndPopup();
+        }
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
         ImGui::EndChild();
 

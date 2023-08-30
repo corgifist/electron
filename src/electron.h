@@ -27,6 +27,7 @@
 #include "json.hpp"
 #include "clip.h"
 #include "dylib.hpp"
+#include "IconsFontAwesome5.h"
 #define GLM_FORCE_SWIZZLE
 #include "glm/glm.hpp"
 #include "glm/gtx/matrix_transform_2d.hpp"

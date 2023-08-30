@@ -31,7 +31,7 @@ extern "C" {
                 UIText(CSTR(targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(targetLayer->id) + ">" + ")"));
             UIPopFont();
             UISameLine();
-            if (UIButton(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY_ID"))) {
+            if (UIButton(string_format("%s %s", ICON_FA_COPY, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY_ID")).c_str())) {
                 ClipSetText(std::to_string(targetLayer->id));
             }
             UISpacing();

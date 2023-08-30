@@ -72,6 +72,12 @@ Electron::AppInstance::AppInstance() {
 
     this->fontSize = 16.0f * uiScaling;
     io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize, NULL, io.Fonts->GetGlyphRangesCyrillic());
+    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+    ImFontConfig icons_config; 
+    icons_config.MergeMode = true; 
+    icons_config.PixelSnapH = true; 
+    icons_config.GlyphMinAdvanceX = fontSize * 2.0f / 3.0f;
+    io.Fonts->AddFontFromFileTTF( "misc/fa.ttf", fontSize * 2.0f / 3.0f, &icons_config, icons_ranges );
     this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize * 2.0f, NULL, io.Fonts->GetGlyphRangesCyrillic());
 
     ImGui_ImplGlfw_InitForOpenGL(this->displayHandle, true);

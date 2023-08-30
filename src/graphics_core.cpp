@@ -282,7 +282,7 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
     ImVec2 windowSize = ImGui::GetWindowSize();
     float inputFieldDivider = 8;
     if (ImGui::CollapsingHeader(propertyName.c_str())) {
-        if (ImGui::Button((std::string("Add keyframe") + "##" + propertyName).c_str())) {
+        if (ImGui::Button((std::string(ICON_FA_PLUS) + std::string(" Add keyframe") + "##" + propertyName).c_str())) {
             float currentViewTime = graphicsOwner->renderFrame - beginFrame;
             json_t addedKeyframe = {currentViewTime};
             int typeSize = 1;
@@ -324,7 +324,7 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
                     ImGui::PushItemWidth(30);
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{1, 0, 0, 1});
                     
-                            if (ImGui::Button(("Delete##" + propertyName + std::to_string(i) + "KeyframeDelete").c_str())) {
+                            if (ImGui::Button((std::string(ICON_FA_TRASH_CAN) + " Delete##" + propertyName + std::to_string(i) + "KeyframeDelete").c_str())) {
                                 property.erase(property.begin() + i);
                                 breakLoop = true;
                                 ImGui::PopStyleColor();
@@ -364,7 +364,7 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
                     ImGui::PushItemWidth(30);
                         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{1, 0, 0, 1});
                     
-                            if (ImGui::Button(("Delete##" + propertyName + std::to_string(i) + "KeyframeDelete").c_str())) {
+                            if (ImGui::Button((std::string(ICON_FA_TRASH_CAN) + " Delete##" + propertyName + std::to_string(i) + "KeyframeDelete").c_str())) {
                                 property.erase(property.begin() + i);
                                 breakLoop = true;
                                 ImGui::PopStyleColor();

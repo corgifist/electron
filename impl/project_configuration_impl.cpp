@@ -23,29 +23,29 @@ extern "C" {
 
     void ProjectConfigurationRenderTabBar(AppInstance* instance) {
         if (MenuBarBeginProc()) {
-                if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU"))) {
-                    if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN"), "Ctrl+P+O")) {
+                if (UIBeginMenu(string_format("%s %s", ICON_FA_FOLDER_OPEN, ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU")).c_str())) {
+                    if (UIMenuItem(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN")), "Ctrl+P+O")) {
                         FileDialogImplOpenDialog("OpenProjectDialog", "Open project", nullptr, ".");
                     }
-                    if (UIMenuItemEnhanced(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_OPEN_RECENT_PROJECT")) + ": " + JSON_AS_TYPE(instance->configMap["LastProject"], std::string)), "Ctrl+P+L", JSON_AS_TYPE(instance->configMap["LastProject"], std::string) != "null")) {
+                    if (UIMenuItemEnhanced(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_OPEN_RECENT_PROJECT")) + ": " + JSON_AS_TYPE(instance->configMap["LastProject"], std::string)), "Ctrl+P+L", JSON_AS_TYPE(instance->configMap["LastProject"], std::string) != "null")) {
                         ProjectMap project{};
                         project.path = instance->configMap["LastProject"];
                         project.propertiesMap = json_t::parse(std::fstream(std::string(project.path) + "/project.json"));
                         ShortcutsImplCtrlPO(instance, project);
                     }
                     UISeparator();
-                    if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "RELOAD_APPLICATION"), "")) {
+                    if (UIMenuItem(CSTR(ICON_FA_RECYCLE + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "RELOAD_APPLICATION"))), "")) {
                         UIEndMenu();
                         UIEndMenuBar();
                         UIEnd();
                         throw ElectronSignal_ReloadSystem;
                     }
-                    if (UIMenuItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"), "Ctrl+P+E")) {
+                    if (UIMenuItem(CSTR(ICON_FA_CROSS + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"))), "Ctrl+P+E")) {
                         ShortcutsImplCtrlPE(instance);
                     }
                     UIEndMenu();
                 }
-                if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))) {
+                if (UIBeginMenu(CSTR(ICON_FA_LAYER_GROUP + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))))) {
                     auto registry = InternalGetDylibRegistry();
                     for (auto& entry : registry) {
                         std::string key = entry.first;
@@ -56,7 +56,7 @@ extern "C" {
                     }
                     UIEndMenu();
                 }
-                if (UIBeginMenu(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))) {
+                if (UIBeginMenu(CSTR(std::string(ICON_FA_TOOLBOX + std::string(" ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))))) {
                     if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU_RENDER_PREVIEW"), "Ctrl+W+R", CounterGetRenderPreview() != 1)) {
                         ShortcutsImplCtrlWR(instance);
                     }
@@ -66,7 +66,7 @@ extern "C" {
                     if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE"), "Ctrl+W+A", CounterGetAssetManager() != 1)) {
                         ShortcutsImplCtrlWA(instance);
                     }
-                    if (UIMenuItemEnhanced("Timeline", "Ctrl+W+T", CounterGetTimelineCounter() != 1)) {
+                    if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE"), "Ctrl+W+T", CounterGetTimelineCounter() != 1)) {
                         ShortcutsImplCtrlWT(instance);
                     }
                     UIEndMenu();
