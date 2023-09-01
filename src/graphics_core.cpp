@@ -204,7 +204,7 @@ Electron::AssetLoadInfo Electron::AssetRegistry::LoadAssetFromPath(std::string p
 
     AssetLoadInfo result{};
     result.result = assetUnion;
-    result.returnMessage = "";
+    result.returnMessage = retMessage;
     return result;
 }
 

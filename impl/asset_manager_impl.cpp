@@ -163,9 +163,8 @@ extern "C" {
         }
 
         if (importErrorMessage != "") {
-            UISetNextWindowSize(ImVec2{640, 128}, ImGuiCond_Always);
-            UIBegin(CSTR(string_format("%s %s", ICON_FA_EXCLAMATION, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_IMPORT_FAILURE"))), ElectronSignal_None, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
-                UISetCursorX(windowSize.x / 2.0f - UICalcTextSize(CSTR(importErrorMessage)).x / 2.0f);
+            UIBegin(CSTR(string_format("%s %s", ICON_FA_EXCLAMATION, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_IMPORT_FAILURE"))), ElectronSignal_None, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+                UISetCursorX(UIGetWindowSize().x / 2.0f - UICalcTextSize(CSTR(importErrorMessage)).x / 2.0f);
                 UIText(CSTR(importErrorMessage));
 
                 if (UICenteredButton(instance, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_OK"))) {
