@@ -120,6 +120,14 @@ void Electron::TextureUnion::GenerateUVTexture() {
     }
 }
 
+std::string Electron::TextureUnion::GetIcon() {
+    switch (type) {
+        case TextureUnionType::Texture: {
+            return ICON_FA_IMAGE;
+        }
+    }
+    return ICON_FA_QUESTION;
+}
 
 void Electron::AssetRegistry::LoadFromProject(json_t project) {
     Clear();
@@ -394,7 +402,72 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type, json_t&
 #endif
 }
 
+void Electron::RenderLayer::RenderTextureProperty(json_t& property, std::string label) {
+    if (ImGui::CollapsingHeader(label.c_str())) {
+        ImGui::Spacing();
+        std::string textureID = JSON_AS_TYPE(property, std::string);
+        TextureUnion* textureAsset = nullptr;
+        auto& assets = graphicsOwner->assetsPtr->assets;
+        for (int i = 0; i < assets.size(); i++) {
+            if (assets.at(i).id == hexToInt(textureID)) {
+                textureAsset = &assets.at(i);
+            }
+        }
+        std::string assetIcon = ICON_FA_QUESTION;
+        if (textureAsset != nullptr)
+            assetIcon = textureAsset->GetIcon();
+        std::string assetName = "No asset";
+        if (textureAsset != nullptr) {
+            assetName = textureAsset->name;
+        }
 
+        ImGui::Text("Asset: ");
+        ImGui::SameLine();
+        if (ImGui::Selectable(string_format("%s %s", assetIcon.c_str(), assetName.c_str()).c_str())) {
+            ImGui::OpenPopup(string_format("SelectAssetPopup%s", label.c_str()).c_str());
+        }
+        if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right] && textureAsset != nullptr) {
+            ImGui::OpenPopup("AssetActionsPopup");
+        }
+        if (ImGui::BeginPopup("AssetActionsPopup")) {
+            ImGui::SeparatorText(textureAsset->name.c_str());
+            if (ImGui::MenuItem(string_format("%s %s", ICON_FA_FOLDER, "Reveal in Asset Manager").c_str(), "")) {
+                graphicsOwner->fireAssetId = textureAsset->id;
+            }
+            ImGui::EndPopup();
+        }
+        ImGui::Spacing();
+        if (textureAsset == nullptr) {
+            ImGui::Text(("No asset with ID '" + textureID + "' found").c_str());
+        } else if (!textureAsset->IsTextureCompatible()) {
+            ImGui::Text(("Asset with ID '" + textureID + "' is not texture-compatible").c_str());
+        } else {
+            RenderBuffer* pbo = &graphicsOwner->renderBuffer;
+            glm::vec2 textureDimensions = textureAsset->GetDimensions();
+            ImGui::Text(("Asset name: " + textureAsset->name).c_str());
+            ImGui::Text(("Asset type: " + textureAsset->strType).c_str());
+            ImGui::Text(("SDF-Type asset size" + std::string(": ") + std::to_string((textureDimensions.y / pbo->height)) + "x" + std::to_string((textureDimensions.x / pbo->width))).c_str());
+        }
+
+        if (ImGui::BeginPopup(string_format("SelectAssetPopup%s", label.c_str()).c_str())) {
+            static std::string searchFilter = "";
+            ImGui::InputText("##PopupSearchFilter", &searchFilter, 0);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, "Search filter").c_str());
+            for (auto& asset : assets) {
+                std::string icon = asset.GetIcon();
+                if (searchFilter != "" && asset.name.find(searchFilter) == std::string::npos)
+                    continue;
+                if (ImGui::Selectable(string_format("%s %s", icon.c_str(), asset.name.c_str()).c_str())) {
+                    textureID = intToHex(asset.id);
+                }
+            }
+            ImGui::EndPopup();
+        }
+
+        property = textureID;
+    }
+}
 
 Electron::json_t Electron::RenderLayer::InterpolateProperty(json_t keyframes) {
     int targetKeyframeIndex = -1;
@@ -476,6 +549,7 @@ Electron::GraphicsCore::GraphicsCore() {
     this->outputBufferType = PreviewOutputBufferType_Color;
 
     this->firePlay = false;
+    this->fireAssetId = -1;
 }
 
 void Electron::GraphicsCore::FetchAllLayers() {

@@ -85,11 +85,11 @@ namespace Electron {
     static float pixelsPerFrame = 3.0f;
 
     static void IncreasePixelsPerFrame() {
-        pixelsPerFrame += 0.1f;
+        pixelsPerFrame += 0.2f;
     }
 
     static void DecreasePixelsPerFrame() {
-        pixelsPerFrame -= 0.1f;
+        pixelsPerFrame -= 0.2f;
     }
 
     void Timeline::Render(AppInstance* instance) {
@@ -179,6 +179,9 @@ namespace Electron {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
             if (ImGui::CollapsingHeader((layer->layerUsername + "##" + std::to_string(i)).c_str())) {
+                if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
+                    ImGui::OpenPopup(string_format("LayerTimelinePopup%i", i).c_str());
+                }
                 ImGui::Spacing();
                 active = true;
                 if (ImGui::BeginDragDropSource(src_flags)) {

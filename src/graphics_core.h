@@ -3,6 +3,7 @@
 #include "electron.h"
 #include "time.h"
 #include "ImGui/imgui.h"
+#include "ImGui/imgui_stdlib.h"
 #include "GLEW/include/GL/glew.h"
 
 #define MAX_DEPTH 100000000
@@ -111,6 +112,8 @@ namespace Electron {
         glm::vec2 GetDimensions();
 
         void GenerateUVTexture();
+
+        std::string GetIcon();
     }; 
 
     struct AssetLoadInfo {
@@ -213,6 +216,7 @@ namespace Electron {
 
         void Render(GraphicsCore* graphics, RenderRequestMetadata metadata);
         void RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName);
+        void RenderTextureProperty(json_t& property, std::string label);
         void RenderProperties();
 
         void SortKeyframes(json_t& keyframes);
@@ -243,9 +247,12 @@ namespace Electron {
         GLuint renderBufferTexture;
         std::vector<RenderLayer> layers;
         AppInstance* owner;
+        AssetRegistry* assetsPtr;
         std::string projectPath;
         bool firePlay;
         bool isPlaying;
+        int* selectedLayerPtr;
+        int fireAssetId;
 
 
         float renderFrame;

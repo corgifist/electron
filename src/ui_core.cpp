@@ -192,6 +192,10 @@ HEADER_TARGET bool UISelectable(const char* text, bool& selected) {
     return ImGui::Selectable(text, &selected);
 }
 
+HEADER_TARGET bool UISelectableFlag(const char* text, bool& selected, ImGuiSelectableFlags flags) {
+    return ImGui::Selectable(text, selected, flags);
+}
+
 HEADER_TARGET void UISetItemFocusDefault() {
     ImGui::SetItemDefaultFocus();
 }
@@ -826,4 +830,36 @@ HEADER_TARGET bool UIBeginPopup(std::string popup, ImGuiPopupFlags flags) {
 
 HEADER_TARGET void UIEndPopup() {
     ImGui::EndPopup();
+}
+
+HEADER_TARGET bool UIBeginTable(const char* id, int columns, ImGuiTableFlags flags) {
+    return ImGui::BeginTable(id, columns, flags);
+}
+
+HEADER_TARGET void UIEndTable() {
+    ImGui::EndTable();
+}
+
+HEADER_TARGET void UITableNextRow() {
+    ImGui::TableNextRow();
+}
+
+HEADER_TARGET void UITableSetColumnIndex(int index) {
+    ImGui::TableSetColumnIndex(index);
+}
+
+HEADER_TARGET void UITableSetupColumn(const char* text) {
+    ImGui::TableSetupColumn(text);
+}
+
+HEADER_TARGET void UITableUploadHeaders() {
+    ImGui::TableHeadersRow();
+}
+
+HEADER_TARGET void UISeparatorText(const char* text) {
+    ImGui::SeparatorText(text);
+}
+
+HEADER_TARGET void RenderLayerImpLRenderTextureProperty(Electron::RenderLayer* layer, Electron::json_t& property, std::string label) {
+    layer->RenderTextureProperty(property, label);
 }

@@ -142,6 +142,11 @@ namespace Electron {
         return stream.str();
     }
 
+    static float precision( float f, int places ) {
+        float n = std::pow(10.0f, places ) ;
+        return std::round(f * n) / n ;
+    }
+
     static int hexToInt(std::string hex) {
         int x;   
         std::stringstream ss;

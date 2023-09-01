@@ -45,7 +45,7 @@ extern "C" {
         };
 
         owner->properties["TextureID"] = "";
-        owner->properties["EnableTexturing"] = false;
+        owner->properties["EnableTexturing"] = true;
 
         if (sdf2d_compute == -1) {
             sdf2d_compute = GraphicsImplCompileComputeShader(owner->graphicsOwner, "sdf2d.compute");
@@ -126,6 +126,10 @@ extern "C" {
         AppInstance* instance = layer->graphicsOwner->owner;
         RenderBuffer* pbo = &layer->graphicsOwner->renderBuffer;
 
+        bool texturingEnabled = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
+        UICheckbox("Enable texturing", &texturingEnabled);
+        layer->properties["EnableTexturing"] = texturingEnabled;
+        UISeparator();
         json_t& position = layer->properties["Position"];
         RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec2, position, "Position");
 
@@ -138,36 +142,8 @@ extern "C" {
         json_t& angle = layer->properties["Angle"];
         RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Float, angle, "Angle");
 
-        if (UICollapsingHeader("Texturing")) {
-            bool enableTexturing = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
-            UICheckbox("Enable texturing", &enableTexturing);
-            layer->properties["EnableTexturing"] = enableTexturing;
-
-            if (enableTexturing) {
-            std::string textureID = JSON_AS_TYPE(layer->properties["TextureID"], std::string);
-            UIInputField("Texture ID", &textureID, ImGuiInputTextFlags_AutoSelectAll);
-            layer->properties["TextureID"] = textureID;
-
-            TextureUnion* textureAsset = nullptr;
-            auto& assets = instance->assets.assets;
-            for (int i = 0; i < assets.size(); i++) {
-                if (assets.at(i).id == hexToInt(textureID)) {
-                    textureAsset = &assets.at(i);
-                }
-            }
-
-            if (textureAsset == nullptr) {
-                UIText(CSTR("No asset with ID '" + textureID + "' found"));
-            } else if (!textureAsset->IsTextureCompatible()) {
-                UIText(CSTR("Asset with ID '" + textureID + "' is not texture-compatible"));
-            } else {
-                glm::vec2 textureDimensions = TextureUnionImplGetDimensions(textureAsset);
-                UIText(CSTR("Asset name: " + textureAsset->name));
-                UIText(CSTR("Asset type: " + textureAsset->strType));
-                UIText(CSTR("SDF-Type asset size" + std::string(": ") + std::to_string((textureDimensions.y / pbo->height)) + "x" + std::to_string((textureDimensions.x / pbo->width))));
-            }
-            }
-        }
+        json_t& textureID = layer->properties["TextureID"];
+        RenderLayerImpLRenderTextureProperty(layer, textureID, "Texturing");
     }
 
     ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {

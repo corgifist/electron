@@ -6,11 +6,11 @@ namespace Electron {
 
     AssetManager::AssetManager() {
         this->impl = ImplDylibs::AssetManagerDylib.get_function<void(AppInstance*)>("AssetManagerRender");
-        UICounters::AssetManagerCounter++;
+        UICounters::AssetManagerCounter = 1;
     }
 
     AssetManager::~AssetManager() {
-        UICounters::AssetManagerCounter--;
+        UICounters::AssetManagerCounter = 0;
     }
 
     void AssetManager::Render(AppInstance* instance) {

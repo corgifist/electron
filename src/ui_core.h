@@ -65,6 +65,7 @@ UI_EXPORT  ImVec2 UIGetAvailZone() ;
 UI_EXPORT  bool UIBeginCombo(const char* label, const char* option) ;
 UI_EXPORT  void UIEndCombo() ;
 UI_EXPORT  bool UISelectable(const char* text, bool& selected) ;
+UI_EXPORT  bool UISelectableFlag(const char* text, bool& selected, ImGuiSelectableFlags flags) ;
 UI_EXPORT  void UISetItemFocusDefault() ;
 UI_EXPORT  void GraphicsImplResizeRenderBuffer(void* instance, int width, int height) ;
 UI_EXPORT  void FileDialogImplOpenDialog(const char* internalName, const char* title, const char* extensions, const char* initialPath) ;
@@ -222,6 +223,14 @@ UI_EXPORT  float UIGetTime() ;
 UI_EXPORT  void UIOpenPopup(std::string popup, ImGuiPopupFlags flags) ;
 UI_EXPORT  bool UIBeginPopup(std::string popup, ImGuiPopupFlags flags) ;
 UI_EXPORT  void UIEndPopup() ;
+UI_EXPORT  bool UIBeginTable(const char* id, int columns, ImGuiTableFlags flags) ;
+UI_EXPORT  void UIEndTable() ;
+UI_EXPORT  void UITableNextRow() ;
+UI_EXPORT  void UITableSetColumnIndex(int index) ;
+UI_EXPORT  void UITableSetupColumn(const char* text) ;
+UI_EXPORT  void UITableUploadHeaders() ;
+UI_EXPORT  void UISeparatorText(const char* text) ;
+UI_EXPORT  void RenderLayerImpLRenderTextureProperty(Electron::RenderLayer* layer, Electron::json_t& property, std::string label) ;
 
 }
 #undef UI_EXPORT

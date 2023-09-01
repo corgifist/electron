@@ -87,6 +87,8 @@ Electron::AppInstance::AppInstance() {
     this->projectOpened = false;
 
     this->graphics.owner = this;
+    this->graphics.assetsPtr = &assets;
+    this->graphics.selectedLayerPtr = &selectedRenderLayer;
     this->graphics.ResizeRenderBuffer(128, 128);
     this->shortcuts.owner = this;
 
