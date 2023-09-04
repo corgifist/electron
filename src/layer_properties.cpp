@@ -10,7 +10,7 @@ namespace Electron {
     }
 
     LayerProperties::~LayerProperties() {
-        UICounters::LayerPropertiesCounter--;
+        UICounters::LayerPropertiesCounter = 0;
     }
 
     void LayerProperties::Render(AppInstance* instance) {

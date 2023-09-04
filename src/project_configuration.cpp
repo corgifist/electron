@@ -1,16 +1,18 @@
 #include "editor_core.h"
 
-dylib Electron::ImplDylibs::ProjectConfigurationDylib{};
-int Electron::UICounters::ProjectConfigurationCounter;
+namespace Electron {
+    dylib ImplDylibs::ProjectConfigurationDylib{};
+    int UICounters::ProjectConfigurationCounter;
 
-Electron::ProjectConfiguration::ProjectConfiguration() {
-    this->implFunction = ImplDylibs::ProjectConfigurationDylib.get_function<void(AppInstance*)>("ProjectConfigurationRender");
-    UICounters::ProjectConfigurationCounter++;
-}
+    ProjectConfiguration::ProjectConfiguration() {
+        this->implFunction = ImplDylibs::ProjectConfigurationDylib.get_function<void(AppInstance*)>("ProjectConfigurationRender");
+        UICounters::ProjectConfigurationCounter++;
+    }
 
-Electron::ProjectConfiguration::~ProjectConfiguration() {
-}
+    ProjectConfiguration::~ProjectConfiguration() {
+    }
 
-void Electron::ProjectConfiguration::Render(AppInstance* instance) {
-    this->implFunction(instance);
+    void ProjectConfiguration::Render(AppInstance* instance) {
+        this->implFunction(instance);
+    }
 }

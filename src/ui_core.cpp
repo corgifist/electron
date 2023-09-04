@@ -43,7 +43,7 @@ HEADER_TARGET ImVec2 UICalcTextSize(const char* text) {
 }
 
 HEADER_TARGET ImVec2 UIGetWindowSize() {
-    return ImGui::GetWindowSize();
+    return ImGui::GetContentRegionAvail();
 }
 
 HEADER_TARGET void UISetCursorPos(ImVec2 cursor) {

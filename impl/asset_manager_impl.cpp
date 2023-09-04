@@ -130,7 +130,9 @@ extern "C" {
                             }
                         }
                         if (column == 1) {
-                            UIText(CSTR(asset.path));
+                            std::string path = asset.path;
+                            path = std::filesystem::relative(path).string();
+                            UIText(CSTR(path));
                         }
                         if (column == 2) {
                             UIText(CSTR(std::to_string((float) filesize(asset.path.c_str()) / 1024.0f / 1024.0f)));
