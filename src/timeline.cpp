@@ -8,6 +8,10 @@ namespace Electron {
     struct DragStructure {
         bool isActive;
 
+        DragStructure() {
+            isActive = false;
+        }
+
         bool GetDragDistance(float& distance) {
             ImGuiIO& io = ImGui::GetIO();
             if (io.MouseDown[ImGuiMouseButton_Left] && isActive && ImGui::IsWindowFocused()) {
@@ -55,7 +59,7 @@ namespace Electron {
     struct KeyframeHolderInfo {
         float yCoord;
         float widgetHeight;
-        DragStructure drag;
+        std::vector<DragStructure> drags;
 
         KeyframeHolderInfo() {};
     };
@@ -135,6 +139,7 @@ namespace Electron {
             instance->AddShortcut({ImGuiKey_KeypadSubtract}, DecreasePixelsPerFrame);
         }
         bool pOpen = true;
+        bool anyLayerDragged = false;
 
 
         static RenderLayer copyContainer;
@@ -369,6 +374,28 @@ namespace Electron {
         ImGui::BeginChild("projectTimeline", ImVec2(canvasSize.x - legendSize.x, canvasSize.y), false, ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_AlwaysVerticalScrollbar);
         windowMouseCoords = ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
         legendScrollY = ImGui::GetScrollY();
+        bool anyOtherButtonsDragged = false;
+        static std::vector<DragStructure> universalLayerDrags;
+        static std::vector<DragStructure> forwardLayerDrags;
+        static std::vector<DragStructure> backwardLayerDrags;
+        for (auto& drag : universalLayerDrags) {
+            if (drag.isActive) anyOtherButtonsDragged = true;
+        }
+
+        for (auto& drag : forwardLayerDrags) {
+            if (drag.isActive) anyOtherButtonsDragged = true;
+        }
+
+        for (auto& drag : backwardLayerDrags) {
+            if (drag.isActive) anyOtherButtonsDragged = true;
+        }
+        for (auto& keyPairs : keyframeInfos) {
+            for (auto& info : keyPairs.second) {
+                for (auto& keyDrag : info.drags) {
+                    if (keyDrag.isActive) anyOtherButtonsDragged = true;
+                }
+            }
+        }
         PushClipRect(fullscreenTicksMask);
         std::vector<TimeStampTarget> stamps{};
         DrawRect(ticksBackground, ImVec4(0.045f, 0.045f, 0.045f, 1));
@@ -401,9 +428,6 @@ namespace Electron {
 
         float layerOffsetY = ticksBackgroundHeight;
         float layerSizeY = 22 * JSON_AS_TYPE(instance->configMap["UIScaling"], float);
-        static std::vector<DragStructure> universalLayerDrags;
-        static std::vector<DragStructure> forwardLayerDrags;
-        static std::vector<DragStructure> backwardLayerDrags;
         if (universalLayerDrags.size() != instance->graphics.layers.size()) {
             universalLayerDrags = std::vector<DragStructure>(instance->graphics.layers.size());
         }
@@ -432,6 +456,61 @@ namespace Electron {
         }
         for (auto& layerPair : keyframeInfos) {
             RenderLayer* keyframesOwner = instance->graphics.GetLayerByID(layerPair.first);
+            std::vector<KeyframeHolderInfo> info = layerPair.second;
+            for (int i = 0; i < keyframesOwner->previewProperties.size(); i++) {
+                KeyframeHolderInfo keyInfo = info.at(i);
+                json_t propertyMap = keyframesOwner->properties[keyframesOwner->previewProperties.at(i)];
+                int keyframeDeletionTarget = -1;
+                for (int j = 1; j < propertyMap.size(); j++) {
+                    json_t& keyframe = propertyMap.at(j);
+                    float time = JSON_AS_TYPE(keyframe.at(0), float);
+                    if (keyInfo.drags.size() != propertyMap.size() - 1) {
+                        keyInfo.drags = std::vector<DragStructure>(propertyMap.size() - 1);
+                    }
+                    DragStructure& drag = keyInfo.drags[j - 1];
+                    ImVec2 keyframeSize = ImVec2(TTIMELINE_RULLER_WIDTH * 2.5f, keyInfo.widgetHeight);
+                    ImVec2 logicSize = ImVec2(TTIMELINE_RULLER_WIDTH * 5.0f,ImGui::GetWindowSize().y + ImGui::GetScrollY());
+                    RectBounds keyframeBounds = RectBounds(ImVec2((keyframesOwner->beginFrame * pixelsPerFrame + time * pixelsPerFrame )- keyframeSize.x / 2.0f, keyInfo.yCoord), keyframeSize);
+                    RectBounds logicBounds = RectBounds(ImVec2((keyframesOwner->beginFrame * pixelsPerFrame + time * pixelsPerFrame)- logicSize.x / 2.0f, keyInfo.yCoord), logicSize);
+
+                    if (MouseHoveringBounds(keyframeBounds) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left]) {
+                        drag.isActive = true;
+                    }
+
+                    if (MouseHoveringBounds(keyframeBounds) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right] && !anyLayerDragged) {
+                        ImGui::OpenPopup(string_format("KeyframePopup%p%i%i", keyframesOwner, i, j).c_str());
+                    }
+
+                    if (ImGui::BeginPopup(string_format("KeyframePopup%p%i%i", keyframesOwner, i, j).c_str())) {
+                        ImGui::SeparatorText(string_format("%s %i", keyframesOwner->previewProperties.at(i), j).c_str());
+                        if (ImGui::MenuItem(string_format("%s %s", ICON_FA_TRASH, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE")).c_str())) {
+                            layerDeleteionTarget = j;
+                        }
+                        ImGui::EndPopup();
+                    }
+
+                    float dragDist;
+                    if (drag.isActive && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left]) {
+                        float dragWindowCoord = windowMouseCoords.x + ImGui::GetScrollX();
+
+                        float transformedFrame = ((dragWindowCoord / pixelsPerFrame) - keyframesOwner->beginFrame);
+                        transformedFrame = glm::clamp((float) transformedFrame, 0.0f, (float) transformedFrame);
+                        keyframe.at(0) = transformedFrame;
+                        anyLayerDragged = true;
+                        anyLayerHovered = true;
+                    } else {
+                        drag.isActive = false;
+                        anyLayerDragged = false;
+                    }
+                    DrawRect(keyframeBounds, ImVec4(0.2f, 0.2f, 0.2f, 1));
+                    propertyMap.at(j) = keyframe;
+                }
+                if (layerDeleteionTarget != -1) propertyMap.erase(layerDeleteionTarget);
+                keyframesOwner->properties[keyframesOwner->previewProperties.at(i)] = propertyMap;
+                info.at(i) = keyInfo;
+            }
+
+            keyframeInfos[layerPair.first] = info;
         }
         for (auto& separatorY : layerSeparatorTargets) {
             ImGui::SetCursorPos({0, 0});
@@ -469,19 +548,6 @@ namespace Electron {
             DrawRect(forwardDragBounds, layerColor * ImVec4(0.9f, 0.9f, 0.9f, 1));
             RectBounds backwardDragBounds = RectBounds(ImVec2(pixelsPerFrame * layer->beginFrame, layerOffsetY + 2), dragSize);
             DrawRect(backwardDragBounds, layerColor * ImVec4(0.9f, 0.9f, 0.9f, 1));
-
-            bool anyOtherButtonsDragged = false;
-            for (auto& drag : universalLayerDrags) {
-                if (drag.isActive) anyOtherButtonsDragged = true;
-            }
-
-            for (auto& drag : forwardLayerDrags) {
-                if (drag.isActive) anyOtherButtonsDragged = true;
-            }
-
-            for (auto& drag : backwardLayerDrags) {
-                if (drag.isActive) anyOtherButtonsDragged = true;
-            }
 
             if (MouseHoveringBounds(forwardDragBounds) && !anyOtherButtonsDragged && !MouseHoveringBounds(ticksBackground) && !timelineDrag.isActive) {
                 forwardDrag.Activate();
@@ -543,7 +609,6 @@ namespace Electron {
         DrawRect(timelineBounds, ImVec4(0.871, 0.204, 0.204, 1));
 
         
-        bool anyLayerDragged = false;
         for (auto& drag : universalLayerDrags) {
             if (drag.isActive) anyLayerDragged = true;
         }

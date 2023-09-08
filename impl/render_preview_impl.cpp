@@ -91,7 +91,7 @@ extern "C" {
 
             ImVec2 scaledPreviewSize = {resolutionVariants[0].width, resolutionVariants[0].height};
 
-            ImVec2 acceptedResolution = windowSize * 0.8f;
+            ImVec2 acceptedResolution = windowSize * 0.82f;
             float xAspect = scaledPreviewSize.x / acceptedResolution.x;
             scaledPreviewSize = ImVec2{acceptedResolution.x, resolutionVariants[0].height / xAspect} * previewScale;
 
@@ -133,7 +133,7 @@ extern "C" {
             }
             UISameLine();
             UICheckbox(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_LOOP_PLAYBACK"), &looping);
-            UIPushItemWidth(windowSize.x * 0.96f);
+            UIPushItemWidth(windowSize.x);
                 UISliderFloat("##", &translatedTimelineValue, 0, translatedRenderLength, CSTR(std::string("%0.") + std::to_string(JSON_AS_TYPE(instance->configMap["RenderPreviewTimelinePrescision"], int)) + "f"), 0);
             UIPopItemWidth();
             instance->graphics.renderFrame = 60.0f * translatedTimelineValue;
