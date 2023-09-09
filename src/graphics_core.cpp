@@ -281,7 +281,7 @@ void Electron::RenderLayer::SortKeyframes(json_t& keyframes) {
     }
 
     for (int i = 1; i < keyframes.size(); i++) {
-        keyframes.at(i).at(0) = glm::clamp(JSON_AS_TYPE(keyframes.at(i).at(0), int), beginFrame, endFrame);
+        keyframes.at(i).at(0) = glm::clamp(JSON_AS_TYPE(keyframes.at(i).at(0), int), 0, endFrame - beginFrame);
     }
 }
 

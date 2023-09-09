@@ -375,6 +375,8 @@ namespace Electron {
         windowMouseCoords = ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
         legendScrollY = ImGui::GetScrollY();
         bool anyOtherButtonsDragged = false;
+        bool anyKeyframesDragged = false;
+        bool blockTimelineDrag = false;
         static std::vector<DragStructure> universalLayerDrags;
         static std::vector<DragStructure> forwardLayerDrags;
         static std::vector<DragStructure> backwardLayerDrags;
@@ -390,9 +392,15 @@ namespace Electron {
             if (drag.isActive) anyOtherButtonsDragged = true;
         }
         for (auto& keyPairs : keyframeInfos) {
+            bool oneDragActive = false;
             for (auto& info : keyPairs.second) {
                 for (auto& keyDrag : info.drags) {
-                    if (keyDrag.isActive) anyOtherButtonsDragged = true;
+                    if (keyDrag.isActive) {
+                        anyOtherButtonsDragged = true;
+                        if (oneDragActive) {
+                            anyKeyframesDragged = true;
+                        } else oneDragActive = true;
+                    }
                 }
             }
         }
@@ -469,32 +477,37 @@ namespace Electron {
                     }
                     DragStructure& drag = keyInfo.drags[j - 1];
                     ImVec2 keyframeSize = ImVec2(TTIMELINE_RULLER_WIDTH * 2.5f, keyInfo.widgetHeight);
-                    ImVec2 logicSize = ImVec2(TTIMELINE_RULLER_WIDTH * 5.0f,ImGui::GetWindowSize().y + ImGui::GetScrollY());
+                    ImVec2 logicSize = ImVec2(ImGui::GetWindowSize().x + ImGui::GetScrollX(),ImGui::GetWindowSize().y + ImGui::GetScrollY());
                     RectBounds keyframeBounds = RectBounds(ImVec2((keyframesOwner->beginFrame * pixelsPerFrame + time * pixelsPerFrame )- keyframeSize.x / 2.0f, keyInfo.yCoord), keyframeSize);
-                    RectBounds logicBounds = RectBounds(ImVec2((keyframesOwner->beginFrame * pixelsPerFrame + time * pixelsPerFrame)- logicSize.x / 2.0f, keyInfo.yCoord), logicSize);
+                    RectBounds logicBounds = RectBounds(ImVec2((keyframesOwner->beginFrame * pixelsPerFrame + time * pixelsPerFrame)- logicSize.x / 2.0f, 0), logicSize);
 
-                    if (MouseHoveringBounds(keyframeBounds) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left]) {
+                    if (MouseHoveringBounds(keyframeBounds) && !drag.isActive && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && !anyKeyframesDragged) {
                         drag.isActive = true;
                     }
 
-                    if (MouseHoveringBounds(keyframeBounds) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right] && !anyLayerDragged) {
+
+                    if (MouseHoveringBounds(keyframeBounds) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right] && !anyOtherButtonsDragged) {
                         ImGui::OpenPopup(string_format("KeyframePopup%p%i%i", keyframesOwner, i, j).c_str());
                     }
 
+                    ImGui::PopStyleVar(2);
                     if (ImGui::BeginPopup(string_format("KeyframePopup%p%i%i", keyframesOwner, i, j).c_str())) {
-                        ImGui::SeparatorText(string_format("%s %i", keyframesOwner->previewProperties.at(i), j).c_str());
+                        anyPopupsOpen = true;
+                        ImGui::SeparatorText(string_format("%s %i", JSON_AS_TYPE(keyframesOwner->previewProperties.at(i), std::string).c_str(), j).c_str());
                         if (ImGui::MenuItem(string_format("%s %s", ICON_FA_TRASH, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE")).c_str())) {
                             layerDeleteionTarget = j;
                         }
                         ImGui::EndPopup();
                     }
+                    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
                     float dragDist;
-                    if (drag.isActive && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left]) {
+                    if (drag.isActive && MouseHoveringBounds(fullscreenTicksMask) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && !anyKeyframesDragged) {
                         float dragWindowCoord = windowMouseCoords.x + ImGui::GetScrollX();
 
                         float transformedFrame = ((dragWindowCoord / pixelsPerFrame) - keyframesOwner->beginFrame);
-                        transformedFrame = glm::clamp((float) transformedFrame, 0.0f, (float) transformedFrame);
+                        transformedFrame = glm::clamp((float) transformedFrame, 0.0f, (float) keyframesOwner->endFrame - keyframesOwner->beginFrame);
                         keyframe.at(0) = transformedFrame;
                         anyLayerDragged = true;
                         anyLayerHovered = true;
@@ -620,12 +633,12 @@ namespace Electron {
             if (drag.isActive) anyLayerDragged = true;
         }
 
-        if (MouseHoveringBounds(timelineBounds) || (MouseHoveringBounds(ticksBackground) && !anyLayerDragged)) {
+        if (MouseHoveringBounds(timelineBounds) || (MouseHoveringBounds(ticksBackground) && !anyLayerDragged && !anyKeyframesDragged)) {
             timelineDrag.Activate();
         }
 
         float timelineDragDist;
-        if (timelineDrag.GetDragDistance(timelineDragDist) && !anyLayerDragged) {
+        if (timelineDrag.GetDragDistance(timelineDragDist) && !anyLayerDragged && !anyKeyframesDragged) {
             instance->graphics.renderFrame = (int) ((windowMouseCoords.x) / pixelsPerFrame);
         } else timelineDrag.Deactivate();
 
@@ -637,7 +650,7 @@ namespace Electron {
             ImGui::SetScrollX(pixelsPerFrame * instance->graphics.renderFrame - ((canvasSize.x - legendSize.x) * 0.4f));
         }
 
-        if (!anyPopupsOpen && MouseHoveringBounds(fullscreenTicksMask) && !anyLayerHovered && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
+        if (!anyPopupsOpen && MouseHoveringBounds(fullscreenTicksMask) && !anyLayerHovered && !anyPopupsOpen && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
             ImGui::OpenPopup("TimelinePopup");
         }
 
