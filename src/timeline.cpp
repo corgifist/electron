@@ -211,22 +211,9 @@ namespace Electron {
             ImGuiDragDropFlags target_flags = 0;
             target_flags |= ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
             ImGui::SetItemAllowOverlap();
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1, 0, 0, 1));
-            ImGui::PopStyleVar(2);
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.5f, 0));
-                if (ImGui::Button(string_format("%s %s", ICON_FA_TRASH_CAN, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE")).c_str())) {
-                    layerDeleteionTarget = i;
-                    if (instance->selectedRenderLayer == layer->id) {
-                        instance->selectedRenderLayer = -1;
-                    }
-                }
-            ImGui::PopStyleColor();
-            ImGui::SameLine();
-            ImGui::PopStyleVar();
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
             if (ImGui::CollapsingHeader((layer->layerUsername + "##" + std::to_string(i)).c_str())) {
                 if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
+                    anyPopupsOpen = true;
                     ImGui::OpenPopup(string_format("TimelineLayerPopup%i", i).c_str());
                 }
                 TimelineRenderLayerPopup(instance, i, firePopupsFlag, copyContainer, layerDuplicationTarget, layerCopyTarget, layerDeleteionTarget);
@@ -464,11 +451,13 @@ namespace Electron {
         }
         for (auto& layerPair : keyframeInfos) {
             RenderLayer* keyframesOwner = instance->graphics.GetLayerByID(layerPair.first);
+            PushClipRect(RectBounds(ImVec2(keyframesOwner->beginFrame * pixelsPerFrame, 0), ImVec2((keyframesOwner->endFrame - keyframesOwner->beginFrame) * pixelsPerFrame, ImGui::GetWindowSize().y)));
             std::vector<KeyframeHolderInfo> info = layerPair.second;
             for (int i = 0; i < keyframesOwner->previewProperties.size(); i++) {
                 KeyframeHolderInfo keyInfo = info.at(i);
                 json_t propertyMap = keyframesOwner->properties[keyframesOwner->previewProperties.at(i)];
                 int keyframeDeletionTarget = -1;
+                int keyframeDuplicationTarget = -1;
                 for (int j = 1; j < propertyMap.size(); j++) {
                     json_t& keyframe = propertyMap.at(j);
                     float time = JSON_AS_TYPE(keyframe.at(0), float);
@@ -476,7 +465,7 @@ namespace Electron {
                         keyInfo.drags = std::vector<DragStructure>(propertyMap.size() - 1);
                     }
                     DragStructure& drag = keyInfo.drags[j - 1];
-                    ImVec2 keyframeSize = ImVec2(TTIMELINE_RULLER_WIDTH * 2.5f, keyInfo.widgetHeight);
+                    ImVec2 keyframeSize = ImVec2(TTIMELINE_RULLER_WIDTH * 2.0f, keyInfo.widgetHeight);
                     ImVec2 logicSize = ImVec2(ImGui::GetWindowSize().x + ImGui::GetScrollX(),ImGui::GetWindowSize().y + ImGui::GetScrollY());
                     RectBounds keyframeBounds = RectBounds(ImVec2((keyframesOwner->beginFrame * pixelsPerFrame + time * pixelsPerFrame )- keyframeSize.x / 2.0f, keyInfo.yCoord), keyframeSize);
                     RectBounds logicBounds = RectBounds(ImVec2((keyframesOwner->beginFrame * pixelsPerFrame + time * pixelsPerFrame)- logicSize.x / 2.0f, 0), logicSize);
@@ -495,7 +484,11 @@ namespace Electron {
                         anyPopupsOpen = true;
                         ImGui::SeparatorText(string_format("%s %i", JSON_AS_TYPE(keyframesOwner->previewProperties.at(i), std::string).c_str(), j).c_str());
                         if (ImGui::MenuItem(string_format("%s %s", ICON_FA_TRASH, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE")).c_str())) {
-                            layerDeleteionTarget = j;
+                            keyframeDeletionTarget = j;
+                            DUMP_VAR(keyframeDeletionTarget);
+                        }
+                        if (ImGui::MenuItem(string_format("%s %s", ICON_FA_PASTE, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DUPLICATE")).c_str())) {
+                            keyframeDuplicationTarget = j;
                         }
                         ImGui::EndPopup();
                     }
@@ -508,20 +501,26 @@ namespace Electron {
 
                         float transformedFrame = ((dragWindowCoord / pixelsPerFrame) - keyframesOwner->beginFrame);
                         transformedFrame = glm::clamp((float) transformedFrame, 0.0f, (float) keyframesOwner->endFrame - keyframesOwner->beginFrame);
-                        keyframe.at(0) = transformedFrame;
+                        keyframe.at(0) = glm::floor(transformedFrame);
                         anyLayerDragged = true;
                         anyLayerHovered = true;
                     } else {
                         drag.isActive = false;
                         anyLayerDragged = false;
                     }
-                    DrawRect(keyframeBounds, ImVec4(0.2f, 0.2f, 0.2f, 1));
+                    DrawRect(keyframeBounds, MouseHoveringBounds(keyframeBounds) ? ImVec4(0.25f, 0.25f, 0.25f, 1) : ImVec4(0.2f, 0.2f, 0.2f, 1));
                     propertyMap.at(j) = keyframe;
                 }
-                if (layerDeleteionTarget != -1) propertyMap.erase(layerDeleteionTarget);
+                if (keyframeDeletionTarget != -1) propertyMap.erase(keyframeDeletionTarget);
+                if (keyframeDuplicationTarget != -1) {
+                    json_t keyframeInstance = propertyMap.at(keyframeDuplicationTarget);
+                    propertyMap.insert(propertyMap.begin() + keyframeDuplicationTarget + 1, keyframeInstance);
+                }
                 keyframesOwner->properties[keyframesOwner->previewProperties.at(i)] = propertyMap;
                 info.at(i) = keyInfo;
             }
+            PopClipRect();
+
 
             keyframeInfos[layerPair.first] = info;
         }
@@ -545,7 +544,7 @@ namespace Electron {
             if (ImGui::Button((layer->layerUsername + "##" + std::to_string(i)).c_str(), ImVec2(pixelsPerFrame * layerDuration, layerSizeY))) {
                 instance->selectedRenderLayer = layer->id;
             } 
-            if (!anyLayerHovered && ImGui::IsItemHovered()) {
+            if (ImGui::IsItemHovered()) {
                 anyLayerHovered = true;
             }
             if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
@@ -633,7 +632,7 @@ namespace Electron {
             if (drag.isActive) anyLayerDragged = true;
         }
 
-        if (MouseHoveringBounds(timelineBounds) || (MouseHoveringBounds(ticksBackground) && !anyLayerDragged && !anyKeyframesDragged)) {
+        if (MouseHoveringBounds(timelineBounds) || (MouseHoveringBounds(ticksBackground) && !anyLayerDragged && !anyOtherButtonsDragged)) {
             timelineDrag.Activate();
         }
 
@@ -685,6 +684,10 @@ namespace Electron {
 
         if (ImGui::Shortcut( ImGuiKey_V | ImGuiMod_Ctrl) && copyContainer.initialized) {
             layerCopyTarget = instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
+        }
+
+        if (ImGui::Shortcut(ImGuiKey_D | ImGuiMod_Ctrl)) {
+            layerDuplicationTarget = instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
         }
 
         if (ImGui::Shortcut(ImGuiKey_Delete) && instance->selectedRenderLayer > 0) {
