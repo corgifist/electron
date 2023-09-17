@@ -32,7 +32,7 @@ extern "C" {
             UIBeginChild("layerPropsTitleChild", ImVec2(UIGetWindowSize().x, titleChildHeight), false, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
             float beginCursor = UIGetCursorPos().y;
             UIPushFont(instance->largeFont);
-                UIText(CSTR(targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(targetLayer->id) + ">" + ")"));
+                UIText(CSTR(std::string(ICON_FA_LAYER_GROUP " ") + targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(targetLayer->id) + ">" + ")"));
             UIPopFont();
             if (UIIsItemHovered(0)) {
                 UISetTooltip(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_RIGHT_CLICK_FOR_INFO"));

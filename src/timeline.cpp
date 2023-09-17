@@ -131,6 +131,26 @@ namespace Electron {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
     }
 
+    static bool TimelineRenderDragNDrop(AppInstance* instance, int& i) {
+        bool dragging = false;
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoDisableHover)) {
+            ImGui::SetDragDropPayload(LEGEND_LAYER_DRAG_DROP, &i, sizeof(i));
+            dragging = true;
+            ImGui::EndDragDropSource();
+        }
+
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(LEGEND_LAYER_DRAG_DROP, ImGuiDragDropFlags_SourceNoDisableHover)) {
+                int from = *((int*) payload->Data);
+                int to = i;
+                std::swap(instance->graphics.layers[from], instance->graphics.layers[i]);
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        return dragging;
+    }
+
     void Timeline::Render(AppInstance* instance) {
         static bool shortcutsSetup = false;
         if (!shortcutsSetup) {
@@ -188,6 +208,7 @@ namespace Electron {
 
         bool anyPopupsOpen = false;
         static bool firePopupsFlag = false;
+        bool blockTimelineDrag = false;
         if (firePopupsFlag) anyPopupsOpen = true;
 
 
@@ -219,19 +240,7 @@ namespace Electron {
                 TimelineRenderLayerPopup(instance, i, firePopupsFlag, copyContainer, layerDuplicationTarget, layerCopyTarget, layerDeleteionTarget);
                 ImGui::Spacing();
                 active = true;
-                if (ImGui::BeginDragDropSource(src_flags)) {
-                    ImGui::SetDragDropPayload(LEGEND_LAYER_DRAG_DROP, &i, sizeof(i));
-                    ImGui::EndDragDropSource();
-                }
-
-                if (ImGui::BeginDragDropTarget()) {
-                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(LEGEND_LAYER_DRAG_DROP, target_flags)) {
-                        int from = *((int*) payload->Data);
-                        int to = i;
-                        std::swap(instance->graphics.layers[from], instance->graphics.layers[i]);
-                    }
-                    ImGui::EndDragDropTarget();
-                }
+                TimelineRenderDragNDrop(instance, i);
                 propertiesSeparatorsY.push_back(ImGui::GetCursorPosY());
                 ImGui::PopStyleVar(2);
                 float firstCursorY = ImGui::GetCursorPosY();
@@ -332,23 +341,12 @@ namespace Electron {
             }
 
             if (!active) {
+                TimelineRenderDragNDrop(instance, i);
                 if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
                     ImGui::OpenPopup(string_format("TimelineLayerPopup%i", i).c_str());
                 }
                 TimelineRenderLayerPopup(instance, i, firePopupsFlag, copyContainer, layerDuplicationTarget, layerCopyTarget, layerDeleteionTarget);
-                if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoDisableHover)) {
-                    ImGui::SetDragDropPayload(LEGEND_LAYER_DRAG_DROP, &i, sizeof(i));
-                    ImGui::EndDragDropSource();
-                }
-
-                if (ImGui::BeginDragDropTarget()) {
-                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(LEGEND_LAYER_DRAG_DROP, ImGuiDragDropFlags_SourceNoDisableHover)) {
-                        int from = *((int*) payload->Data);
-                        int to = i;
-                        std::swap(instance->graphics.layers[from], instance->graphics.layers[i]);
-                    }
-                    ImGui::EndDragDropTarget();
-                }
+                
             }
 
             propertiesCoordAcc += propertiesStep + layersPropertiesOffset[i];
@@ -363,7 +361,6 @@ namespace Electron {
         legendScrollY = ImGui::GetScrollY();
         bool anyOtherButtonsDragged = false;
         bool anyKeyframesDragged = false;
-        bool blockTimelineDrag = false;
         static std::vector<DragStructure> universalLayerDrags;
         static std::vector<DragStructure> forwardLayerDrags;
         static std::vector<DragStructure> backwardLayerDrags;
@@ -441,13 +438,11 @@ namespace Electron {
         static std::vector<float> layerSeparatorTargets{};
         static std::vector<RectBounds> layerPreviewHeights{};
         for (auto& height : layerPreviewHeights) {
-            ImGui::SetCursorPos(height.pos);
             ImGui::Dummy(height.size);
-            DrawRect(height, ImVec4(0.1f, 0.1f, 0.1f, 1));
         }
         for (auto& separatorY : propertiesSeparatorsY) {
             ImGui::SetCursorPos({0, 0});
-            DrawRect(RectBounds(ImVec2(0 + ImGui::GetScrollX(), separatorY), ImVec2(canvasSize.x, 2.0f)), ImVec4(0, 0, 0, 1));
+            DrawRect(RectBounds(ImVec2(0 + ImGui::GetScrollX(), separatorY), ImVec2(canvasSize.x, 2.0f)), ImVec4(0.03f, 0.03f, 0.03f, 1));
         }
         for (auto& layerPair : keyframeInfos) {
             RenderLayer* keyframesOwner = instance->graphics.GetLayerByID(layerPair.first);
@@ -497,6 +492,7 @@ namespace Electron {
 
                     float dragDist;
                     if (drag.isActive && MouseHoveringBounds(fullscreenTicksMask) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && !anyKeyframesDragged) {
+                        blockTimelineDrag = true;
                         float dragWindowCoord = windowMouseCoords.x + ImGui::GetScrollX();
 
                         float transformedFrame = ((dragWindowCoord / pixelsPerFrame) - keyframesOwner->beginFrame);
@@ -544,6 +540,7 @@ namespace Electron {
             if (ImGui::Button((layer->layerUsername + "##" + std::to_string(i)).c_str(), ImVec2(pixelsPerFrame * layerDuration, layerSizeY))) {
                 instance->selectedRenderLayer = layer->id;
             } 
+            bool dragged = TimelineRenderDragNDrop(instance, i);
             if (ImGui::IsItemHovered()) {
                 anyLayerHovered = true;
             }
@@ -561,15 +558,15 @@ namespace Electron {
             RectBounds backwardDragBounds = RectBounds(ImVec2(pixelsPerFrame * layer->beginFrame, layerOffsetY + 2), dragSize);
             DrawRect(backwardDragBounds, layerColor * ImVec4(0.9f, 0.9f, 0.9f, 1));
 
-            if (MouseHoveringBounds(forwardDragBounds) && !anyOtherButtonsDragged && !MouseHoveringBounds(ticksBackground) && !timelineDrag.isActive) {
+            if (MouseHoveringBounds(forwardDragBounds) && !anyOtherButtonsDragged && !MouseHoveringBounds(ticksBackground) && !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
                 forwardDrag.Activate();
             }
 
-            if (MouseHoveringBounds(backwardDragBounds) && !anyOtherButtonsDragged && !timelineDrag.isActive) {
+            if (MouseHoveringBounds(backwardDragBounds) && !anyOtherButtonsDragged && !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
                 backwardDrag.Activate();
             }
 
-            if (ImGui::IsItemHovered() && !anyOtherButtonsDragged && !timelineDrag.isActive && !forwardDrag.isActive) {
+            if (ImGui::IsItemHovered() && !anyOtherButtonsDragged && !timelineDrag.isActive && !forwardDrag.isActive && !ImGui::GetIO().KeyCtrl) {
                 universalDrag.Activate();
             }
 
@@ -637,7 +634,7 @@ namespace Electron {
         }
 
         float timelineDragDist;
-        if (timelineDrag.GetDragDistance(timelineDragDist) && !anyLayerDragged && !anyKeyframesDragged) {
+        if (timelineDrag.GetDragDistance(timelineDragDist) && !anyLayerDragged && !anyKeyframesDragged && !blockTimelineDrag) {
             instance->graphics.renderFrame = (int) ((windowMouseCoords.x) / pixelsPerFrame);
         } else timelineDrag.Deactivate();
 
