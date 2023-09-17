@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
 
 
         Electron::AppInstance instance;
+        instance.AddUIContent(new Electron::Dockspace());
         instance.AddUIContent(new Electron::ProjectConfiguration());
         instance.AddUIContent(new Electron::RenderPreview());
         instance.AddUIContent(new Electron::LayerProperties());

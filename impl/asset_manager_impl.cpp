@@ -5,7 +5,7 @@ using namespace Electron;
 
 extern "C" {
     ELECTRON_EXPORT void AssetManagerRender(AppInstance* instance) {
-        UIBegin(CSTR(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE") + std::string("##") + std::to_string(CounterGetAssetManager())), ElectronSignal_CloseWindow, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        UIBegin(CSTR(std::string(ICON_FA_FOLDER " ") + ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE") + std::string("##") + std::to_string(CounterGetAssetManager())), ElectronSignal_CloseWindow, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             ImVec2 windowSize = UIGetContentRegionAvail();
             if (!instance->projectOpened) {
                 std::string noProjectOpened = ELECTRON_GET_LOCALIZATION(instance, "GENERIC_NO_PROJECT_IS_OPENED");

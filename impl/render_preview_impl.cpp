@@ -60,7 +60,7 @@ extern "C" {
         instance->graphics.isPlaying = playing;
 
         UISetNextWindowSize({640, 480}, ImGuiCond_Once);
-        UIBegin(CSTR(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE") + std::string("##") + std::to_string(CounterGetRenderPreview())), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
+        UIBegin(CSTR(std::string(ICON_FA_IMAGE " ") + ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE") + std::string("##") + std::to_string(CounterGetRenderPreview())), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
             ImVec2 windowSize = UIGetWindowSize();
             ImVec2 availZone = UIGetAvailZone();
             if (!instance->projectOpened) {

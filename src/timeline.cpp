@@ -165,7 +165,7 @@ namespace Electron {
         static RenderLayer copyContainer;
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-        ImGui::Begin(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE"), &pOpen, 0);
+        ImGui::Begin((std::string(ICON_FA_TIMELINE " ") + ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE")).c_str(), &pOpen, 0);
         if (!pOpen) {
             ImGui::End();
             throw ElectronSignal_CloseWindow;

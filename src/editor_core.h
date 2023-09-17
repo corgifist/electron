@@ -40,6 +40,7 @@ namespace Electron {
         static dylib RenderPreviewDylib;
         static dylib LayerPropertiesDylib;
         static dylib AssetManagerDylib;
+        static dylib DockspaceDylib;
     };
 
     static void InitializeDylibs() {
@@ -47,6 +48,7 @@ namespace Electron {
         ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
         ImplDylibs::LayerPropertiesDylib = dylib(".", "layer_properties_impl");
         ImplDylibs::AssetManagerDylib = dylib(".", "asset_manager_impl");
+        ImplDylibs::DockspaceDylib = dylib(".", "dockspace_impl");
     }
 
     static void DestroyDylibs() {
@@ -54,6 +56,7 @@ namespace Electron {
         ImplDylibs::RenderPreviewDylib = dylib();
         ImplDylibs::LayerPropertiesDylib = dylib();
         ImplDylibs::AssetManagerDylib = dylib();
+        ImplDylibs::DockspaceDylib = dylib();
     }
 
 
@@ -137,6 +140,17 @@ namespace Electron {
         void Render(AppInstance* instance);
 
         ~Timeline();
+    };
+
+    class Dockspace : public ElectronUI {
+    public:
+        Electron_ImplF impl;
+
+        Dockspace();
+
+        void Render(AppInstance* instance);
+
+        ~Dockspace() {}
     };
 }
 
