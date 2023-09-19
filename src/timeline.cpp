@@ -87,11 +87,11 @@ namespace Electron {
     }
 
     Timeline::Timeline() {
-        UICounters::TimelineCounter++;
+        UICounters::TimelineCounter = 1;
     }
 
     Timeline::~Timeline() {
-        UICounters::TimelineCounter--;
+        UICounters::TimelineCounter = 0;
     }
 
     static float pixelsPerFrame = 3.0f;
@@ -353,7 +353,8 @@ namespace Electron {
         }
             
         ImGui::EndChild();
- 
+
+
         ImGui::SameLine();
 
         ImGui::BeginChild("projectTimeline", ImVec2(canvasSize.x - legendSize.x, canvasSize.y), false, ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_AlwaysVerticalScrollbar);
@@ -669,6 +670,27 @@ namespace Electron {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
         ImGui::EndChild();
+
+
+        ImVec2 oldCursor = ImGui::GetCursorPos();
+
+        ImGui::SetCursorPos({0, 0});
+        windowMouseCoords = ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
+        RectBounds legendResizer = RectBounds(ImVec2(legendWidth * ImGui::GetWindowSize().x - (TTIMELINE_RULLER_WIDTH * 2.0f / 2.0f), 0), ImVec2(TTIMELINE_RULLER_WIDTH * 2.0f, ImGui::GetWindowSize().y));
+        if (MouseHoveringBounds(legendResizer)) {
+            DrawRect(legendResizer, ImVec4(0.1f, 0.1f, 0.1f, 1));
+        }
+
+        static bool resizerDragging = false;
+        if (MouseHoveringBounds(legendResizer) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left]) {
+            resizerDragging = true;
+        }
+
+        if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && resizerDragging) {
+            legendWidth = windowMouseCoords.x / ImGui::GetWindowSize().x;
+        } else resizerDragging = false;
+
+        ImGui::SetCursorPos(oldCursor);
 
         if (ImGui::Shortcut(ImGuiKey_Space | ImGuiMod_Ctrl)) {
             instance->graphics.firePlay = true;

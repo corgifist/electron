@@ -54,7 +54,7 @@ extern "C" {
                     }
                     glm::vec2 reservedResolution = assetResolution;
                     float xAspect = precision((float) assetResolution.x / (float) acceptedPreviewResolution.x, 2);
-                    assetResolution = {acceptedPreviewResolution.x, TextureUnionImplGetDimensions(&asset).y / xAspect};
+                    assetResolution = {acceptedPreviewResolution.x, (int) (TextureUnionImplGetDimensions(&asset).y / precision(xAspect, 2))};
                     UIBeginTable("infoTable", 2, ImGuiTableFlags_SizingFixedFit);
                         UITableNextRow();
                         UITableSetColumnIndex(0);
