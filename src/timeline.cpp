@@ -131,14 +131,7 @@ namespace Electron {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
     }
 
-    static bool TimelineRenderDragNDrop(AppInstance* instance, int& i) {
-        bool dragging = false;
-        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoDisableHover)) {
-            ImGui::SetDragDropPayload(LEGEND_LAYER_DRAG_DROP, &i, sizeof(i));
-            dragging = true;
-            ImGui::EndDragDropSource();
-        }
-
+    static void TimelienRenderDragNDropTarget(AppInstance* instance, int& i) {
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(LEGEND_LAYER_DRAG_DROP, ImGuiDragDropFlags_SourceNoDisableHover)) {
                 int from = *((int*) payload->Data);
@@ -147,7 +140,16 @@ namespace Electron {
             }
             ImGui::EndDragDropTarget();
         }
+    }
 
+    static bool TimelineRenderDragNDrop(AppInstance* instance, int& i) {
+        bool dragging = false;
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoDisableHover)) {
+            ImGui::SetDragDropPayload(LEGEND_LAYER_DRAG_DROP, &i, sizeof(i));
+            dragging = true;
+            ImGui::EndDragDropSource();
+        }
+        TimelienRenderDragNDropTarget(instance, i);
         return dragging;
     }
 
@@ -526,6 +528,16 @@ namespace Electron {
             RectBounds separatorBounds = RectBounds(ImVec2(0 + ImGui::GetScrollX(), separatorY), ImVec2(canvasSize.x, 2.0f));
             DrawRect(separatorBounds, ImVec4(0, 0, 0, 1));
         }
+        int dragAccepterOffset = ticksBackgroundHeight;
+        for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
+            ImGui::SetCursorPos({0 + ImGui::GetScrollX(), dragAccepterOffset});
+            ImGui::Dummy({ImGui::GetWindowSize().x, layerSizeY});
+            if (ImGui::GetIO().KeyCtrl) {
+                TimelienRenderDragNDropTarget(instance, i);
+
+            }
+            dragAccepterOffset += layerSizeY + layersPropertiesOffset[i];
+        }
         layerSeparatorTargets.clear();
         layerPreviewHeights.clear();
         for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
@@ -541,7 +553,9 @@ namespace Electron {
             if (ImGui::Button((layer->layerUsername + "##" + std::to_string(i)).c_str(), ImVec2(pixelsPerFrame * layerDuration, layerSizeY))) {
                 instance->selectedRenderLayer = layer->id;
             } 
+            if (ImGui::GetIO().KeyCtrl) 
             bool dragged = TimelineRenderDragNDrop(instance, i);
+            
             if (ImGui::IsItemHovered()) {
                 anyLayerHovered = true;
             }
@@ -575,11 +589,11 @@ namespace Electron {
             float forwardDragDistance;
             float backwardDragDistance;
 
-            if (forwardDrag.GetDragDistance(forwardDragDistance) && !timelineDrag.isActive) {
+            if (forwardDrag.GetDragDistance(forwardDragDistance) && !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
                 layer->endFrame = (windowMouseCoords.x + ImGui::GetScrollX()) / pixelsPerFrame;
             } else forwardDrag.Deactivate();
 
-            if (backwardDrag.GetDragDistance(backwardDragDistance) && !timelineDrag.isActive) {
+            if (backwardDrag.GetDragDistance(backwardDragDistance) && !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
                 layer->beginFrame = (windowMouseCoords.x + ImGui::GetScrollX()) / pixelsPerFrame;
             } else backwardDrag.Deactivate();
 
