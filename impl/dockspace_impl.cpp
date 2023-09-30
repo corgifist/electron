@@ -1,88 +1,75 @@
 #include "editor_core.h"
-#include "ui_api.h"
+#include "app.h"
+#include "ImGuiFileDialog.h"
+#define CSTR(x) ((x).c_str())
 
 using namespace Electron;
 
 extern "C" {
 
-    int UIFormatString(char* buf, size_t buf_size, const char* fmt, ...) {
-        va_list args;
-        va_start(args, fmt);
-        int w = vsnprintf(buf, buf_size, fmt, args);
-        va_end(args);
-        if (buf == NULL)
-            return w;
-        if (w == -1 || w >= (int)buf_size)
-            w = (int)buf_size - 1;
-        buf[w] = 0;
-        return w;
-    }
-
-    UIBeginMenuBar_T MenuBarBeginProc = UIBeginMenuBar;
-    UIEndMenuBar_T MenuBarEndProc = UIEndMenuBar;
-
     void DockspaceRenderTabBar(AppInstance* instance) {
-        if (MenuBarBeginProc()) {
-                if (UIBeginMenu(string_format("%s %s", ICON_FA_FOLDER_OPEN, ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU")).c_str())) {
-                    if (UIMenuItem(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN")), "Ctrl+P+O")) {
-                        FileDialogImplOpenDialog("OpenProjectDialog", "Open project", nullptr, ".");
+        if (ImGui::BeginMenuBar()) {
+                if (ImGui::BeginMenu(string_format("%s %s", ICON_FA_FOLDER_OPEN, ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU")).c_str())) {
+                    if (ImGui::MenuItem(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN")), "Ctrl+P+O")) {
+                        ImGuiFileDialog::Instance()->OpenDialog("OpenProjectDialog", "Open project", nullptr, ".");
                     }
-                    if (UIMenuItemEnhanced(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_OPEN_RECENT_PROJECT")) + ": " + JSON_AS_TYPE(instance->configMap["LastProject"], std::string)), "Ctrl+P+L", JSON_AS_TYPE(instance->configMap["LastProject"], std::string) != "null")) {
+                    if (ImGui::MenuItem(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_OPEN_RECENT_PROJECT")) + ": " + JSON_AS_TYPE(instance->configMap["LastProject"], std::string)), "Ctrl+P+L", false, JSON_AS_TYPE(instance->configMap["LastProject"], std::string) != "null")) {
                         ProjectMap project{};
                         project.path = instance->configMap["LastProject"];
                         project.propertiesMap = json_t::parse(std::fstream(std::string(project.path) + "/project.json"));
-                        ShortcutsImplCtrlPO(instance, project);
+                        instance->shortcuts.Ctrl_P_O(project);
                     }
-                    UISeparator();
-                    if (UIMenuItem(CSTR(ICON_FA_RECYCLE + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "RELOAD_APPLICATION"))), "")) {
-                        UIEndMenu();
-                        UIEndMenuBar();
-                        UIEnd();
+                    ImGui::Separator();
+                    if (ImGui::MenuItem(CSTR(ICON_FA_RECYCLE + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "RELOAD_APPLICATION"))), "")) {
+                        ImGui::EndMenu();
+                        ImGui::EndMenuBar();
+                        UI::End();
                         throw ElectronSignal_ReloadSystem;
                     }
-                    if (UIMenuItem(CSTR(ICON_FA_CROSS + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"))), "Ctrl+P+E")) {
-                        ShortcutsImplCtrlPE(instance);
+                    if (ImGui::MenuItem(CSTR(ICON_FA_CROSS + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"))), "Ctrl+P+E")) {
+                        instance->shortcuts.Ctrl_P_E();
                     }
-                    UIEndMenu();
+                    ImGui::EndMenu();
                 }
-                if (UIBeginMenu(CSTR(ICON_FA_LAYER_GROUP + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))))) {
-                    auto registry = InternalGetDylibRegistry();
+                if (ImGui::BeginMenu(CSTR(ICON_FA_LAYER_GROUP + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))))) {
+                    auto registry = instance->graphics.GetImplementationsRegistry();
                     for (auto& entry : registry) {
                         std::string key = entry.first;
 
-                        if (UIMenuItem(registry.at(key).get_variable<std::string>("LayerName").c_str(), "")) {
-                            GraphicsImplAddRenderLayer(&instance->graphics, key);
+                        if (ImGui::MenuItem(registry.at(key).get_variable<std::string>("LayerName").c_str(), "")) {
+                            instance->graphics.AddRenderLayer(key);
                         }
                     }
-                    UIEndMenu();
+                    ImGui::EndMenu();
                 }
-                if (UIBeginMenu(CSTR(std::string(ICON_FA_TOOLBOX + std::string(" ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))))) {
-                    if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU_RENDER_PREVIEW"), "Ctrl+W+R", CounterGetRenderPreview() != 1)) {
-                        ShortcutsImplCtrlWR(instance);
+                if (ImGui::BeginMenu(CSTR(std::string(ICON_FA_TOOLBOX + std::string(" ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))))) {
+                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU_RENDER_PREVIEW"), "Ctrl+W+R", false, UICounters::RenderPreviewCounter != 1)) {
+                        instance->shortcuts.Ctrl_W_R();
                     }
-                    if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_TITLE"), "Ctrl+W+L", CounterGetLayerProperties() != 1)) {
-                        ShortcutsImplCtrlWL(instance);
+                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_TITLE"), "Ctrl+W+L", false, UICounters::LayerPropertiesCounter != 1)) {
+                        instance->shortcuts.Ctrl_W_L();
                     }
-                    if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE"), "Ctrl+W+A", CounterGetAssetManager() != 1)) {
-                        ShortcutsImplCtrlWA(instance);
+                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE"), "Ctrl+W+A", false, UICounters::AssetManagerCounter != 1)) {
+                        instance->shortcuts.Ctrl_W_A();
                     }
-                    if (UIMenuItemEnhanced(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE"), "Ctrl+W+T", CounterGetTimelineCounter() != 1)) {
-                        ShortcutsImplCtrlWT(instance);
+                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE"), "Ctrl+W+T", false, UICounters::TimelineCounter != 1)) {
+                        instance->shortcuts.Ctrl_W_T();
                     }
-                    UIEndMenu();
+                    ImGui::EndMenu();
                 }
-                MenuBarEndProc();
+                ImGui::EndMenuBar();
             }
     }
 
     ELECTRON_EXPORT void DockspaceRender(AppInstance* instance) {
           {
-            ImGuiViewport* viewport = UIGetViewport();
+            ImGui::SetCurrentContext(instance->context);
+            ImGuiViewport* viewport = ImGui::GetWindowViewport();
             ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
 
-            UISetNextWindowPos(viewport->WorkPos, 0);
-            UISetNextWindowSize(viewport->WorkSize, 0);
-            UISetNextWindowViewport(viewport->ID);
+            ImGui::SetNextWindowPos(viewport->WorkPos, 0);
+            ImGui::SetNextWindowSize(viewport->WorkSize, 0);
+            ImGui::SetNextWindowViewport(viewport->ID);
 
             ImGuiWindowFlags host_window_flags = 0;
 
@@ -92,22 +79,22 @@ extern "C" {
 
 
             char label[32];
-            UIFormatString(label, IM_ARRAYSIZE(label), "DockSpaceViewport_%08X", viewport->ID);
+            ImFormatString(label, IM_ARRAYSIZE(label), "DockSpaceViewport_%08X", viewport->ID);
 
-            UIPushStyleVarF(ImGuiStyleVar_WindowRounding, 0);
-            UIPushStyleVarF(ImGuiStyleVar_WindowBorderSize, 0);
-            UIPushStyleVarV2(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-            UIBegin(label, ElectronSignal_None, host_window_flags);
-            UIPopStyleVarIter(3);
+            UI::Begin(label, ElectronSignal_None, host_window_flags);
+            ImGui::PopStyleVar(3);
             if (instance->isNativeWindow) {
                 DockspaceRenderTabBar(instance);
             }
 
-            ImGuiID dockspace_id = UIGetID("DockSpace");
-            UIDockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags, nullptr);
+            ImGuiID dockspace_id = ImGui::GetID("DockSpace");
+            ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags, nullptr);
 
-            UIEnd();
+            UI::End();
         };
     }
 

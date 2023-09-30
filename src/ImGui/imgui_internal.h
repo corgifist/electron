@@ -2602,6 +2602,7 @@ struct IMGUI_API ImGuiWindow
     ImGuiID                 DockId;                             // Backup of last valid DockNode->ID, so single window remember their dock node id even when they are not bound any more
     ImGuiItemStatusFlags    DockTabItemStatusFlags;
     ImRect                  DockTabItemRect;
+    ImVec2                  ScrollNext;
 
 public:
     ImGuiWindow(ImGuiContext* context, const char* name);

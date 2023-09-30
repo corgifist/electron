@@ -239,6 +239,16 @@ namespace Electron {
         void CheckForResize(RenderBuffer* rbo);
     };
 
+    struct ResizableRenderBuffer {
+        GraphicsCore* core;
+        ResizableGPUTexture color, uv, depth;
+
+        ResizableRenderBuffer(GraphicsCore* core, int width, int height);
+        ResizableRenderBuffer() {}
+
+        void CheckForResize(RenderBuffer* rbo);
+    };
+
     class GraphicsCore {
     public:
         RenderBuffer renderBuffer;

@@ -1,25 +1,76 @@
 #include "app.h"
 
-static void electronGlfwError(int id, const char* description) {
+namespace UI {
+void RenderDropShadow(ImTextureID tex_id, float size, ImU8 opacity) {
+    ImVec2 p = ImGui::GetWindowPos();
+    ImVec2 s = ImGui::GetWindowSize();
+    ImVec2 m = {p.x + s.x, p.y + s.y};
+    float uv0 = 0.0f;      // left/top region
+    float uv1 = 0.333333f; // leftward/upper region
+    float uv2 = 0.666666f; // rightward/lower region
+    float uv3 = 1.0f;      // right/bottom region
+    ImU32 col = (opacity << 24) | 0xFFFFFF;
+    ImDrawList *dl = ImGui::GetWindowDrawList();
+    dl->PushClipRectFullScreen();
+    dl->AddImage(tex_id, {p.x - size, p.y - size}, {p.x, p.y}, {uv0, uv0},
+                 {uv1, uv1}, col);
+    dl->AddImage(tex_id, {p.x, p.y - size}, {m.x, p.y}, {uv1, uv0}, {uv2, uv1},
+                 col);
+    dl->AddImage(tex_id, {m.x, p.y - size}, {m.x + size, p.y}, {uv2, uv0},
+                 {uv3, uv1}, col);
+    dl->AddImage(tex_id, {p.x - size, p.y}, {p.x, m.y}, {uv0, uv1}, {uv1, uv2},
+                 col);
+    dl->AddImage(tex_id, {m.x, p.y}, {m.x + size, m.y}, {uv2, uv1}, {uv3, uv2},
+                 col);
+    dl->AddImage(tex_id, {p.x - size, m.y}, {p.x, m.y + size}, {uv0, uv2},
+                 {uv1, uv3}, col);
+    dl->AddImage(tex_id, {p.x, m.y}, {m.x, m.y + size}, {uv1, uv2}, {uv2, uv3},
+                 col);
+    dl->AddImage(tex_id, {m.x, m.y}, {m.x + size, m.y + size}, {uv2, uv2},
+                 {uv3, uv3}, col);
+    dl->PopClipRect();
+}
+
+void Begin(const char *name, Electron::ElectronSignal signal,
+           ImGuiWindowFlags flags) {
+    if (signal == Electron::ElectronSignal_None) {
+        ImGui::Begin(name, nullptr, flags);
+        RenderDropShadow((ImTextureID)Electron::AppInstance::shadowTex, 24.0f,
+                         100);
+    } else {
+        bool pOpen = true;
+        ImGui::Begin(name, &pOpen, flags);
+        RenderDropShadow((ImTextureID)Electron::AppInstance::shadowTex, 24.0f,
+                         80);
+        if (!pOpen) {
+            if (signal == Electron::ElectronSignal_CloseWindow) {
+                ImGui::End();
+            }
+            throw signal;
+        }
+    }
+}
+
+void End() { ImGui::End(); }
+} // namespace UI
+
+static void electronGlfwError(int id, const char *description) {
     print("GLFW_ERROR_ID: " << id);
     print("GLFW_ERROR: " << description);
 }
 
-static void GLAPIENTRY
-MessageCallback( GLenum source,
-                 GLenum type,
-                 GLuint id,
-                 GLenum severity,
-                 GLsizei length,
-                 const GLchar* message,
-                 const void* userParam )
-{
-    if (type != GL_DEBUG_TYPE_ERROR) return;
-  printf("GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
-            type, severity, message );
+static void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
+                                       GLenum severity, GLsizei length,
+                                       const GLchar *message,
+                                       const void *userParam) {
+    if (type != GL_DEBUG_TYPE_ERROR)
+        return;
+    printf("GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+           (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type,
+           severity, message);
 }
 
+GLuint Electron::AppInstance::shadowTex = 0;
 Electron::AppInstance::AppInstance() {
     this->selectedRenderLayer = -1;
     this->showBadConfigMessage = false;
@@ -30,8 +81,9 @@ Electron::AppInstance::AppInstance() {
     }
 
     try {
-        this->configMap = json_t::parse(std::fstream("config.json")); // config needs to be initialized ASAP
-    } catch (json_t::parse_error& ex) {
+        this->configMap = json_t::parse(
+            std::fstream("config.json")); // config needs to be initialized ASAP
+    } catch (json_t::parse_error &ex) {
         RestoreBadConfig();
     }
     float uiScaling = JSON_AS_TYPE(configMap["UIScaling"], float);
@@ -43,7 +95,12 @@ Electron::AppInstance::AppInstance() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_VISIBLE, isNativeWindow);
 
-    this->displayHandle = glfwCreateWindow(isNativeWindow ? 1280 : 8, isNativeWindow ? 720 : 8, "Electron", nullptr, nullptr);
+    std::vector<int> maybeSize = {
+        JSON_AS_TYPE(configMap["LastWindowSize"].at(0), int),
+        JSON_AS_TYPE(configMap["LastWindowSize"].at(1), int)};
+    this->displayHandle = glfwCreateWindow(isNativeWindow ? maybeSize[0] : 8,
+                                           isNativeWindow ? maybeSize[1] : 8,
+                                           "Electron", nullptr, nullptr);
     if (this->displayHandle == nullptr) {
         throw std::runtime_error("cannot instantiate window!");
     }
@@ -53,40 +110,55 @@ Electron::AppInstance::AppInstance() {
     glewExperimental = GL_TRUE;
     GLenum glInitStatus = glewInit();
     if (glInitStatus != GLEW_OK) {
-        throw std::runtime_error("cannot initialize glew! (" + std::string((const char*) glewGetErrorString(glInitStatus)) + ")");
+        throw std::runtime_error(
+            "cannot initialize glew! (" +
+            std::string((const char *)glewGetErrorString(glInitStatus)) + ")");
     }
 
-    glEnable              ( GL_DEBUG_OUTPUT );
-    glDebugMessageCallback( MessageCallback, 0 );
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(MessageCallback, 0);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    if (!isNativeWindow) io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    if (!isNativeWindow)
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
+    io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleViewports;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
-    io.WantSaveIniSettings = false;
+    io.WantSaveIniSettings = true;
+    this->context = ImGui::GetCurrentContext();
 
     SetupImGuiStyle();
 
     this->fontSize = 16.0f * uiScaling;
-    io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize, NULL, io.Fonts->GetGlyphRangesCyrillic());
-    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
-    ImFontConfig icons_config; 
-    icons_config.MergeMode = true; 
-    icons_config.PixelSnapH = true; 
+    io.Fonts->AddFontFromMemoryCompressedTTF(
+        ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize,
+        NULL, io.Fonts->GetGlyphRangesCyrillic());
+    static const ImWchar icons_ranges[] = {ICON_MIN_FA, ICON_MAX_16_FA, 0};
+    ImFontConfig icons_config;
+    icons_config.MergeMode = true;
+    icons_config.PixelSnapH = true;
     icons_config.GlyphMinAdvanceX = fontSize * 2.0f / 3.0f;
-    io.Fonts->AddFontFromFileTTF( "misc/fa.ttf", fontSize * 2.0f / 3.0f, &icons_config, icons_ranges );
-    this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size, fontSize * 2.0f, NULL, io.Fonts->GetGlyphRangesCyrillic());
-    icons_config.MergeMode = true; 
-    icons_config.PixelSnapH = true; 
+    io.Fonts->AddFontFromFileTTF("misc/fa.ttf", fontSize * 2.0f / 3.0f,
+                                 &icons_config, icons_ranges);
+    this->largeFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+        ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size,
+        fontSize * 2.0f, NULL, io.Fonts->GetGlyphRangesCyrillic());
+    icons_config.MergeMode = true;
+    icons_config.PixelSnapH = true;
     icons_config.GlyphMinAdvanceX = fontSize * 2.0f / 3.0f;
-    io.Fonts->AddFontFromFileTTF( "misc/fa.ttf", fontSize * 2.0f * 2.0f / 3.0f, &icons_config, icons_ranges );
-
+    io.Fonts->AddFontFromFileTTF("misc/fa.ttf", fontSize * 2.0f * 2.0f / 3.0f,
+                                 &icons_config, icons_ranges);
 
     ImGui_ImplGlfw_InitForOpenGL(this->displayHandle, true);
     ImGui_ImplOpenGL3_Init();
+    DUMP_VAR(io.BackendRendererName);
+    DUMP_VAR(glGetString(GL_RENDERER));
+    DUMP_VAR(glGetString(GL_VENDOR));
+    DUMP_VAR(glGetString(GL_VERSION));
 
     this->localizationMap = json_t::parse(std::fstream("localization_en.json"));
     this->projectOpened = false;
@@ -103,8 +175,10 @@ Electron::AppInstance::AppInstance() {
     this->graphics.FetchAllLayers();
 
     RenderLayer::globalCore = &graphics;
-    
+
     graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
+    AppInstance::shadowTex =
+        graphics.CreateBufferFromImage("shadow.png").BuildGPUTexture();
 }
 
 Electron::AppInstance::~AppInstance() {
@@ -116,15 +190,13 @@ Electron::AppInstance::~AppInstance() {
 
 static bool showDemoWindow = false;
 
-static void ChangeShowDemoWindow() {
-    showDemoWindow = !showDemoWindow;
-}
+static void ChangeShowDemoWindow() { showDemoWindow = !showDemoWindow; }
 
 void Electron::AppInstance::Run() {
     AddShortcut({ImGuiKey_I}, ChangeShowDemoWindow);
     while (!glfwWindowShouldClose(this->displayHandle)) {
-        
-        ImGuiIO& io = ImGui::GetIO();
+
+        ImGuiIO &io = ImGui::GetIO();
         if (projectOpened) {
             project.SaveProject();
         }
@@ -133,29 +205,37 @@ void Electron::AppInstance::Run() {
         configStream << configMap.dump();
 
         if (JSON_AS_TYPE(configMap["LastProject"], std::string) != "null") {
-            if (!file_exists(JSON_AS_TYPE(configMap["LastProject"], std::string))) {
+            if (!file_exists(
+                    JSON_AS_TYPE(configMap["LastProject"], std::string))) {
                 configMap["LastProject"] = "null";
             }
         }
+        int width, height;
+        glfwGetWindowSize(displayHandle, &width, &height);
+        configMap["LastWindowSize"] = {width, height};
 
         if (projectOpened) {
             configMap["LastProject"] = project.path;
         }
 
         int renderLengthCandidate = 0;
-        for (auto& layer : graphics.layers) {
-            renderLengthCandidate = glm::max(renderLengthCandidate, layer.endFrame);
+        for (auto &layer : graphics.layers) {
+            renderLengthCandidate =
+                glm::max(renderLengthCandidate, layer.endFrame);
 
             layer.beginFrame = glm::clamp(layer.beginFrame, 0, layer.endFrame);
         }
         graphics.renderLength = renderLengthCandidate;
-        graphics.renderFrame = glm::clamp((float) graphics.renderFrame, 0.0f, (float) graphics.renderLength);
+        graphics.renderFrame = glm::clamp((float)graphics.renderFrame, 0.0f,
+                                          (float)graphics.renderLength);
 
-        PixelBuffer::filtering = configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
+        PixelBuffer::filtering =
+            configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
 
         if (isNativeWindow) {
             int displayWidth, displayHeight;
-            glfwGetWindowSize(this->displayHandle, &displayWidth, &displayHeight);
+            glfwGetWindowSize(this->displayHandle, &displayWidth,
+                              &displayHeight);
             glViewport(0, 0, displayWidth, displayHeight);
         }
 
@@ -173,44 +253,54 @@ void Electron::AppInstance::Run() {
             ImGui::ShowDemoWindow();
         }
 
-        for (auto& sc : shortcutsPair) {
+        for (auto &sc : shortcutsPair) {
             bool keysPressed = ImGui::GetIO().KeyCtrl;
-            for (auto& key : sc.keys) {
-                if (!ImGui::IsKeyPressed(key) || ImGui::IsAnyItemFocused()) keysPressed = false;
+            for (auto &key : sc.keys) {
+                if (!ImGui::IsKeyPressed(key) || ImGui::IsAnyItemFocused())
+                    keysPressed = false;
             }
-            if (keysPressed) sc.impl();
+            if (keysPressed)
+                sc.impl();
         }
 
         if (showBadConfigMessage) {
-            ImGui::Begin(ELECTRON_GET_LOCALIZATION(this, "CORRUPTED_CONFIG_MESSAGE_TITLE"), nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_AlwaysAutoResize);
-                ImGui::FocusWindow(ImGui::GetCurrentWindow());
-                std::string configMessage = ELECTRON_GET_LOCALIZATION(this, "CORRUPTED_CONFIG_MESSAGE_MESSAGE");
-                ImVec2 messageSize = ImGui::CalcTextSize(configMessage.c_str());
-                ImVec2 windowSize = ImGui::GetWindowSize();
-                ImGui::SetCursorPosX(windowSize.x / 2.0f - messageSize.x / 2.0f);
-                ImGui::Text(configMessage.c_str());
+            ImGui::Begin(ELECTRON_GET_LOCALIZATION(
+                             this, "CORRUPTED_CONFIG_MESSAGE_TITLE"),
+                         nullptr,
+                         ImGuiWindowFlags_NoCollapse |
+                             ImGuiWindowFlags_NoDocking |
+                             ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::FocusWindow(ImGui::GetCurrentWindow());
+            std::string configMessage = ELECTRON_GET_LOCALIZATION(
+                this, "CORRUPTED_CONFIG_MESSAGE_MESSAGE");
+            ImVec2 messageSize = ImGui::CalcTextSize(configMessage.c_str());
+            ImVec2 windowSize = ImGui::GetWindowSize();
+            ImGui::SetCursorPosX(windowSize.x / 2.0f - messageSize.x / 2.0f);
+            ImGui::Text(configMessage.c_str());
 
-                ImGuiStyle& style = ImGui::GetStyle();
-                std::string okString = "OK";
-                ImVec2 okSize = ImGui::CalcTextSize(okString.c_str());
-                if (ButtonCenteredOnLine(okString.c_str())) {
-                    showBadConfigMessage = false;
-                }
+            ImGuiStyle &style = ImGui::GetStyle();
+            std::string okString = "OK";
+            ImVec2 okSize = ImGui::CalcTextSize(okString.c_str());
+            if (ButtonCenteredOnLine(okString.c_str())) {
+                showBadConfigMessage = false;
+            }
             ImGui::End();
         }
 
-        std::vector<ElectronUI*> uiCopy = this->content;
-        for (auto& window : uiCopy) {
+        std::vector<ElectronUI *> uiCopy = this->content;
+        for (auto &window : uiCopy) {
             bool exitEditor = false;
             try {
                 window->Render(this);
             } catch (ElectronSignal signal) {
-                ExecuteSignal(signal, windowIndex, destroyWindowTarget, exitEditor);
-                if (exitEditor) goto editor_end;
+                ExecuteSignal(signal, windowIndex, destroyWindowTarget,
+                              exitEditor);
+                if (exitEditor)
+                    goto editor_end;
             }
             windowIndex++;
         }
-        for (auto& layer : graphics.layers) {
+        for (auto &layer : graphics.layers) {
             layer.sortingProcedure(&layer);
         }
         if (destroyWindowTarget != -1) {
@@ -229,7 +319,7 @@ void Electron::AppInstance::Run() {
 
         if (projectOpened) {
             json_t assetRegistry = {};
-            auto& _assets = this->assets.assets;
+            auto &_assets = this->assets.assets;
             for (int i = 0; i < _assets.size(); i++) {
                 json_t assetDescription = {};
                 TextureUnion texUnion = _assets[i];
@@ -242,7 +332,7 @@ void Electron::AppInstance::Run() {
             project.propertiesMap["AssetRegistry"] = assetRegistry;
         }
     }
-    editor_end:
+editor_end:
 
     Terminate();
 }
@@ -255,44 +345,47 @@ void Electron::AppInstance::Terminate() {
     glfwTerminate();
 }
 
-void Electron::AppInstance::ExecuteSignal(ElectronSignal signal, int windowIndex, int& destroyWindowTarget, bool& exitEditor) {
+void Electron::AppInstance::ExecuteSignal(ElectronSignal signal,
+                                          int windowIndex,
+                                          int &destroyWindowTarget,
+                                          bool &exitEditor) {
     switch (signal) {
-        case ElectronSignal_CloseEditor: {
-            exitEditor = true;
-            break;
-        }
-        case ElectronSignal_CloseWindow: {
-            destroyWindowTarget = windowIndex;
-            break;
-        }
-        case ElectronSignal_SpawnRenderPreview: {
-            AddUIContent(new RenderPreview());
-            break;
-        }
-        case ElectronSignal_SpawnLayerProperties: {
-            AddUIContent(new LayerProperties());
-            break;
-        }
-        case ElectronSignal_SpawnAssetManager: {
-            AddUIContent(new AssetManager());
-            break;
-        }
-        case ElectronSignal_SpawnTimeline: {
-            AddUIContent(new Timeline());
-            break;
-        }
-        case ElectronSignal_A: {
-            print("Signal A");
-            break;
-        }
-        case ElectronSignal_B: {
-            print("Signal B");
-            break;
-        }
+    case ElectronSignal_CloseEditor: {
+        exitEditor = true;
+        break;
+    }
+    case ElectronSignal_CloseWindow: {
+        destroyWindowTarget = windowIndex;
+        break;
+    }
+    case ElectronSignal_SpawnRenderPreview: {
+        AddUIContent(new RenderPreview());
+        break;
+    }
+    case ElectronSignal_SpawnLayerProperties: {
+        AddUIContent(new LayerProperties());
+        break;
+    }
+    case ElectronSignal_SpawnAssetManager: {
+        AddUIContent(new AssetManager());
+        break;
+    }
+    case ElectronSignal_SpawnTimeline: {
+        AddUIContent(new Timeline());
+        break;
+    }
+    case ElectronSignal_A: {
+        print("Signal A");
+        break;
+    }
+    case ElectronSignal_B: {
+        print("Signal B");
+        break;
+    }
 
-        default: {
-            throw signal;
-        }
+    default: {
+        throw signal;
+    }
     }
 }
 
@@ -309,6 +402,7 @@ void Electron::AppInstance::RestoreBadConfig() {
     this->configMap["ViewportMethod"] = "native-window";
     this->configMap["UIScaling"] = 1.0f;
     this->configMap["LastProject"] = "null";
+    this->configMap["LastWindowSize"] = {1280, 720};
 
     this->showBadConfigMessage = true;
 }
@@ -325,8 +419,9 @@ Electron::ElectronVector2f Electron::AppInstance::GetNativeWindowPos() {
     return Electron::ElectronVector2f{x, y};
 }
 
-bool Electron::AppInstance::ButtonCenteredOnLine(const char* label, float alignment) {
-    ImGuiStyle& style = ImGui::GetStyle();
+bool Electron::AppInstance::ButtonCenteredOnLine(const char *label,
+                                                 float alignment) {
+    ImGuiStyle &style = ImGui::GetStyle();
 
     float size = ImGui::CalcTextSize(label).x + style.FramePadding.x * 2.0f;
     float avail = ImGui::GetContentRegionAvail().x;
@@ -345,95 +440,90 @@ void Electron::ProjectMap::SaveProject() {
     propertiesStream << propertiesDump;
 }
 
-void Electron::AppInstance::SetupImGuiStyle()
-{
-	// Unreal style by dev0-1 from ImThemes
-	ImGuiStyle& style = ImGui::GetStyle();
-	
-	style.Alpha = 1.0f;
-	style.DisabledAlpha = 0.6000000238418579f;
-	style.WindowPadding = ImVec2(8.0f, 8.0f);
-	style.WindowRounding = 0.0f;
-	style.WindowBorderSize = 1.0f;
-	style.WindowMinSize = ImVec2(32.0f, 32.0f);
-	style.WindowTitleAlign = ImVec2(0.0f, 0.5f);
-	style.WindowMenuButtonPosition = ImGuiDir_Left;
-	style.ChildRounding = 0.0f;
-	style.ChildBorderSize = 1.0f;
-	style.PopupRounding = 0.0f;
-	style.PopupBorderSize = 1.0f;
-	style.FramePadding = ImVec2(4.0f, 3.0f);
-	style.FrameRounding = 0.0f;
-	style.FrameBorderSize = 0.0f;
-	style.ItemSpacing = ImVec2(8.0f, 4.0f);
-	style.ItemInnerSpacing = ImVec2(4.0f, 4.0f);
-	style.CellPadding = ImVec2(4.0f, 2.0f);
-	style.IndentSpacing = 21.0f;
-	style.ColumnsMinSpacing = 6.0f;
-	style.ScrollbarSize = 14.0f;
-	style.ScrollbarRounding = 9.0f;
-	style.GrabMinSize = 10.0f;
-	style.GrabRounding = 0.0f;
-	style.TabRounding = 4.0f;
-	style.TabBorderSize = 0.0f;
-	style.TabMinWidthForCloseButton = 0.0f;
-	style.ColorButtonPosition = ImGuiDir_Right;
-	style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
-	style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
-	
-	style.Colors[ImGuiCol_Text] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-	style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.4980392158031464f, 0.4980392158031464f, 0.4980392158031464f, 1.0f);
-	style.Colors[ImGuiCol_WindowBg] = ImVec4(0.05882352963089943f, 0.05882352963089943f, 0.05882352963089943f, 0.9399999976158142f);
-	style.Colors[ImGuiCol_ChildBg] = ImVec4(1.0f, 1.0f, 1.0f, 0.0f);
-	style.Colors[ImGuiCol_PopupBg] = ImVec4(0.0784313753247261f, 0.0784313753247261f, 0.0784313753247261f, 0.9399999976158142f);
-	style.Colors[ImGuiCol_Border] = ImVec4(0.4274509847164154f, 0.4274509847164154f, 0.4980392158031464f, 0.5f);
-	style.Colors[ImGuiCol_BorderShadow] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
-	style.Colors[ImGuiCol_FrameBg] = ImVec4(0.2000000029802322f, 0.2078431397676468f, 0.2196078449487686f, 0.5400000214576721f);
-	style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.4000000059604645f, 0.4000000059604645f, 0.4000000059604645f, 0.4000000059604645f);
-	style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.1764705926179886f, 0.1764705926179886f, 0.1764705926179886f, 0.6700000166893005f);
-	style.Colors[ImGuiCol_TitleBg] = ImVec4(0.03921568766236305f, 0.03921568766236305f, 0.03921568766236305f, 1.0f);
-	style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.2862745225429535f, 0.2862745225429535f, 0.2862745225429535f, 1.0f);
-	style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.0f, 0.0f, 0.0f, 0.5099999904632568f);
-	style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.1372549086809158f, 0.1372549086809158f, 0.1372549086809158f, 1.0f);
-	style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.01960784383118153f, 0.01960784383118153f, 0.01960784383118153f, 0.5299999713897705f);
-	style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.3098039329051971f, 0.3098039329051971f, 0.3098039329051971f, 1.0f);
-	style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.407843142747879f, 0.407843142747879f, 0.407843142747879f, 1.0f);
-	style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.5098039507865906f, 0.5098039507865906f, 0.5098039507865906f, 1.0f);
-	style.Colors[ImGuiCol_CheckMark] = ImVec4(0.9372549057006836f, 0.9372549057006836f, 0.9372549057006836f, 1.0f);
-	style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.5098039507865906f, 0.5098039507865906f, 0.5098039507865906f, 1.0f);
-	style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.8588235378265381f, 0.8588235378265381f, 0.8588235378265381f, 1.0f);
-	style.Colors[ImGuiCol_Button] = ImVec4(0.4392156898975372f, 0.4392156898975372f, 0.4392156898975372f, 0.4000000059604645f);
-	style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.4588235318660736f, 0.4666666686534882f, 0.47843137383461f, 1.0f);
-	style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.4196078479290009f, 0.4196078479290009f, 0.4196078479290009f, 1.0f);
-	style.Colors[ImGuiCol_Header] = ImVec4(0.6980392336845398f, 0.6980392336845398f, 0.6980392336845398f, 0.3100000023841858f);
-	style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.6980392336845398f, 0.6980392336845398f, 0.6980392336845398f, 0.800000011920929f);
-	style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.47843137383461f, 0.4980392158031464f, 0.5176470875740051f, 1.0f);
-	style.Colors[ImGuiCol_Separator] = ImVec4(0.4274509847164154f, 0.4274509847164154f, 0.4980392158031464f, 0.5f);
-	style.Colors[ImGuiCol_SeparatorHovered] = ImVec4(0.7176470756530762f, 0.7176470756530762f, 0.7176470756530762f, 0.7799999713897705f);
-	style.Colors[ImGuiCol_SeparatorActive] = ImVec4(0.5098039507865906f, 0.5098039507865906f, 0.5098039507865906f, 1.0f);
-	style.Colors[ImGuiCol_ResizeGrip] = ImVec4(0.9098039269447327f, 0.9098039269447327f, 0.9098039269447327f, 0.25f);
-	style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.8078431487083435f, 0.8078431487083435f, 0.8078431487083435f, 0.6700000166893005f);
-	style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(0.4588235318660736f, 0.4588235318660736f, 0.4588235318660736f, 0.949999988079071f);
-	style.Colors[ImGuiCol_Tab] = ImVec4(0.1764705926179886f, 0.3490196168422699f, 0.5764706134796143f, 0.8619999885559082f);
-	style.Colors[ImGuiCol_TabHovered] = ImVec4(0.2588235437870026f, 0.5882353186607361f, 0.9764705896377563f, 0.800000011920929f);
-	style.Colors[ImGuiCol_TabActive] = ImVec4(0.196078434586525f, 0.407843142747879f, 0.6784313917160034f, 1.0f);
-	style.Colors[ImGuiCol_TabUnfocused] = ImVec4(0.06666667014360428f, 0.1019607856869698f, 0.1450980454683304f, 0.9724000096321106f);
-	style.Colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.1333333402872086f, 0.2588235437870026f, 0.4235294163227081f, 1.0f);
-	style.Colors[ImGuiCol_PlotLines] = ImVec4(0.6078431606292725f, 0.6078431606292725f, 0.6078431606292725f, 1.0f);
-	style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.0f, 0.4274509847164154f, 0.3490196168422699f, 1.0f);
-	style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.729411780834198f, 0.6000000238418579f, 0.1490196138620377f, 1.0f);
-	style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.0f, 0.6000000238418579f, 0.0f, 1.0f);
-	style.Colors[ImGuiCol_TableHeaderBg] = ImVec4(0.1882352977991104f, 0.1882352977991104f, 0.2000000029802322f, 1.0f);
-	style.Colors[ImGuiCol_TableBorderStrong] = ImVec4(0.3098039329051971f, 0.3098039329051971f, 0.3490196168422699f, 1.0f);
-	style.Colors[ImGuiCol_TableBorderLight] = ImVec4(0.2274509817361832f, 0.2274509817361832f, 0.2470588237047195f, 1.0f);
-	style.Colors[ImGuiCol_TableRowBg] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
-	style.Colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.0f, 1.0f, 1.0f, 0.05999999865889549f);
-	style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.8666666746139526f, 0.8666666746139526f, 0.8666666746139526f, 0.3499999940395355f);
-	style.Colors[ImGuiCol_DragDropTarget] = ImVec4(1.0f, 1.0f, 0.0f, 0.8999999761581421f);
-	style.Colors[ImGuiCol_NavHighlight] = ImVec4(0.6000000238418579f, 0.6000000238418579f, 0.6000000238418579f, 1.0f);
-	style.Colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.0f, 1.0f, 1.0f, 0.699999988079071f);
-	style.Colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.800000011920929f, 0.800000011920929f, 0.800000011920929f, 0.2000000029802322f);
-	style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.800000011920929f, 0.800000011920929f, 0.800000011920929f, 0.3499999940395355f);
+void Electron::AppInstance::SetupImGuiStyle() {
 
+    // Unreal style by dev0-1 from ImThemes
+    ImVec4 *colors = ImGui::GetStyle().Colors;
+    colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    colors[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.06f, 0.06f, 0.94f);
+    colors[ImGuiCol_ChildBg] = ImVec4(1.00f, 1.00f, 1.00f, 0.00f);
+    colors[ImGuiCol_PopupBg] = ImVec4(0.08f, 0.08f, 0.08f, 0.94f);
+    colors[ImGuiCol_Border] = ImVec4(0.20f, 0.20f, 0.20f, 0.50f);
+    colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.21f, 0.22f, 0.54f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(0.40f, 0.40f, 0.40f, 0.40f);
+    colors[ImGuiCol_FrameBgActive] = ImVec4(0.18f, 0.18f, 0.18f, 0.67f);
+    colors[ImGuiCol_TitleBg] = ImVec4(0.04f, 0.04f, 0.04f, 1.00f);
+    colors[ImGuiCol_TitleBgActive] = ImVec4(0.29f, 0.29f, 0.29f, 1.00f);
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
+    colors[ImGuiCol_MenuBarBg] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg] = ImVec4(0.02f, 0.02f, 0.02f, 0.53f);
+    colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+    colors[ImGuiCol_CheckMark] = ImVec4(0.94f, 0.94f, 0.94f, 1.00f);
+    colors[ImGuiCol_SliderGrab] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive] = ImVec4(0.86f, 0.86f, 0.86f, 1.00f);
+    colors[ImGuiCol_Button] = ImVec4(0.44f, 0.44f, 0.44f, 0.40f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(0.46f, 0.47f, 0.48f, 1.00f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(0.42f, 0.42f, 0.42f, 1.00f);
+    colors[ImGuiCol_Header] = ImVec4(0.70f, 0.70f, 0.70f, 0.31f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(0.70f, 0.70f, 0.70f, 0.80f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(0.48f, 0.50f, 0.52f, 1.00f);
+    colors[ImGuiCol_Separator] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
+    colors[ImGuiCol_SeparatorHovered] = ImVec4(0.72f, 0.72f, 0.72f, 0.78f);
+    colors[ImGuiCol_SeparatorActive] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
+    colors[ImGuiCol_ResizeGrip] = ImVec4(0.91f, 0.91f, 0.91f, 0.25f);
+    colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.81f, 0.81f, 0.81f, 0.67f);
+    colors[ImGuiCol_ResizeGripActive] = ImVec4(0.46f, 0.46f, 0.46f, 0.95f);
+    colors[ImGuiCol_Tab] = ImVec4(0.34f, 0.34f, 0.34f, 0.86f);
+    colors[ImGuiCol_TabHovered] = ImVec4(0.59f, 0.59f, 0.59f, 0.80f);
+    colors[ImGuiCol_TabActive] = ImVec4(0.66f, 0.66f, 0.66f, 1.00f);
+    colors[ImGuiCol_TabUnfocused] = ImVec4(0.09f, 0.09f, 0.09f, 0.97f);
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+    colors[ImGuiCol_DockingPreview] = ImVec4(0.62f, 0.62f, 0.62f, 0.70f);
+    colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+    colors[ImGuiCol_PlotLines] = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
+    colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
+    colors[ImGuiCol_PlotHistogram] = ImVec4(0.73f, 0.60f, 0.15f, 1.00f);
+    colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+    colors[ImGuiCol_TableHeaderBg] = ImVec4(0.19f, 0.19f, 0.20f, 1.00f);
+    colors[ImGuiCol_TableBorderStrong] = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);
+    colors[ImGuiCol_TableBorderLight] = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);
+    colors[ImGuiCol_TableRowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
+    colors[ImGuiCol_TextSelectedBg] = ImVec4(0.87f, 0.87f, 0.87f, 0.35f);
+    colors[ImGuiCol_DragDropTarget] = ImVec4(1.00f, 1.00f, 1.00f, 0.90f);
+    colors[ImGuiCol_NavHighlight] = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
+    colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+    colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+    colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
+    colors[ImGuiCol_TabActive] = ImVec4(0.44f, 0.44f, 0.44f, 1.00f);
+    ImGuiStyle &style = ImGui::GetStyle();
+    style.WindowRounding = 4;
+    style.FrameRounding = 4;
+    style.ChildRounding = 4;
+    style.PopupRounding = 4;
     style.ScaleAllSizes(JSON_AS_TYPE(configMap["UIScaling"], float));
 }
+
+namespace Electron {
+void InitializeDylibs() {
+    ImplDylibs::ProjectConfigurationDylib =
+        dylib(".", "project_configuration_impl");
+    ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
+    ImplDylibs::LayerPropertiesDylib = dylib(".", "layer_properties_impl");
+    ImplDylibs::AssetManagerDylib = dylib(".", "asset_manager_impl");
+    ImplDylibs::DockspaceDylib = dylib(".", "dockspace_impl");
+}
+
+void DestroyDylibs() {
+    ImplDylibs::ProjectConfigurationDylib =
+        dylib(".", "project_configuration_impl");
+    ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
+    ImplDylibs::LayerPropertiesDylib = dylib(".", "layer_properties_impl");
+    ImplDylibs::AssetManagerDylib = dylib(".", "asset_manager_impl");
+    ImplDylibs::DockspaceDylib = dylib(".", "dockspace_impl");
+}
+} // namespace Electron

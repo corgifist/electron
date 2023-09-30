@@ -22,6 +22,11 @@
     #define DIRECT_SIGNAL(instance, signal) instance->ExecuteSignal(signal)
 #endif
 
+
+namespace UI {
+    void Begin(const char* name, Electron::ElectronSignal signal, ImGuiWindowFlags flags);
+    void End();
+};
 namespace Electron {
 
     class ElectronUI;
@@ -29,6 +34,23 @@ namespace Electron {
     class ProjectConfiguration;
     class RenderPreview;
     class Shortcuts;
+
+    static ImVec4 color_from_hex(std::string l) {
+        std::string rgbcolor = l;
+
+        std::regex pattern("#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})");
+
+        std::smatch match;
+        if (std::regex_match(rgbcolor, match, pattern)) {
+            auto r = std::stoul(match[1].str(), nullptr, 16);
+            auto g = std::stoul(match[2].str(), nullptr, 16);
+            auto b = std::stoul(match[3].str(), nullptr, 16);
+            return ImVec4((float) r / 255.0f, (float) g / 255.0f, (float) b / 255.0f, 1.0f);
+        } else {
+            std::cout << rgbcolor << " is an invalid rgb color\n";
+        }
+        throw std::runtime_error("malformed hex color " + l);
+    }
 
     struct ProjectMap {
         json_t propertiesMap;
@@ -63,6 +85,8 @@ namespace Electron {
         AssetRegistry assets;
         float fontSize;
         std::vector<ShortcutPair> shortcutsPair;
+        static GLuint shadowTex;
+        ImGuiContext* context;
 
         ImFont* largeFont;
         

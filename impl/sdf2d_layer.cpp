@@ -1,5 +1,6 @@
 #include "editor_core.h"
-#include "ui_api.h"
+#include "app.h"
+#define CSTR(x) ((x).c_str())
 
 using namespace Electron;
 using namespace glm;
@@ -48,7 +49,7 @@ extern "C" {
         owner->properties["EnableTexturing"] = true;
 
         if (sdf2d_compute == -1) {
-            sdf2d_compute = GraphicsImplCompileComputeShader(owner->graphicsOwner, "sdf2d.compute");
+            sdf2d_compute = owner->graphicsOwner->CompileComputeShader("sdf2d.compute");
         }
     }
 
@@ -56,33 +57,23 @@ extern "C" {
         RenderBuffer* pbo = &owner->graphicsOwner->renderBuffer;
         GraphicsCore* core = owner->graphicsOwner;
         if (owner->anyData.size() == 0) {
-            owner->anyData.push_back(ResizableGPUTextureCreate(core, pbo->width, pbo->height));
-            owner->anyData.push_back(ResizableGPUTextureCreate(core, pbo->width, pbo->height));
-            owner->anyData.push_back(ResizableGPUTextureCreate(core, pbo->width, pbo->height));
+            owner->anyData.push_back(ResizableRenderBuffer(owner->graphicsOwner, pbo->width, pbo->height));
         }
 
-        ResizableGPUTexture colorTexture = std::any_cast<ResizableGPUTexture>(owner->anyData[0]);
-        ResizableGPUTImplCheckForResize(&colorTexture, pbo);
-        owner->anyData[0] = colorTexture;
-
-        ResizableGPUTexture uvTexture = std::any_cast<ResizableGPUTexture>(owner->anyData[1]);
-        ResizableGPUTImplCheckForResize(&uvTexture, pbo);
-        owner->anyData[1] = uvTexture;
-
-        ResizableGPUTexture depthTexture = std::any_cast<ResizableGPUTexture>(owner->anyData[2]);
-        ResizableGPUTImplCheckForResize(&depthTexture, pbo);
-        owner->anyData[2] = depthTexture;
+        ResizableRenderBuffer rrb = std::any_cast<ResizableRenderBuffer>(owner->anyData[0]);
         
-        GraphicsImplRequestTextureCollectionCleaning(core, colorTexture.texture, uvTexture.texture, depthTexture.texture, pbo->width, pbo->height, metadata);
+        core->RequestTextureCollectionCleaning(rrb.color.texture, rrb.uv.texture, rrb.depth.texture, pbo->width, pbo->height, metadata);
+        rrb.CheckForResize(pbo);
+        owner->anyData[0] = rrb;
 
         auto position = vec2();
         auto size = vec2();
         auto color = vec3();
         auto angle = 0.0f; {
-            auto positionVector = JSON_AS_TYPE(RenderLayerImplInterpolateProperty(owner, owner->properties["Position"]), std::vector<float>);
-            auto sizeVector = JSON_AS_TYPE(RenderLayerImplInterpolateProperty(owner, owner->properties["Size"]), std::vector<float>);
-            auto colorVector = JSON_AS_TYPE(RenderLayerImplInterpolateProperty(owner, owner->properties["Color"]), std::vector<float>);
-            auto angleFloat = JSON_AS_TYPE(RenderLayerImplInterpolateProperty(owner, owner->properties["Angle"]), std::vector<float>);
+            auto positionVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Position"]), std::vector<float>);
+            auto sizeVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Size"]), std::vector<float>);
+            auto colorVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Color"]), std::vector<float>);
+            auto angleFloat = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Angle"]), std::vector<float>);
             position = vec2(positionVector[0], positionVector[1]);
             size = vec2(sizeVector[0], sizeVector[1]); 
             color = vec3(colorVector[0], colorVector[1], colorVector[2]);
@@ -102,23 +93,23 @@ extern "C" {
 
         bool canTexture = (asset != nullptr && texturingEnabled);
 
-        GraphicsImplBindGPUTexture(owner->graphicsOwner, colorTexture.texture, 0);
-        GraphicsImplBindGPUTexture(owner->graphicsOwner, uvTexture.texture, 1);
-        GraphicsImplBindGPUTexture(owner->graphicsOwner, depthTexture.texture, 2);
+        owner->graphicsOwner->BindGPUTexture(rrb.color.texture, 0);
+        owner->graphicsOwner->BindGPUTexture(rrb.uv.texture, 1);
+        owner->graphicsOwner->BindGPUTexture(rrb.depth.texture, 2);
         if (canTexture) {
-            GraphicsImplBindGPUTexture(owner->graphicsOwner, asset->pboGpuTexture, 3);
+            owner->graphicsOwner->BindGPUTexture(asset->pboGpuTexture, 3);
         }
-        GraphicsImplUseShader(owner->graphicsOwner, sdf2d_compute);
-        GraphicsImplShaderSetUniformII(owner->graphicsOwner, sdf2d_compute, "pboResolution", pbo->width, pbo->height);
-        GraphicsImplShaderSetUniformFF(owner->graphicsOwner, sdf2d_compute, "position", position);
-        GraphicsImplShaderSetUniformFF(owner->graphicsOwner, sdf2d_compute, "size", size);
-        GraphicsImplShaderSetUniformF(owner->graphicsOwner, sdf2d_compute, "angle", angle);
-        GraphicsImplShaderSetUniformFFF(owner->graphicsOwner, sdf2d_compute, "color", color);
-        GraphicsImplShaderSetUniformI(owner->graphicsOwner, sdf2d_compute, "canTexture", canTexture ? 1 : 0);
-        GraphicsImplDispatchComputeShader(owner->graphicsOwner, std::ceil(pbo->width / 8), std::ceil(pbo->height / 4), 1);
-        GraphicsImplMemoryBarrier(owner->graphicsOwner, GL_ALL_BARRIER_BITS);
+        owner->graphicsOwner->UseShader(sdf2d_compute);
+        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "pboResolution", pbo->width, pbo->height);
+        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "position", position);
+        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "size", size);
+        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "angle", angle);
+        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "color", color);
+        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "canTexture", canTexture ? 1 : 0);
+        owner->graphicsOwner->DispatchComputeShader(std::ceil(pbo->width / 8), std::ceil(pbo->height / 4), 1);
+        owner->graphicsOwner->ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
 
-        GraphicsImplCallCompositor(core, colorTexture, uvTexture, depthTexture);
+        owner->graphicsOwner->CallCompositor(rrb.color, rrb.uv, rrb.depth);
 
     }
 
@@ -127,36 +118,36 @@ extern "C" {
         RenderBuffer* pbo = &layer->graphicsOwner->renderBuffer;
 
         bool texturingEnabled = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
-        UICheckbox("Enable texturing", &texturingEnabled);
+        ImGui::Checkbox("Enable texturing", &texturingEnabled);
         layer->properties["EnableTexturing"] = texturingEnabled;
-        UISeparator();
+        ImGui::Separator();
         json_t& position = layer->properties["Position"];
-        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec2, position, "Position");
+        layer->RenderProperty(GeneralizedPropertyType::Vec2, position, "Position");
 
         json_t& size = layer->properties["Size"];
-        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Vec2, size, "Size");
+        layer->RenderProperty(GeneralizedPropertyType::Vec2, size, "Size");
 
         json_t& color = layer->properties["Color"];
-        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Color3, color, "Color");
+        layer->RenderProperty(GeneralizedPropertyType::Color3, color, "Color");
 
         json_t& angle = layer->properties["Angle"];
-        RenderLayerImplRenderProperty(layer, GeneralizedPropertyType::Float, angle, "Angle");
+        layer->RenderProperty(GeneralizedPropertyType::Float, angle, "Angle");
 
         json_t& textureID = layer->properties["TextureID"];
-        RenderLayerImpLRenderTextureProperty(layer, textureID, "Texturing");
+        layer->RenderTextureProperty(textureID, "Texturing");
     }
 
     ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {
         json_t& position = layer->properties["Position"];
-        RenderLayerImplSortKeyframes(layer, position);
+        layer->SortKeyframes(position);
 
         json_t& size = layer->properties["Size"];
-        RenderLayerImplSortKeyframes(layer, size);
+        layer->SortKeyframes(size);
 
         json_t& color = layer->properties["Color"];
-        RenderLayerImplSortKeyframes(layer, color);
+        layer->SortKeyframes(color);
 
         json_t& angle = layer->properties["Angle"];
-        RenderLayerImplSortKeyframes(layer, angle);
+        layer->SortKeyframes(angle);
     }
 }

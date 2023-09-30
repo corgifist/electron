@@ -2,14 +2,13 @@
 
 namespace Electron {
 
-    dylib ImplDylibs::DockspaceDylib{};
+dylib ImplDylibs::DockspaceDylib{};
 
-    Dockspace::Dockspace() {
-        this->impl = ImplDylibs::DockspaceDylib.get_function<void(AppInstance*)>("DockspaceRender");
-    }
+Dockspace::Dockspace() {
+    this->impl = ImplDylibs::DockspaceDylib.get_function<void(AppInstance *)>(
+        "DockspaceRender");
+}
 
-    void Dockspace::Render(AppInstance* instance) {
-        this->impl(instance);
-    }
+void Dockspace::Render(AppInstance *instance) { this->impl(instance); }
 
-};
+}; // namespace Electron

@@ -1,2 +1,2 @@
 python HashBuild/hash_build.py
-./Electron
+LD_LIBRARY_PATH=. ./electron

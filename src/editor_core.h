@@ -43,21 +43,9 @@ namespace Electron {
         static dylib DockspaceDylib;
     };
 
-    static void InitializeDylibs() {
-        ImplDylibs::ProjectConfigurationDylib = dylib(".", "project_configuration_impl");
-        ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
-        ImplDylibs::LayerPropertiesDylib = dylib(".", "layer_properties_impl");
-        ImplDylibs::AssetManagerDylib = dylib(".", "asset_manager_impl");
-        ImplDylibs::DockspaceDylib = dylib(".", "dockspace_impl");
-    }
+    void InitializeDylibs();
 
-    static void DestroyDylibs() {
-        ImplDylibs::ProjectConfigurationDylib = dylib();
-        ImplDylibs::RenderPreviewDylib = dylib();
-        ImplDylibs::LayerPropertiesDylib = dylib();
-        ImplDylibs::AssetManagerDylib = dylib();
-        ImplDylibs::DockspaceDylib = dylib();
-    }
+    void DestroyDylibs();
 
 
 #endif

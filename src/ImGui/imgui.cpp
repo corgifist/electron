@@ -9237,6 +9237,7 @@ static ImGuiWindow* FindBestWheelingWindow(const ImVec2& wheel)
 // Called by NewFrame()
 void ImGui::UpdateMouseWheel()
 {
+
     // Reset the locked window if we move the mouse or after the timer elapses.
     // FIXME: Ideally we could refactor to have one timer for "changing window w/ same axis" and a shorter timer for "changing window or axis w/ other axis" (#3795)
     ImGuiContext& g = *GImGui;
@@ -9301,6 +9302,7 @@ void ImGui::UpdateMouseWheel()
     if (ImGuiWindow* window = (g.WheelingWindow ? g.WheelingWindow : FindBestWheelingWindow(wheel)))
         if (!(window->Flags & ImGuiWindowFlags_NoScrollWithMouse) && !(window->Flags & ImGuiWindowFlags_NoMouseInputs))
         {
+            const float scroll_speed = ImFloor(window->CalcFontSize() * 100 * g.IO.DeltaTime + 7.5f);
             bool do_scroll[2] = { wheel.x != 0.0f && window->ScrollMax.x != 0.0f, wheel.y != 0.0f && window->ScrollMax.y != 0.0f };
             if (do_scroll[ImGuiAxis_X] && do_scroll[ImGuiAxis_Y])
                 do_scroll[(g.WheelingAxisAvg.x > g.WheelingAxisAvg.y) ? ImGuiAxis_Y : ImGuiAxis_X] = false;
@@ -9315,8 +9317,8 @@ void ImGui::UpdateMouseWheel()
             {
                 LockWheelingWindow(window, wheel.y);
                 float max_step = window->InnerRect.GetHeight() * 0.67f;
-                float scroll_step = ImFloor(ImMin(5 * window->CalcFontSize(), max_step));
-                SetScrollY(window, window->Scroll.y - wheel.y * scroll_step);
+                float scroll_step = ImFloor(ImMin(5 * window->CalcFontSize(), scroll_speed));
+                SetScrollY(window, window->Scroll.y - wheel.y * scroll_speed);
             }
         }
 }
