@@ -4,7 +4,7 @@
 #include "time.h"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_stdlib.h"
-#include "GLEW/include/GL/glew.h"
+#include <GLES3/gl31.h>
 
 #define MAX_DEPTH 100000000
 #define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.*"
@@ -292,7 +292,6 @@ namespace Electron {
         void ComputeMemoryBarier(GLbitfield barrier);
         GLuint GenerateGPUTexture(int width, int height, int unit);
         void BindGPUTexture(GLuint texture, int unit);
-        PixelBuffer PBOFromGPUTexture(GLuint texture, int width, int height);
         void ShaderSetUniform(GLuint program, std::string name, int x, int y);
         void ShaderSetUniform(GLuint program, std::string name, glm::vec3 vec);
         void ShaderSetUniform(GLuint program, std::string name, float f);

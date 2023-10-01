@@ -1,16 +1,18 @@
 build_arch = "64"
 if eq(get_platform(), windows) {
-    target_exec = "Electron.exe"
+    target_exec = "electron.exe"
     dylib_prefix = ".dll"
     dylib_id = ""
     object_add_link_options(mwindows)
 } else {
-    target_exec = "Electron"
+    target_exec = "electron"
     dylib_prefix = ".so"
     dylib_id = "lib"
 }
 
 load_module("scripts/electron_build_utils.py")
+gles_path = ":libGLESv2.so.angle"
+egl_path = ":libEGL.so.angle"
 
 std_cxx = "20"
 
@@ -20,6 +22,7 @@ impl_target_file = null
 
 object_add_compile_options(fPIC)
 object_add_compile_options(g) # include debug symbols
+object_add_compile_options(Wunicode)
 object_add_compile_options("I /usr/include/")
 
 dump_compilation_commands(0)
@@ -28,18 +31,35 @@ target_impls = [
     project_configuration_impl,
     render_preview_impl,
     layer_properties_impl,
-    asset_manager_impl
+    asset_manager_impl,
+    dockspace_impl
 ]
 
 target_layers = [
     sdf2d_layer
 ]
 
+scenario build_imgui {
+    info("Building ImGui shared library")
+
+    imgui_targets = glob_files("src/ImGui/", "cpp")
+    imgui_targets = cat($imgui_targets, ["src/ImGuiFileDialog.cpp"])
+    imgui_objects = object_compile(
+        $imgui_targets,
+        $build_arch
+    )
+    link_executable($imgui_objects, cat($dylib_id, cat("imgui", $dylib_prefix)), [], shared)
+}
+
 scenario build_core {
     info("starting Electron build")
     object_add_compile_definition("GLEW_STATIC")
     compilation_targets = cat(glob_files("src", "cpp"), glob_files("src", "c"))
     compilation_targets = filter_list_from_string($compilation_targets, "clip")
+    compilation_targets = filter_list_from_string($compilation_targets, "imgui")
+    compilation_targets = filter_list_from_string($compilation_targets, "ImGui")
+    compilation_targets = filter_list_from_string($compilation_targets, "implot")
+    compilation_targets = filter_list_from_string($compilation_targets, "electron.cpp")
     list_append($compilation_targets, "src/clip.cpp")
     if eq(get_platform(), windows) {
         list_append($compilation_targets, "src/clip_win.cpp")
@@ -60,7 +80,7 @@ scenario build_core {
         ]
     } else {
         deps = [
-            glut, glfw, GL, GLU, m, Xrandr, Xi, X11, pthread, "stdc++", dl, pthread, backtrace, bfd, xcb
+            glfw, m, Xrandr, Xi, X11, pthread, "stdc++", dl, backtrace, bfd, xcb
         ]
     }
 
@@ -70,7 +90,15 @@ scenario build_core {
     } else {
         object_add_link_options("rdynamic")
     }
-    link_executable($objects, $target_exec, $deps)
+    link_executable($objects, cat($dylib_id, cat($target_exec, $dylib_prefix)), $deps, shared)
+}
+
+scenario build_starter {
+    starter_targets = ["src/electron.cpp"]
+    starter_objects = object_compile($starter_targets, $build_arch)
+    link_executable($starter_objects, "electron", 
+        [electron, imgui]
+    )
 }
 
 scenario build_impl {
@@ -83,7 +111,7 @@ scenario build_impl {
     impl_deps = list()
     if eq(get_platform(), windows) {
         impl_deps = [
-            opengl32, glfw3, pthread, dbgeng, backtrace, bfd, dbghelp
+            opengl32, glfw3, pthread, dbgeng, backtrace, bfd, dbghelp, imgui, electron
         ]
     } else {
         impl_deps = [
@@ -123,8 +151,9 @@ scenario build {
     if path_exists($target_exec) {
         rm($target_exec)
     }
-    call_scenario(generate_headers)
+    call_scenario(build_imgui)
     call_scenario(build_core)
+    call_scenario(build_starter)
 
     if not(path_exists("layers/")) {
         mkdir("layers")
@@ -143,9 +172,5 @@ scenario execute_build_layer {
     call_scenario(build_layer)
 }
 
-scenario generate_headers {
-    subprocess_run([python, "scripts/generate_ui_core_header.py", "src/ui_core.h"])
-    subprocess_run([python, "scripts/generate_ui_api.py", "src/ui_api.h"])
-}
 
 default_scenario = build

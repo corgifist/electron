@@ -1,5 +1,8 @@
 #include "app.h"
 
+#define GLAD_GLES2_IMPLEMENTATION
+#include "gles2.h"
+
 namespace UI {
 void RenderDropShadow(ImTextureID tex_id, float size, ImU8 opacity) {
     ImVec2 p = ImGui::GetWindowPos();
@@ -59,17 +62,6 @@ static void electronGlfwError(int id, const char *description) {
     print("GLFW_ERROR: " << description);
 }
 
-static void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
-                                       GLenum severity, GLsizei length,
-                                       const GLchar *message,
-                                       const void *userParam) {
-    if (type != GL_DEBUG_TYPE_ERROR)
-        return;
-    printf("GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-           (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type,
-           severity, message);
-}
-
 GLuint Electron::AppInstance::shadowTex = 0;
 Electron::AppInstance::AppInstance() {
     this->selectedRenderLayer = -1;
@@ -89,11 +81,14 @@ Electron::AppInstance::AppInstance() {
     float uiScaling = JSON_AS_TYPE(configMap["UIScaling"], float);
     this->isNativeWindow = configMap["ViewportMethod"] == "native-window";
 
+    glfwDefaultWindowHints();
     glfwWindowHint(GLFW_RESIZABLE, isNativeWindow);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_VISIBLE, isNativeWindow);
+
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+    glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 
     std::vector<int> maybeSize = {
         JSON_AS_TYPE(configMap["LastWindowSize"].at(0), int),
@@ -104,19 +99,15 @@ Electron::AppInstance::AppInstance() {
     if (this->displayHandle == nullptr) {
         throw std::runtime_error("cannot instantiate window!");
     }
+
     glfwMakeContextCurrent(this->displayHandle);
     glfwSwapInterval(1);
 
-    glewExperimental = GL_TRUE;
-    GLenum glInitStatus = glewInit();
-    if (glInitStatus != GLEW_OK) {
-        throw std::runtime_error(
-            "cannot initialize glew! (" +
-            std::string((const char *)glewGetErrorString(glInitStatus)) + ")");
-    }
+    gladLoadGLES2(glfwGetProcAddress);
 
-    glEnable(GL_DEBUG_OUTPUT);
-    glDebugMessageCallback(MessageCallback, 0);
+    DUMP_VAR(glGetString(GL_RENDERER));
+    DUMP_VAR(glGetString(GL_VENDOR));
+    DUMP_VAR(glGetString(GL_VERSION));
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -156,9 +147,6 @@ Electron::AppInstance::AppInstance() {
     ImGui_ImplGlfw_InitForOpenGL(this->displayHandle, true);
     ImGui_ImplOpenGL3_Init();
     DUMP_VAR(io.BackendRendererName);
-    DUMP_VAR(glGetString(GL_RENDERER));
-    DUMP_VAR(glGetString(GL_VENDOR));
-    DUMP_VAR(glGetString(GL_VERSION));
 
     this->localizationMap = json_t::parse(std::fstream("localization_en.json"));
     this->projectOpened = false;
@@ -176,9 +164,9 @@ Electron::AppInstance::AppInstance() {
 
     RenderLayer::globalCore = &graphics;
 
-    graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
+    // graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
     AppInstance::shadowTex =
-        graphics.CreateBufferFromImage("shadow.png").BuildGPUTexture();
+        graphics.CreateBufferFromImage("misc/shadow.png").BuildGPUTexture();
 }
 
 Electron::AppInstance::~AppInstance() {
@@ -342,7 +330,6 @@ void Electron::AppInstance::Terminate() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    glfwTerminate();
 }
 
 void Electron::AppInstance::ExecuteSignal(ElectronSignal signal,

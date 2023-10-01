@@ -1,2 +1,2 @@
 python HashBuild/hash_build.py
-LD_LIBRARY_PATH=. ./electron
+DISPLAY=:0 LD_LIBRARY_PATH=. switcherooctl -g 1 ./electron

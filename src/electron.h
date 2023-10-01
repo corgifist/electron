@@ -32,7 +32,8 @@
 #include "glm/glm.hpp"
 #include "glm/gtx/matrix_transform_2d.hpp"
 
-#include "GLEW/include/GL/glew.h"
+#define GLFW_INCLUDE_NONE
+#include "gles2.h"
 #include "GLFW/glfw3.h"
 
 

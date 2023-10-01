@@ -820,7 +820,7 @@ GLuint Electron::GraphicsCore::CompileComputeShader(std::string path) {
 
         std::vector<GLchar> errorLog(maxLength);
         glGetShaderInfoLog(computeShader, maxLength, &maxLength, &errorLog[0]);
-        print(errorLog.data());
+        print((const char*) errorLog.data());
 
         glDeleteShader(computeShader);
 
@@ -843,7 +843,7 @@ GLuint Electron::GraphicsCore::CompileComputeShader(std::string path) {
 
         glDeleteProgram(computeProgram);
 
-        throw std::runtime_error("error while linking compute shader!");
+        throw std::runtime_error("error while linking compute shader!\n" + std::string((char*) infoLog.data()));
 
         return -1;
     }
@@ -914,29 +914,6 @@ void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
     glUniform1i(glGetUniformLocation(program, name.c_str()), x);
 }
 
-Electron::PixelBuffer Electron::GraphicsCore::PBOFromGPUTexture(GLuint texture,
-                                                                int width,
-                                                                int height) {
-    glFlush();
-    PixelBuffer pbo(width, height);
-
-    std::vector<float> pixels(width * height * 4);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glGetnTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT,
-                   width * height * 4 * sizeof(float), pixels.data());
-
-    int pixelIndex = 0;
-    for (int i = 0; i < width * height * 4; i += 4) {
-        pbo.pixels[pixelIndex].r = pixels[i + 0];
-        pbo.pixels[pixelIndex].g = pixels[i + 1];
-        pbo.pixels[pixelIndex].b = pixels[i + 2];
-        pbo.pixels[pixelIndex].a = pixels[i + 3];
-
-        pixelIndex++;
-    }
-
-    return pbo;
-}
 
 void Electron::GraphicsCore::CallCompositor(ResizableGPUTexture color,
                                             ResizableGPUTexture uv,

@@ -4,6 +4,7 @@
 #include "electron_font.h"
 
 #include "ImGui/imgui.h"
+#define IMGUI_IMPL_OPENGL_ES3
 #include "ImGui/imgui_impl_glfw.h"
 #include "ImGui/imgui_impl_opengl3.h"
 #include "ImGui/im_scoped.h"
