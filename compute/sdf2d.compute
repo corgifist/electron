@@ -1,11 +1,8 @@
-#version 460 core
+layout(rgba32f, binding = 0) uniform highp writeonly image2D pboColor;
+layout(rgba32f, binding = 1) uniform highp writeonly image2D pboUV;
+layout(rgba32f, binding = 2) uniform highp writeonly image2D pboDepth;
 
-layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
-layout(rgba32f, binding = 0) uniform image2D pboColor;
-layout(rgba32f, binding = 1) uniform image2D pboUV;
-layout(rgba32f, binding = 2) uniform image2D pboDepth;
-
-layout(rgba32f, binding = 3) uniform image2D textureAsset;
+layout(rgba32f, binding = 3) uniform highp readonly image2D textureAsset;
 
 uniform ivec2 pboResolution;
 
@@ -13,6 +10,7 @@ uniform vec2 position;
 uniform vec2 size;
 uniform vec3 color;
 uniform float angle;
+uniform vec2 assetSize;
 
 uniform bool canTexture;
 
@@ -39,7 +37,7 @@ void main() {
         vec2 rectUV = vec2((softwareP.x - softwarePosition.x) / (size.x), (softwareP.y - softwarePosition.y) / (size.y));
         vec3 rectColor = color;
         if (canTexture) {
-            ivec2 textureSize = imageSize(textureAsset);
+            ivec2 textureSize = ivec2(assetSize);
             vec4 texturePixel = imageLoad(textureAsset, ivec2(int(float(rectUV.x) * float(textureSize.x)), int(float(rectUV.y) * float(textureSize.y))));
             rectColor *= texturePixel.rgb;
         }

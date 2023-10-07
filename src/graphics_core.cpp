@@ -7,8 +7,10 @@ std::vector<Electron::RenderLayer *> Electron::RenderLayerRegistry::Registry;
 
 static GLuint basic_compute = 0;
 static GLuint compositor_compute = 0;
+static GLuint tex_transfer_compute = 0;
 
 Electron::GraphicsCore *Electron::RenderLayer::globalCore = nullptr;
+int Electron::Wavefront::x = 0, Electron::Wavefront::y = 0, Electron::Wavefront::z = 0;
 
 Electron::PixelBuffer::PixelBuffer(int width, int height) {
     this->pixels = std::vector<Pixel>(width * height);
@@ -51,12 +53,30 @@ GLuint Electron::PixelBuffer::BuildGPUTexture() {
         }
     }
 
+    // PixelBuffer is a pretty low-level API, so we are using raw GLES functions here
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA,
-                 GL_FLOAT, textureConversion.data());
-
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, width, height);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
+
+    glUseProgram(tex_transfer_compute);
+    glUniform2i(glGetUniformLocation(tex_transfer_compute, "imageResolution"), width, height);
+
+    GLuint data_ssbo;
+    glGenBuffers(1, &data_ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, data_ssbo);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, textureConversion.size() * sizeof(float), textureConversion.data(), GL_STATIC_READ);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, data_ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glBindImageTexture(0, id, 0, GL_FALSE, 0, GL_WRITE_ONLY,
+                       GL_RGBA32F);
+
+    glDispatchCompute(std::ceil(width / Wavefront::x), std::ceil(height / Wavefront::y), 1);
+    glMemoryBarrier(GL_ALL_BARRIER_BITS);
+    glDeleteBuffers(1, &data_ssbo);
 
     return id;
 }
@@ -662,6 +682,12 @@ Electron::GraphicsCore::GraphicsCore() {
     this->fireAssetId = -1;
 }
 
+void Electron::GraphicsCore::PrecompileEssentialShaders() {
+    basic_compute = CompileComputeShader("basic.compute");
+    compositor_compute = CompileComputeShader("compositor.compute");
+    tex_transfer_compute = CompileComputeShader("tex_transfer.compute");
+}
+
 void Electron::GraphicsCore::FetchAllLayers() {
     auto iterator = std::filesystem::directory_iterator("layers");
     for (auto &entry : iterator) {
@@ -754,22 +780,19 @@ void Electron::GraphicsCore::RequestRenderBufferCleaningWithinRegion(
 void Electron::GraphicsCore::RequestTextureCollectionCleaning(
     GLuint color, GLuint uv, GLuint depth, int width, int height,
     RenderRequestMetadata metadata) {
-    if (basic_compute == 0) {
-        basic_compute = CompileComputeShader("basic.compute");
-    }
 
     UseShader(basic_compute);
-    BindGPUTexture(color, 0);
-    BindGPUTexture(uv, 1);
-    BindGPUTexture(depth, 2);
+    BindGPUTexture(color, 0, GL_WRITE_ONLY);
+    BindGPUTexture(uv, 1, GL_WRITE_ONLY);
+    BindGPUTexture(depth, 2, GL_WRITE_ONLY);
 
     ShaderSetUniform(basic_compute, "backgroundColor",
                      glm::vec3(metadata.backgroundColor[0],
                                metadata.backgroundColor[1],
                                metadata.backgroundColor[2]));
     ShaderSetUniform(basic_compute, "maxDepth", (float)MAX_DEPTH);
-    DispatchComputeShader(std::ceil(renderBuffer.width / 8),
-                          std::ceil(renderBuffer.height / 4), 1);
+    DispatchComputeShader(renderBuffer.width,
+                          renderBuffer.height, 1);
     ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
 }
 
@@ -806,6 +829,10 @@ GLuint Electron::GraphicsCore::GetPreviewBufferByOutputType() {
 
 GLuint Electron::GraphicsCore::CompileComputeShader(std::string path) {
     std::string computeShaderCode = read_file("compute/" + path);
+    computeShaderCode = string_format(
+        "#version 310 es\nprecision highp float;\nlayout(local_size_x = %i, local_size_y = %i, local_size_z = %i) in;\n\n",
+        Wavefront::x, Wavefront::y, Wavefront::z
+    ) + computeShaderCode;
     const char *c_code = computeShaderCode.c_str();
 
     GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
@@ -857,7 +884,7 @@ void Electron::GraphicsCore::UseShader(GLuint shader) { glUseProgram(shader); }
 
 void Electron::GraphicsCore::DispatchComputeShader(int grid_x, int grid_y,
                                                    int grid_z) {
-    glDispatchCompute(grid_x, grid_y, grid_z);
+    glDispatchCompute(std::ceil(grid_x / Wavefront::x), std::ceil(grid_y / Wavefront::y), std::ceil(grid_z / Wavefront::z));
 }
 
 void Electron::GraphicsCore::ComputeMemoryBarier(GLbitfield barrier) {
@@ -875,16 +902,15 @@ GLuint Electron::GraphicsCore::GenerateGPUTexture(int width, int height,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA,
-                 GL_FLOAT, NULL);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, width, height);
 
     return texture;
 }
 
-void Electron::GraphicsCore::BindGPUTexture(GLuint texture, int unit) {
+void Electron::GraphicsCore::BindGPUTexture(GLuint texture, int unit, int readStatus) {
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_2D, texture);
-    glBindImageTexture(unit, texture, 0, GL_FALSE, 0, GL_READ_WRITE,
+    glBindImageTexture(unit, texture, 0, GL_FALSE, 0, readStatus,
                        GL_RGBA32F);
 }
 
@@ -914,26 +940,27 @@ void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
     glUniform1i(glGetUniformLocation(program, name.c_str()), x);
 }
 
+void Electron::GraphicsCore::ShaderSetUniform(GLuint program, std::string name, glm::vec4 vec) {
+    glUniform4f(glGetUniformLocation(program, name.c_str()), vec.x, vec.y, vec.z, vec.w);;
+}
+
 
 void Electron::GraphicsCore::CallCompositor(ResizableGPUTexture color,
                                             ResizableGPUTexture uv,
                                             ResizableGPUTexture depth) {
 
-    if (compositor_compute == 0) {
-        compositor_compute = CompileComputeShader("compositor.compute");
-    }
-
     UseShader(compositor_compute);
-    BindGPUTexture(renderBuffer.colorBuffer, 0);
-    BindGPUTexture(renderBuffer.uvBuffer, 1);
-    BindGPUTexture(renderBuffer.depthBuffer, 2);
+    BindGPUTexture(renderBuffer.colorBuffer, 0, GL_WRITE_ONLY);
+    BindGPUTexture(renderBuffer.uvBuffer, 1, GL_WRITE_ONLY);
+    BindGPUTexture(renderBuffer.depthBuffer, 2, GL_WRITE_ONLY);
+    BindGPUTexture(renderBuffer.depthBuffer, 6, GL_READ_ONLY);
 
-    BindGPUTexture(color.texture, 3);
-    BindGPUTexture(uv.texture, 4);
-    BindGPUTexture(depth.texture, 5);
+    BindGPUTexture(color.texture, 3, GL_READ_ONLY);
+    BindGPUTexture(uv.texture, 4, GL_READ_ONLY);
+    BindGPUTexture(depth.texture, 5, GL_READ_ONLY);
 
-    DispatchComputeShader(std::ceil(renderBuffer.width / 8),
-                          std::ceil(renderBuffer.height / 4), 1);
+    DispatchComputeShader(renderBuffer.width,
+                          renderBuffer.height, 1);
     ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
 }
 

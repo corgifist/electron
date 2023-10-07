@@ -130,6 +130,7 @@ void Timeline::Render(AppInstance *instance) {
     bool pOpen = true;
     bool anyLayerDragged = false;
 
+    ImGuiStyle& style = ImGui::GetStyle();
     static RenderLayer copyContainer;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
@@ -200,7 +201,7 @@ void Timeline::Render(AppInstance *instance) {
     ImGui::BeginChild("projectlegend", legendSize, true,
                       ImGuiWindowFlags_NoScrollbar);
     ImGui::SetScrollY(legendScrollY);
-    DrawRect(fillerTicksBackground, ImVec4(0.045f, 0.045f, 0.045f, 1));
+    DrawRect(fillerTicksBackground, style.Colors[ImGuiCol_WindowBg] * 0.7f);
     float propertiesStep =
         glm::floor(22 * JSON_AS_TYPE(instance->configMap["UIScaling"], float));
     float propertiesCoordAcc = 0;
@@ -233,7 +234,6 @@ void Timeline::Render(AppInstance *instance) {
             ImGui::Spacing();
             active = true;
             TimelineRenderDragNDrop(instance, i);
-            propertiesSeparatorsY.push_back(ImGui::GetCursorPosY());
             ImGui::PopStyleVar(2);
             float firstCursorY = ImGui::GetCursorPosY();
 
@@ -440,7 +440,7 @@ void Timeline::Render(AppInstance *instance) {
     }
     PushClipRect(fullscreenTicksMask);
     std::vector<TimeStampTarget> stamps{};
-    DrawRect(ticksBackground, ImVec4(0.045f, 0.045f, 0.045f, 1));
+    DrawRect(ticksBackground, style.Colors[ImGuiCol_WindowBg] * 0.5f);
     int desiredTicksCount = pixelsPerFrame * 2;
     float tickStep =
         (float)instance->graphics.renderFramerate / (float)desiredTicksCount;
@@ -454,7 +454,7 @@ void Timeline::Render(AppInstance *instance) {
         RectBounds tickBounds = RectBounds(
             ImVec2(tickPositionAccumulator, 0 + ImGui::GetScrollY()),
             ImVec2(TIMELINE_TICK_WIDTH, majorTick ? canvasSize.y : 6.0f));
-        DrawRect(tickBounds, ImVec4(0.1f, 0.1f, 0.1f, 1));
+        DrawRect(tickBounds, style.Colors[ImGuiCol_Border] * 0.7f);
 
         if (majorTick) {
             TimeStampTarget stamp{};
@@ -509,7 +509,7 @@ void Timeline::Render(AppInstance *instance) {
         ImGui::SetCursorPos({0, 0});
         DrawRect(RectBounds(ImVec2(0 + ImGui::GetScrollX(), separatorY),
                             ImVec2(canvasSize.x, 1.0f)),
-                 ImVec4(0.05f, 0.05f, 0.05f, 1));
+                 style.Colors[ImGuiCol_Border]);
     }
     for (auto &layerPair : keyframeInfos) {
         RenderLayer *keyframesOwner =
@@ -671,20 +671,31 @@ void Timeline::Render(AppInstance *instance) {
     if (ImGui::Shortcut(ImGuiKey_ModCtrl | ImGuiKey_KeypadSubtract)) {
         pixelsPerFrame -= 0.5f;
     }
+    static std::vector<int> multipleDragSelectedLayers{};
     for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
         RenderLayer *layer = &instance->graphics.layers[i];
         DragStructure &universalDrag = universalLayerDrags[i];
         DragStructure &forwardDrag = forwardLayerDrags[i];
         DragStructure &backwardDrag = backwardLayerDrags[i];
+        bool selected = false;
         float layerDuration = layer->endFrame - layer->beginFrame;
         ImVec4 layerColor = ImVec4{layer->layerColor.r, layer->layerColor.g,
                                    layer->layerColor.b, layer->layerColor.a};
+        if (std::count(multipleDragSelectedLayers.begin(), multipleDragSelectedLayers.end(), i)) {
+            layerColor = ImVec4(0.8f, 0.8f, 0.0f, 1);
+            selected = true;
+        }
         ImGui::SetCursorPosY(layerOffsetY + 2);
         ImGui::SetCursorPosX(pixelsPerFrame * layer->beginFrame);
         ImGui::PushStyleColor(ImGuiCol_Button, layerColor);
         if (ImGui::Button(
                 (layer->layerUsername + "##" + std::to_string(i)).c_str(),
                 ImVec2(pixelsPerFrame * layerDuration, layerSizeY))) {
+            if (ImGui::GetIO().KeyCtrl && !selected) {
+                multipleDragSelectedLayers.push_back(i);
+            } else if (ImGui::GetIO().KeyCtrl && selected) {
+                multipleDragSelectedLayers.erase(std::find(multipleDragSelectedLayers.begin(), multipleDragSelectedLayers.end(), i));
+            }
             instance->selectedRenderLayer = layer->id;
         }
         if (ImGui::GetIO().KeyCtrl)
@@ -696,7 +707,6 @@ void Timeline::Render(AppInstance *instance) {
         if (ImGui::IsItemHovered() &&
             ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
             ImGui::OpenPopup(string_format("TimelineLayerPopup%i", i).c_str());
-            print("Opened popup");
         }
         TimelineRenderLayerPopup(instance, i, firePopupsFlag, copyContainer,
                                  layerDuplicationTarget, layerCopyTarget,
@@ -759,16 +769,17 @@ void Timeline::Render(AppInstance *instance) {
         RectBounds layerFullheightBounds =
             RectBounds(ImVec2(pixelsPerFrame * layer->beginFrame, 0),
                        ImVec2(pixelsPerFrame * layerDuration, canvasSize.y));
-        if (((universalDrag.GetDragDistance(universalDragDistance) &&
+        if ((((universalDrag.GetDragDistance(universalDragDistance) &&
               universalDragDistance != 0 && !timelineDrag.isActive) ||
              (MouseHoveringBounds(layerFullheightBounds) &&
               universalDrag.isActive &&
-              ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])) &&
+              ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])) && !selected) &&
             backwardDrag.isActive == false) {
             float midpointFrame = (windowMouseCoords.x) / pixelsPerFrame;
             float halfLayerDuration = layerDuration / 2.0f;
             float tempBeginFrame = midpointFrame - halfLayerDuration;
             float tempEndFrame = midpointFrame + halfLayerDuration;
+            universalDragDistance = ImGui::GetIO().MouseDelta.x;
             if (tempBeginFrame > 0 && glm::abs(universalDragDistance) > 1.0f) {
                 layer->beginFrame = tempBeginFrame;
                 layer->endFrame = tempEndFrame;
@@ -777,9 +788,25 @@ void Timeline::Render(AppInstance *instance) {
             layer->beginFrame = glm::max(layer->beginFrame, 0);
             layer->endFrame = glm::max(layer->endFrame, 0);
             timelineDrag.Deactivate();
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
-        } else
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        } else if (!selected)
             universalDrag.Deactivate();
+
+        if ((((universalDrag.GetDragDistance(universalDragDistance) &&
+              universalDragDistance != 0 && !timelineDrag.isActive) ||
+             (MouseHoveringBounds(layerFullheightBounds) &&
+              universalDrag.isActive &&
+              ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])) && selected) &&
+            backwardDrag.isActive == false) {
+                universalDragDistance = ImGui::GetIO().MouseDelta.x;
+                int frameAddition = universalDragDistance / pixelsPerFrame;
+                for (auto& selectedLayer : multipleDragSelectedLayers) {
+                    RenderLayer* l = &instance->graphics.layers[selectedLayer];
+                    l->beginFrame += frameAddition;
+                    l->endFrame += frameAddition;
+                }
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            }
 
         ImGui::PopStyleColor();
         layerSeparatorTargets.push_back(layerOffsetY);
@@ -887,7 +914,7 @@ void Timeline::Render(AppInstance *instance) {
         resizerDragging = true;
     }
 
-    if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && resizerDragging) {
+    if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && resizerDragging && !timelineDrag.isActive && !anyLayerDragged && !anyLayerHovered) {
         legendWidth = windowMouseCoords.x / ImGui::GetWindowSize().x;
     } else
         resizerDragging = false;

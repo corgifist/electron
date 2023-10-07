@@ -34,17 +34,20 @@ void RenderDropShadow(ImTextureID tex_id, float size, ImU8 opacity) {
     dl->PopClipRect();
 }
 
+void DropShadow() {
+    RenderDropShadow((ImTextureID)Electron::AppInstance::shadowTex, 24.0f,
+                         100);
+}
+
 void Begin(const char *name, Electron::ElectronSignal signal,
            ImGuiWindowFlags flags) {
     if (signal == Electron::ElectronSignal_None) {
         ImGui::Begin(name, nullptr, flags);
-        RenderDropShadow((ImTextureID)Electron::AppInstance::shadowTex, 24.0f,
-                         100);
+        DropShadow();
     } else {
         bool pOpen = true;
         ImGui::Begin(name, &pOpen, flags);
-        RenderDropShadow((ImTextureID)Electron::AppInstance::shadowTex, 24.0f,
-                         80);
+        DropShadow();
         if (!pOpen) {
             if (signal == Electron::ElectronSignal_CloseWindow) {
                 ImGui::End();
@@ -71,6 +74,9 @@ Electron::AppInstance::AppInstance() {
     if (!glfwInit()) {
         throw std::runtime_error("cannot initialize glfw!");
     }
+    int major, minor, rev;
+    glfwGetVersion(&major, &minor, &rev);
+    print("GLFW version: " << major << "." << minor << " " << rev);
 
     try {
         this->configMap = json_t::parse(
@@ -108,6 +114,25 @@ Electron::AppInstance::AppInstance() {
     DUMP_VAR(glGetString(GL_RENDERER));
     DUMP_VAR(glGetString(GL_VENDOR));
     DUMP_VAR(glGetString(GL_VERSION));
+
+    std::ostringstream oss;
+    oss << glGetString(GL_VENDOR);
+    if (oss.str().find("NVIDIA") != std::string::npos) {
+        Wavefront::x = 8;
+        Wavefront::y = 4;
+        Wavefront::z = 1;
+        print("Applied NVIDIA Wavefront optimization");
+    } else if (oss.str().find("AMD") != std::string::npos) {
+        Wavefront::x = 8;
+        Wavefront::y = 8;
+        Wavefront::z = 1;
+        print("Applied AMD Wavefront optimization");
+    } else {
+        Wavefront::x = 1;
+        Wavefront::y = 1;
+        Wavefront::z = 1;
+        print("Unknown vendor detected, switching to default wavefront");
+    }
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -151,6 +176,8 @@ Electron::AppInstance::AppInstance() {
     this->localizationMap = json_t::parse(std::fstream("localization_en.json"));
     this->projectOpened = false;
 
+    this->graphics.PrecompileEssentialShaders();
+
     this->graphics.owner = this;
     this->graphics.assetsPtr = &assets;
     this->graphics.selectedLayerPtr = &selectedRenderLayer;
@@ -179,6 +206,7 @@ Electron::AppInstance::~AppInstance() {
 static bool showDemoWindow = false;
 
 static void ChangeShowDemoWindow() { showDemoWindow = !showDemoWindow; }
+
 
 void Electron::AppInstance::Run() {
     AddShortcut({ImGuiKey_I}, ChangeShowDemoWindow);
@@ -433,7 +461,7 @@ void Electron::AppInstance::SetupImGuiStyle() {
     ImVec4 *colors = ImGui::GetStyle().Colors;
     colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
     colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-    colors[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.06f, 0.06f, 0.94f);
+    colors[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.06f, 0.06f, 1.0f);
     colors[ImGuiCol_ChildBg] = ImVec4(1.00f, 1.00f, 1.00f, 0.00f);
     colors[ImGuiCol_PopupBg] = ImVec4(0.08f, 0.08f, 0.08f, 0.94f);
     colors[ImGuiCol_Border] = ImVec4(0.20f, 0.20f, 0.20f, 0.50f);
@@ -492,6 +520,9 @@ void Electron::AppInstance::SetupImGuiStyle() {
     style.FrameRounding = 4;
     style.ChildRounding = 4;
     style.PopupRounding = 4;
+    style.TabRounding = 4;
+    style.ScrollbarRounding = 4;
+    style.GrabRounding = 4;
     style.ScaleAllSizes(JSON_AS_TYPE(configMap["UIScaling"], float));
 }
 

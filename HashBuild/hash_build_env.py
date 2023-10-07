@@ -50,7 +50,7 @@ def object_compile(source, arch):
                 extension = file.split(".")[-1]
                 std_cxx_override_exists = 'std_cxx' in var_env
                 std_c_override_exists = 'std_c' in var_env
-                compile_command = f"{'g++' if extension == 'cpp' else 'gcc'} {'-I' + include_path if include_path != None else ''} -c {file} {machine_bit} -o {output_file} {' '.join(compile_definitions)} {('-std=c++' + var_env['std_cxx'] if std_cxx_override_exists else '') if extension == 'cpp' else ''} {('-std=c' + var_env['std_c'] if std_c_override_exists else '') if extension == 'c' else ''}{' ' + ' '.join(compile_options) if len(compile_options) != 0 else ''}"
+                compile_command = f"{'g++' if extension == 'cpp' else 'gcc'} -L. {'-I' + include_path if include_path != None else ''} -c {file} {machine_bit} -o {output_file} {' '.join(compile_definitions)} {('-std=c++' + var_env['std_cxx'] if std_cxx_override_exists else '') if extension == 'cpp' else ''} {('-std=c' + var_env['std_c'] if std_c_override_exists else '') if extension == 'c' else ''}{' ' + ' '.join(compile_options) if len(compile_options) != 0 else ''}"
                 info(compile_command)
                 info(f"[{progress}/{len(source)}] compiling {file} ({output_file})")
                 compilation_process = subprocess.run(list(filter(lambda x: x != '', compile_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)
@@ -100,7 +100,7 @@ def link_executable(objects, out, link_libraries=[], shared='null'):
     transformed_libraries = list()
     for lib in link_libraries:
         transformed_libraries.append("-l" + lib)
-    link_command = f"g++ {'-shared' if shared else ''} -o {out} {str_objects}{' ' if len(link_libraries) != 0 else ''}{' '.join(transformed_libraries)} {' '.join(link_options)}"
+    link_command = f"g++ -L. {'-shared' if shared else ''} -o {out} {str_objects}{' ' if len(link_libraries) != 0 else ''}{' '.join(transformed_libraries)} {' '.join(link_options)}"
     info(" ".join(list(filter(lambda x: x != '', link_command.split(" ")))))
     info(f"linking {'executable' if not shared else 'shared library'} {out}")
     link_process = subprocess.run(list(filter(lambda x: x != '', link_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)

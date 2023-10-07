@@ -1,6 +1,6 @@
 #pragma once
 
-
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <iostream>
 #include <vector>
 #include <string>
@@ -35,6 +35,8 @@
 #define GLFW_INCLUDE_NONE
 #include "gles2.h"
 #include "GLFW/glfw3.h"
+
+#include "ImGui/imgui.h"
 
 
 typedef std::unordered_map<std::string, dylib> DylibRegistry;
@@ -205,4 +207,11 @@ namespace Electron {
 
         bool contains(Point p);
     };
+
+    static ImVec2 FitRectInRect(ImVec2 screen, ImVec2 rectangle) {
+        ImVec2 dst = screen;
+        ImVec2 src = rectangle;
+        float scale = glm::min(dst.x / src.x, dst.y / src.y);
+        return ImVec2{src.x * scale, src.y * scale};
+    }
 }

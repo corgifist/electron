@@ -25,6 +25,7 @@
 
 
 namespace UI {
+    void DropShadow();
     void Begin(const char* name, Electron::ElectronSignal signal, ImGuiWindowFlags flags);
     void End();
 };

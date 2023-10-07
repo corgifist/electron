@@ -14,7 +14,7 @@ namespace Electron {
 
         bool GetDragDistance(float& distance) {
             ImGuiIO& io = ImGui::GetIO();
-            if (io.MouseDown[ImGuiMouseButton_Left] && isActive && ImGui::IsWindowFocused()) {
+            if (io.MouseDown[ImGuiMouseButton_Left] && isActive && ImGui::IsWindowFocused() && ImGui::IsWindowHovered()) {
                 distance = io.MouseDelta.x;
                 return true;
             }

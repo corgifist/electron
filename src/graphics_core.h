@@ -248,6 +248,9 @@ namespace Electron {
 
         void CheckForResize(RenderBuffer* rbo);
     };
+    struct Wavefront {
+        static int x, y, z;
+    };
 
     class GraphicsCore {
     public:
@@ -275,6 +278,8 @@ namespace Electron {
 
         static DylibRegistry GetImplementationsRegistry();
 
+        void PrecompileEssentialShaders();
+
         RenderLayer* GetLayerByID(int id);
         int GetLayerIndexByID(int id);
 
@@ -291,12 +296,13 @@ namespace Electron {
         void DispatchComputeShader(int grid_x, int grid_y, int grid_z);
         void ComputeMemoryBarier(GLbitfield barrier);
         GLuint GenerateGPUTexture(int width, int height, int unit);
-        void BindGPUTexture(GLuint texture, int unit);
+        void BindGPUTexture(GLuint texture, int unit, int readStatus);
         void ShaderSetUniform(GLuint program, std::string name, int x, int y);
         void ShaderSetUniform(GLuint program, std::string name, glm::vec3 vec);
         void ShaderSetUniform(GLuint program, std::string name, float f);
         void ShaderSetUniform(GLuint program, std::string name, glm::vec2 vec);
         void ShaderSetUniform(GLuint program, std::string name, int x);
+        void ShaderSetUniform(GLuint program, std::string name, glm::vec4 vec);
 
         void CallCompositor(ResizableGPUTexture color, ResizableGPUTexture uv, ResizableGPUTexture depth);
 
