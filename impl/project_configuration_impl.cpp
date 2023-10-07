@@ -19,7 +19,6 @@ extern "C" {
         if (instance->isNativeWindow) {
 
             ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-            ImGui::SetNextWindowPos({0, 0}, ImGuiCond_Once);
             ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
         } else {
             dockFlags |= ImGuiWindowFlags_MenuBar;

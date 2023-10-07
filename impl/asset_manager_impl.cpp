@@ -1,13 +1,21 @@
 #include "editor_core.h"
 #include "app.h"
 #include "ImGuiFileDialog.h"
+#include "drag_utils.h"
 #define CSTR(x) ((x).c_str())
 
 using namespace Electron;
 
 extern "C" {
+
+    static void DrawRect(RectBounds bounds, ImVec4 color) {
+        ImGui::GetWindowDrawList()->AddRectFilled(bounds.UL, bounds.BR, ImGui::ColorConvertFloat4ToU32(color));
+    }
+
+
     ELECTRON_EXPORT void AssetManagerRender(AppInstance* instance) {
         ImGui::SetCurrentContext(instance->context);
+        static bool showPreview = true;
         UI::Begin(CSTR(std::string(ICON_FA_FOLDER " ") + ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE") + std::string("##") + std::to_string(UICounters::AssetManagerCounter)), ElectronSignal_CloseWindow, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             ImVec2 windowSize = ImGui::GetContentRegionAvail();
             if (!instance->projectOpened) {
@@ -123,12 +131,16 @@ extern "C" {
 
                             if (ImGui::BeginPopup(string_format("AssetPopup%i", asset.id).c_str(), 0)) {
                                 ImGui::SeparatorText(CSTR(asset.name));
+                                if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_EXAMINE_ASSET"))))) {
+                                    showPreview = true;
+                                }
                                 if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_RECYCLE, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_REIMPORT_ASSET"))), "")) {
                                     ImGuiFileDialog::Instance()->OpenDialog("BrowseAssetPath", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_BROWSE_ASSET_PATH"), IMPORT_EXTENSIONS, ".");
                                     targetAssetBrowsePath = assetIndex;
                                 }
                                 if (ImGui::MenuItem(string_format("%s %s", ICON_FA_TRASH_CAN, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE")).c_str(), "")) {
                                     assetDeletionIndex = assetIndex;
+                                    showPreview = false;
                                     if (assetIndex == assetSelected) {
                                         assetSelected = -1;
                                     }
@@ -151,7 +163,60 @@ extern "C" {
             ImGui::EndTable();
             }
             ImGui::EndChild();
-        ImGui::End();
+        UI::End();
+
+        if (showPreview && assetSelected != -1) {
+            ImGui::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_EXAMINER"))), &showPreview, 0);
+                windowSize = ImGui::GetContentRegionAvail();
+                UI::DropShadow();
+                static float assetPreviewScale = JSON_AS_TYPE(instance->project.propertiesMap["LastAssetPreviewScale"], float);
+                instance->project.propertiesMap["LastAssetPreviewScale"] = assetPreviewScale;
+                if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd)) {
+                    assetPreviewScale += 0.2f;
+                }
+                if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract)) {
+                    assetPreviewScale -= 0.2f;
+                }
+                static ImVec2 previousWindowSize = ImGui::GetWindowSize();
+                static ImVec2 previousWindowPos = ImGui::GetWindowPos();
+                TextureUnion& asset = instance->assets.assets[assetSelected];
+                switch (asset.type) {
+                    case TextureUnionType::Texture: {
+                        static DragStructure imageDrag{};
+                        static ImVec2 imageOffset{};
+                        GLuint textureID = asset.pboGpuTexture;
+                        ImVec2 dimension = {asset.GetDimensions().x, asset.GetDimensions().y};
+                        ImVec2 imageSize = FitRectInRect(ImGui::GetContentRegionAvail(), dimension) * 0.75f * assetPreviewScale;
+                        imageDrag.Activate(); float f;
+                        if (imageDrag.GetDragDistance(f) && previousWindowSize == ImGui::GetWindowSize() && previousWindowPos == ImGui::GetWindowPos()) {
+                            imageOffset += ImGui::GetIO().MouseDelta;
+                            ImGuiStyle& style = ImGui::GetStyle();
+                            DrawRect(RectBounds(ImVec2(windowSize.x / 2.0f + imageOffset.x - 2, 0), ImVec2(4.0f, ImGui::GetWindowSize().y)), style.Colors[ImGuiCol_MenuBarBg]);
+                            DrawRect(RectBounds(ImVec2(0, windowSize.y / 2.0f + imageOffset.y - 2), ImVec2(ImGui::GetWindowSize().x, 4.0f)), style.Colors[ImGuiCol_MenuBarBg]);
+                            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+                        } else imageDrag.Deactivate();
+                        if (glm::abs(imageOffset.x) < 5) imageOffset.x = 0;
+                        if (glm::abs(imageOffset.y) < 5) imageOffset.y = 0;
+                        ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - imageSize.x / 2.0f, windowSize.y / 2.0f - imageSize.y / 2.0f} + imageOffset);
+                        ImGui::Image((ImTextureID) textureID, imageSize);
+
+                        break;
+                    }
+                }
+                previousWindowSize = ImGui::GetWindowSize();
+                previousWindowPos = ImGui::GetWindowPos();
+
+            ImGui::End();
+        } else if (showPreview && assetSelected == -1) {
+            ImGui::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_EXAMINER"))), &showPreview, 0);
+                windowSize = ImGui::GetContentRegionAvail();
+                UI::DropShadow();
+                std::string nothingToExamine = ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_NOTHING_TO_EXAMINE");
+                ImVec2 textSize = ImGui::CalcTextSize(CSTR(nothingToExamine));
+                ImGui::SetCursorPos({windowSize.x / 2.0f - textSize.x / 2.0f, windowSize.y / 2.0f - textSize.y / 2.0f});
+                ImGui::Text(CSTR(nothingToExamine));
+            ImGui::End();
+        }
 
         
         if (ImGuiFileDialog::Instance()->Display("ImportAssetDlg")) {

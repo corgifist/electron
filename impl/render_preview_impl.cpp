@@ -34,13 +34,6 @@ extern "C" {
         }
     }
 
-    static ImVec2 FitRectInRect(ImVec2 screen, ImVec2 rectangle) {
-        ImVec2 dst = screen;
-        ImVec2 src = rectangle;
-        float scale = glm::min(dst.x / src.x, dst.y / src.y);
-        return ImVec2{src.x * scale, src.y * scale};
-    }
-
     static void DrawRect(RectBounds bounds, ImVec4 color) {
         ImGui::GetWindowDrawList()->AddRectFilled(bounds.UL, bounds.BR, ImGui::ColorConvertFloat4ToU32(color));
     }
@@ -49,6 +42,7 @@ extern "C" {
         ImGui::SetCurrentContext(instance->context);
         static ResolutionVariant resolutionVariants[9];
         static bool firstSetup = true;
+        static GLuint channel_manipulator = instance->graphics.CompileComputeShader("preview_channel_manipulator.compute");
 
 
         static int internalFrameIndex = 0;
@@ -59,7 +53,6 @@ extern "C" {
         static bool beginInterpolation = false;
         static bool rebuildResolutions = false;
         ImGuiStyle& style = ImGui::GetStyle();
-
 
 
         ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
@@ -76,6 +69,8 @@ extern "C" {
                 UI::End();
                 return;
             }
+            static int selectedChannel = JSON_AS_TYPE(instance->project.propertiesMap["LastColorBuffer"], int);
+            instance->project.propertiesMap["LastColorBuffer"] = selectedChannel;
 
             bool resizeLerpEnabled = JSON_AS_TYPE(instance->configMap["ResizeInterpolation"], bool);
 
@@ -95,6 +90,18 @@ extern "C" {
                 instance->graphics.firePlay = false;
             }
             instance->graphics.isPlaying = playing;
+            if (playing) {
+                if ((int) instance->graphics.renderFrame >= instance->graphics.renderLength) {
+                    if (looping) {
+                        instance->graphics.renderFrame = 0.0f;
+                    } else playing = false;
+                } else {
+                    if (instance->graphics.renderFrame < instance->graphics.renderLength) {
+                        float intFrame = 1.0f / (60.0 / instance->graphics.renderFramerate);
+                        instance->graphics.renderFrame += intFrame;
+                    }
+                }
+            }
 
             RenderBuffer* rbo = &instance->graphics.renderBuffer;
             if (firstSetup) {
@@ -125,13 +132,17 @@ extern "C" {
             renderTimes = instance->graphics.RequestRenderWithinRegion(metadata);
 
             static float propertiesHeight = 50;
+            static ImVec2 previousWindowPos = ImGui::GetWindowPos();
+            static ImVec2 previousWindowSize = ImGui::GetWindowSize();
+            ImVec2 wSize = ImGui::GetWindowSize();
+            ImVec2 wPos = ImGui::GetWindowPos();
             ImGui::BeginChild("previewZone", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y - propertiesHeight), false, 0);
                 windowSize = ImGui::GetContentRegionAvail();
                 imagePreviewDrag.Activate();
             
                 float imageDragDistance;
 
-                if (imagePreviewDrag.GetDragDistance(imageDragDistance)) {
+                if (imagePreviewDrag.GetDragDistance(imageDragDistance) && (previousWindowPos == wPos) && (previousWindowSize == wSize)) {
                     ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
                     imageOffset = imageOffset + ImGui::GetIO().MouseDelta;
                     DrawRect(RectBounds(ImVec2(windowSize.x / 2.0f + imageOffset.x - 2, 0), ImVec2(4.0f, ImGui::GetWindowSize().y)), style.Colors[ImGuiCol_Border]);
@@ -143,15 +154,31 @@ extern "C" {
                 if (glm::abs(imageOffset.y) < 5) {
                     imageOffset.y = 0;
                 }
+
+                instance->graphics.UseShader(channel_manipulator);
+                instance->graphics.BindGPUTexture(previewTexture, 0, GL_READ_ONLY);
+                instance->graphics.BindGPUTexture(previewTexture, 1, GL_WRITE_ONLY);
+                glm::vec4 factor{};
+                if (selectedChannel == 0) factor = {1, 0, 0, 1};
+                if (selectedChannel == 1) factor = {0, 1, 0, 1};
+                if (selectedChannel == 2) factor = {0, 0, 1, 1};
+                if (selectedChannel == 3) factor = {1, 1, 1, 1};
+                instance->graphics.ShaderSetUniform(channel_manipulator, "factor", factor);
+                instance->graphics.DispatchComputeShader(rbo->width, rbo->height, 1);
+                instance->graphics.ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
+
+
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - previewTextureSize.x / 2.0f, windowSize.y / 2.0f - previewTextureSize.y / 2.0f} + imageOffset);
                 ImGui::Image((ImTextureID) previewTexture, previewTextureSize);
             ImGui::EndChild();
-            
+            previousWindowPos = ImGui::GetWindowPos();
+            previousWindowSize = ImGui::GetWindowSize();
+
             ImGui::BeginChild("propertiesZone", ImVec2(ImGui::GetContentRegionAvail().x, propertiesHeight), false, 0);
                 windowSize = ImGui::GetContentRegionAvail();
                 float firstCursor = ImGui::GetCursorPosY();
 
-                if (ImGui::BeginTable("propertiesTable", 3)) {
+                if (ImGui::BeginTable("propertiesTable", 4)) {
                     ImGui::TableNextColumn();
                     if (ImGui::BeginCombo("##previewResolutions", resolutionVariants[selectedResolutionVariant].repr.c_str())) {
                         for (int n = 0; n < 9; n++) {
@@ -191,6 +218,27 @@ extern "C" {
                         ImGui::SetTooltip(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_OUTPUT_BUFFER_TYPE"));
                     }
                     instance->graphics.outputBufferType = rawBufferTypes[selectedOutputBufferType];
+                    ImGui::TableNextColumn();
+                    static std::string channelTypes[] = {
+                        ELECTRON_GET_LOCALIZATION(instance, "GENERIC_R"),
+                        ELECTRON_GET_LOCALIZATION(instance, "GENERIC_G"),
+                        ELECTRON_GET_LOCALIZATION(instance, "GENERIC_B"),
+                        ELECTRON_GET_LOCALIZATION(instance, "GENERIC_RGB")
+                    };
+
+                    if (ImGui::BeginCombo("##channelType", CSTR(channelTypes[selectedChannel]))) {
+                        for (int i = 0; i < 4; i++) {
+                            bool channelSelected = i == selectedChannel;
+                            if (ImGui::Selectable(CSTR(channelTypes[i]), channelSelected))
+                                selectedChannel = i;
+                            if (channelSelected) ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_OUTPUT_CHANNELS"));
+                    }
+
                     ImGui::TableNextColumn();
                     static std::vector<float> plottingRenderAverages(90);
                     static int plottingCounter = 0;

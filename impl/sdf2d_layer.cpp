@@ -93,11 +93,11 @@ extern "C" {
 
         bool canTexture = (asset != nullptr && texturingEnabled);
 
-        owner->graphicsOwner->BindGPUTexture(rrb.color.texture, 0);
-        owner->graphicsOwner->BindGPUTexture(rrb.uv.texture, 1);
-        owner->graphicsOwner->BindGPUTexture(rrb.depth.texture, 2);
+        owner->graphicsOwner->BindGPUTexture(rrb.color.texture, 0, GL_WRITE_ONLY);
+        owner->graphicsOwner->BindGPUTexture(rrb.uv.texture, 1, GL_WRITE_ONLY);
+        owner->graphicsOwner->BindGPUTexture(rrb.depth.texture, 2, GL_WRITE_ONLY);
         if (canTexture) {
-            owner->graphicsOwner->BindGPUTexture(asset->pboGpuTexture, 3);
+            owner->graphicsOwner->BindGPUTexture(asset->pboGpuTexture, 3, GL_READ_ONLY);
         }
         owner->graphicsOwner->UseShader(sdf2d_compute);
         owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "pboResolution", pbo->width, pbo->height);
@@ -106,7 +106,10 @@ extern "C" {
         owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "angle", angle);
         owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "color", color);
         owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "canTexture", canTexture ? 1 : 0);
-        owner->graphicsOwner->DispatchComputeShader(std::ceil(pbo->width / 8), std::ceil(pbo->height / 4), 1);
+        if (asset) {
+            owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "assetSize", asset->GetDimensions());
+        }
+        owner->graphicsOwner->DispatchComputeShader(pbo->width, pbo->height, 1);
         owner->graphicsOwner->ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
 
         owner->graphicsOwner->CallCompositor(rrb.color, rrb.uv, rrb.depth);
