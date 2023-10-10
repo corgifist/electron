@@ -174,6 +174,8 @@ namespace Electron {
             }
             return "Image";
         }
+
+        
     };
 
     typedef void (*Electron_LayerImplF)(RenderLayer*, RenderRequestMetadata);

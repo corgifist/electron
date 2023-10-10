@@ -35,7 +35,7 @@ void RenderDropShadow(ImTextureID tex_id, float size, ImU8 opacity) {
 }
 
 void DropShadow() {
-    RenderDropShadow((ImTextureID)Electron::AppInstance::shadowTex, 24.0f,
+    RenderDropShadow((ImTextureID)(uint64_t) Electron::AppInstance::shadowTex, 24.0f,
                          100);
 }
 
@@ -425,13 +425,13 @@ void Electron::AppInstance::RestoreBadConfig() {
 Electron::ElectronVector2f Electron::AppInstance::GetNativeWindowSize() {
     int width, height;
     glfwGetWindowSize(this->displayHandle, &width, &height);
-    return Electron::ElectronVector2f{width, height};
+    return Electron::ElectronVector2f{(float) width, (float) height};
 }
 
 Electron::ElectronVector2f Electron::AppInstance::GetNativeWindowPos() {
     int x, y;
     glfwGetWindowPos(this->displayHandle, &x, &y);
-    return Electron::ElectronVector2f{x, y};
+    return Electron::ElectronVector2f{(float) x, (float) y};
 }
 
 bool Electron::AppInstance::ButtonCenteredOnLine(const char *label,

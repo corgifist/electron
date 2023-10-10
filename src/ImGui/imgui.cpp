@@ -9316,8 +9316,6 @@ void ImGui::UpdateMouseWheel()
             if (do_scroll[ImGuiAxis_Y])
             {
                 LockWheelingWindow(window, wheel.y);
-                float max_step = window->InnerRect.GetHeight() * 0.67f;
-                float scroll_step = ImFloor(ImMin(5 * window->CalcFontSize(), scroll_speed));
                 SetScrollY(window, window->Scroll.y - wheel.y * scroll_speed);
             }
         }

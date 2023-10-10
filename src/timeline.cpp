@@ -127,6 +127,7 @@ static bool TimelineRenderDragNDrop(AppInstance *instance, int &i) {
 }
 
 void Timeline::Render(AppInstance *instance) {
+    ImGui::SetCurrentContext(instance->context);
     bool pOpen = true;
     bool anyLayerDragged = false;
 
@@ -653,7 +654,7 @@ void Timeline::Render(AppInstance *instance) {
                        ImVec2(canvasSize.x, 2.0f));
         DrawRect(separatorBounds, ImVec4(0, 0, 0, 1));
     }
-    int dragAccepterOffset = ticksBackgroundHeight;
+    float dragAccepterOffset = ticksBackgroundHeight;
     for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
         ImGui::SetCursorPos({0 + ImGui::GetScrollX(), dragAccepterOffset});
         ImGui::Dummy({ImGui::GetWindowSize().x, layerSizeY});
@@ -691,11 +692,13 @@ void Timeline::Render(AppInstance *instance) {
         if (ImGui::Button(
                 (layer->layerUsername + "##" + std::to_string(i)).c_str(),
                 ImVec2(pixelsPerFrame * layerDuration, layerSizeY))) {
-            if (ImGui::GetIO().KeyCtrl && !selected) {
+            if (ImGui::GetIO().KeyCtrl && !selected && !universalDrag.isActive && !backwardDrag.isActive && !forwardDrag.isActive) {
                 multipleDragSelectedLayers.push_back(i);
             } else if (ImGui::GetIO().KeyCtrl && selected) {
                 multipleDragSelectedLayers.erase(std::find(multipleDragSelectedLayers.begin(), multipleDragSelectedLayers.end(), i));
             }
+            if (selected && !ImGui::GetIO().KeyCtrl) multipleDragSelectedLayers.clear();
+
             instance->selectedRenderLayer = layer->id;
         }
         if (ImGui::GetIO().KeyCtrl)
@@ -748,14 +751,18 @@ void Timeline::Render(AppInstance *instance) {
         float forwardDragDistance;
         float backwardDragDistance;
 
-        if (forwardDrag.GetDragDistance(forwardDragDistance) &&
+        if (forwardDrag.isActive) forwardDragDistance = ImGui::GetIO().MouseDelta.x;
+
+        if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && forwardDrag.isActive && 
             !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
             layer->endFrame =
-                (windowMouseCoords.x + ImGui::GetScrollX()) / pixelsPerFrame;
+                (windowMouseCoords.x) / pixelsPerFrame;
         } else
             forwardDrag.Deactivate();
 
-        if (backwardDrag.GetDragDistance(backwardDragDistance) &&
+        if (backwardDrag.isActive) backwardDragDistance = ImGui::GetIO().MouseDelta.x;
+
+        if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && backwardDrag.isActive &&
             !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
             layer->beginFrame =
                 (windowMouseCoords.x + ImGui::GetScrollX()) / pixelsPerFrame;
@@ -864,7 +871,7 @@ void Timeline::Render(AppInstance *instance) {
     }
 
     if (!anyPopupsOpen && MouseHoveringBounds(fullscreenTicksMask) &&
-        !anyLayerHovered && !anyPopupsOpen &&
+        !anyLayerHovered && !anyLayerDragged && !anyPopupsOpen &&
         ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
         ImGui::OpenPopup("TimelinePopup");
     }
@@ -893,6 +900,46 @@ void Timeline::Render(AppInstance *instance) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
+    if (ImGui::IsKeyPressed(ImGuiKey_Space) && ImGui::GetIO().KeyCtrl) {
+        instance->graphics.firePlay = true;
+    }
+
+    if (ImGui::Shortcut(ImGuiKey_C | ImGuiMod_Ctrl)) {
+        copyContainer =
+            *instance->graphics.GetLayerByID(instance->selectedRenderLayer);
+        print("Copied layer with ID " << copyContainer.id);
+    }
+
+    if (ImGui::Shortcut(ImGuiKey_V | ImGuiMod_Ctrl) &&
+        copyContainer.initialized) {
+        layerCopyTarget =
+            instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
+    }
+
+    if (ImGui::Shortcut(ImGuiKey_D | ImGuiMod_Ctrl)) {
+        layerDuplicationTarget =
+            instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
+    }
+
+    if (ImGui::Shortcut(ImGuiKey_Delete) && instance->selectedRenderLayer > 0 &&
+         multipleDragSelectedLayers.empty()) {
+        layerDeleteionTarget =
+            instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
+        instance->selectedRenderLayer = -1;
+    }
+
+    if (ImGui::Shortcut(ImGuiKey_Delete) && instance->selectedRenderLayer > 0 && !multipleDragSelectedLayers.empty()) {
+        std::vector<int> layerIndices{};
+        for (auto& index : multipleDragSelectedLayers) {
+            layerIndices.push_back(instance->graphics.layers[index].id);
+        }
+        for (auto& layerIndex : layerIndices) {
+            auto& layers = instance->graphics.layers;
+            layers.erase(layers.begin() + instance->graphics.GetLayerIndexByID(layerIndex));
+        }
+        instance->selectedRenderLayer = -1;
+    }  
+
     ImGui::EndChild();
 
     ImVec2 oldCursor = ImGui::GetCursorPos();
@@ -919,35 +966,7 @@ void Timeline::Render(AppInstance *instance) {
     } else
         resizerDragging = false;
 
-    ImGui::SetCursorPos(oldCursor);
-
-    if (ImGui::Shortcut(ImGuiKey_Space | ImGuiMod_Ctrl) && isWindowFocused) {
-        instance->graphics.firePlay = true;
-    }
-
-    if (ImGui::Shortcut(ImGuiKey_C | ImGuiMod_Ctrl) && isWindowFocused) {
-        copyContainer =
-            *instance->graphics.GetLayerByID(instance->selectedRenderLayer);
-        print("Copied layer with ID " << copyContainer.id);
-    }
-
-    if (ImGui::Shortcut(ImGuiKey_V | ImGuiMod_Ctrl) &&
-        copyContainer.initialized && isWindowFocused) {
-        layerCopyTarget =
-            instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
-    }
-
-    if (ImGui::Shortcut(ImGuiKey_D | ImGuiMod_Ctrl) && isWindowFocused) {
-        layerDuplicationTarget =
-            instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
-    }
-
-    if (ImGui::Shortcut(ImGuiKey_Delete) && instance->selectedRenderLayer > 0 &&
-        isWindowFocused) {
-        layerDeleteionTarget =
-            instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
-        instance->selectedRenderLayer = -1;
-    }
+    ImGui::SetCursorPos(oldCursor); 
 
     ImGui::End();
     ImGui::PopStyleVar(2);

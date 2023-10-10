@@ -16,7 +16,7 @@ struct ResolutionVariant {
 
         this->repr = std::to_string(width) + "x" + std::to_string(height);
 
-        this->raw = ImVec2{width, height};
+        this->raw = ImVec2{(float) width, (float) height};
     }
 
     ResolutionVariant() {};
@@ -28,7 +28,7 @@ extern "C" {
         ImVec2 sizeAcc = newResolution;
 
         for (int i = 0; i < 9; i++) {
-            ResolutionVariant variant{sizeAcc.x, sizeAcc.y};
+            ResolutionVariant variant{(int) sizeAcc.x, (int) sizeAcc.y};
             resolutionVariants[i] = variant;
             sizeAcc -= fractSize;
         }
@@ -64,7 +64,7 @@ extern "C" {
                 std::string projectRequiredString = ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_PROJECT_REQUIRED_WARNING");
                 ImVec2 warningTextSize = ImGui::CalcTextSize(CSTR(projectRequiredString));
 
-                ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0 - warningTextSize.x / 2.0f,  windowSize.y / 2.0 - warningTextSize.y / 2.0});
+                ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - warningTextSize.x / 2.0f,  windowSize.y / 2.0f - warningTextSize.y / 2.0f});
                 ImGui::Text(CSTR(projectRequiredString));
                 UI::End();
                 return;
@@ -105,7 +105,7 @@ extern "C" {
 
             RenderBuffer* rbo = &instance->graphics.renderBuffer;
             if (firstSetup) {
-                RebuildPreviewResolutions(resolutionVariants, {rbo->width, rbo->height});
+                RebuildPreviewResolutions(resolutionVariants, {(float) rbo->width, (float) rbo->height});
                 instance->graphics.renderFrame = JSON_AS_TYPE(instance->project.propertiesMap["TimelineValue"], int);
                 firstSetup = false;
             }
@@ -118,7 +118,7 @@ extern "C" {
 
             float windowAspectRatio = windowSize.x / windowSize.y;
             windowAspectRatio = glm::clamp(windowAspectRatio, 0.0f, 1.0f);
-            ImVec2 previewTextureSize = FitRectInRect(windowSize, {resolutionVariants[0].width, resolutionVariants[0].height}) * previewScale;
+            ImVec2 previewTextureSize = FitRectInRect(windowSize, {(float) resolutionVariants[0].width, (float) resolutionVariants[0].height}) * previewScale;
             instance->graphics.renderFramerate = JSON_AS_TYPE(instance->project.propertiesMap["Framerate"], int);
             
             RenderRequestMetadata metadata;
@@ -169,7 +169,7 @@ extern "C" {
 
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - previewTextureSize.x / 2.0f, windowSize.y / 2.0f - previewTextureSize.y / 2.0f} + imageOffset);
-                ImGui::Image((ImTextureID) previewTexture, previewTextureSize);
+                ImGui::Image((ImTextureID)(uint64_t) previewTexture, previewTextureSize);
             ImGui::EndChild();
             previousWindowPos = ImGui::GetWindowPos();
             previousWindowSize = ImGui::GetWindowSize();
@@ -264,7 +264,7 @@ extern "C" {
         if ((resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1]) && !beginInterpolation) {
             instance->graphics.ResizeRenderBuffer(projectResolution[0], projectResolution[1]);
 
-            RebuildPreviewResolutions(resolutionVariants, {projectResolution[0], projectResolution[1]});
+            RebuildPreviewResolutions(resolutionVariants, {(float) projectResolution[0], (float) projectResolution[1]});
 
             ResolutionVariant selectedVariant = resolutionVariants[selectedResolutionVariant];
             instance->graphics.ResizeRenderBuffer(selectedVariant.width, selectedVariant.height);

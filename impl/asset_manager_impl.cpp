@@ -15,6 +15,7 @@ extern "C" {
 
     ELECTRON_EXPORT void AssetManagerRender(AppInstance* instance) {
         ImGui::SetCurrentContext(instance->context);
+
         static bool showPreview = true;
         UI::Begin(CSTR(std::string(ICON_FA_FOLDER " ") + ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE") + std::string("##") + std::to_string(UICounters::AssetManagerCounter)), ElectronSignal_CloseWindow, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             ImVec2 windowSize = ImGui::GetContentRegionAvail();
@@ -72,7 +73,7 @@ extern "C" {
                     ImGui::BeginTable("infoTable", 2, ImGuiTableFlags_SizingFixedFit);
                         ImGui::TableNextRow();
                         ImGui::TableSetColumnIndex(0);
-                        ImGui::Image((ImTextureID) gpuPreview, ImVec2{assetResolution.x, assetResolution.y});
+                        ImGui::Image((ImTextureID)(uint64_t) gpuPreview, ImVec2{assetResolution.x, assetResolution.y});
                         ImGui::TableSetColumnIndex(1);
                         ImGui::InputText("##AssetName", &asset.name, 0);
                         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) 
@@ -110,13 +111,7 @@ extern "C" {
                     ImGui::TableNextRow();
                     if (searchFilter != "" && asset.name.find(searchFilter)== std::string::npos) 
                         continue;
-                    std::string assetIcon = ICON_FA_IMAGE;
-                    switch (asset.type) {
-                        case TextureUnionType::Texture: {
-                            assetIcon = ICON_FA_IMAGE;
-                            break;
-                        }
-                    }
+                    std::string assetIcon = asset.GetIcon();
                     std::string reservedResourcePath = asset.path;
                     for (int column = 0; column < 3; column++) {
                         ImGui::TableSetColumnIndex(column);
@@ -166,7 +161,7 @@ extern "C" {
         UI::End();
 
         if (showPreview && assetSelected != -1) {
-            ImGui::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_EXAMINER"))), &showPreview, 0);
+            ImGui::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_EXAMINER"))), &showPreview, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
                 windowSize = ImGui::GetContentRegionAvail();
                 UI::DropShadow();
                 static float assetPreviewScale = JSON_AS_TYPE(instance->project.propertiesMap["LastAssetPreviewScale"], float);
@@ -177,8 +172,13 @@ extern "C" {
                 if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract)) {
                     assetPreviewScale -= 0.2f;
                 }
+                static float propertiesHeight = 50;
                 static ImVec2 previousWindowSize = ImGui::GetWindowSize();
                 static ImVec2 previousWindowPos = ImGui::GetWindowPos();
+                ImVec2 ws = ImGui::GetWindowSize();
+                ImVec2 wp = ImGui::GetWindowPos();
+                ImGui::BeginChild("previewExamineChild", ImVec2(ws.x, ws.y - 60), false);
+                windowSize = ImGui::GetWindowSize();
                 TextureUnion& asset = instance->assets.assets[assetSelected];
                 switch (asset.type) {
                     case TextureUnionType::Texture: {
@@ -188,7 +188,7 @@ extern "C" {
                         ImVec2 dimension = {asset.GetDimensions().x, asset.GetDimensions().y};
                         ImVec2 imageSize = FitRectInRect(ImGui::GetContentRegionAvail(), dimension) * 0.75f * assetPreviewScale;
                         imageDrag.Activate(); float f;
-                        if (imageDrag.GetDragDistance(f) && previousWindowSize == ImGui::GetWindowSize() && previousWindowPos == ImGui::GetWindowPos()) {
+                        if (imageDrag.GetDragDistance(f) && previousWindowSize == ws && previousWindowPos == wp) {
                             imageOffset += ImGui::GetIO().MouseDelta;
                             ImGuiStyle& style = ImGui::GetStyle();
                             DrawRect(RectBounds(ImVec2(windowSize.x / 2.0f + imageOffset.x - 2, 0), ImVec2(4.0f, ImGui::GetWindowSize().y)), style.Colors[ImGuiCol_MenuBarBg]);
@@ -198,11 +198,41 @@ extern "C" {
                         if (glm::abs(imageOffset.x) < 5) imageOffset.x = 0;
                         if (glm::abs(imageOffset.y) < 5) imageOffset.y = 0;
                         ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - imageSize.x / 2.0f, windowSize.y / 2.0f - imageSize.y / 2.0f} + imageOffset);
-                        ImGui::Image((ImTextureID) textureID, imageSize);
+                        ImGui::Image((ImTextureID)(uint64_t) textureID, imageSize);
+                        if (ImGui::IsItemHovered()) {
+                            ImGui::SetTooltip(CSTR(string_format("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_LEFT_CLICK_FOR_CONTEXT_MENU"))));
+                        }
+                        if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
+                            ImGui::OpenPopup("assetContextMenu");
+                        }
 
                         break;
                     }
                 }
+                if (ImGui::BeginPopup("assetContextMenu")) {
+                    ImGui::SeparatorText(asset.name.c_str());
+                    if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_INFO, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_MORE_INFO"))))) {
+                        system(CSTR(string_format("xdg-open %s &", asset.path.c_str())));
+                    }
+                    ImGui::EndPopup();
+                }
+                ImGui::EndChild();
+                ImGui::BeginChild("assetExaminerDetails", ImVec2(ws.x, 30), false);
+                float firstCursor = ImGui::GetCursorPosY();
+                if (ImGui::BeginTable("detailsTable", 2)) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text(CSTR(string_format("%s %s", asset.GetIcon().c_str(), asset.name.c_str())));
+                    ImGui::TableSetColumnIndex(1);
+                    switch (asset.type) {
+                        case TextureUnionType::Texture: {
+                            ImGui::Text(CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_RESOLUTION"), (int) asset.GetDimensions().x, (int) asset.GetDimensions().y)));
+                        }
+                    }
+                    ImGui::EndTable();
+                }
+                propertiesHeight = ImGui::GetCursorPosY() - firstCursor;
+                ImGui::EndChild();
                 previousWindowSize = ImGui::GetWindowSize();
                 previousWindowPos = ImGui::GetWindowPos();
 
