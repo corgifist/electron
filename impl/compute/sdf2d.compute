@@ -1,0 +1,48 @@
+layout(rgba32f, binding = 0) uniform highp writeonly image2D pboColor;
+layout(rgba32f, binding = 1) uniform highp writeonly image2D pboUV;
+layout(rgba32f, binding = 2) uniform highp writeonly image2D pboDepth;
+
+layout(rgba32f, binding = 3) uniform highp readonly image2D textureAsset;
+
+uniform ivec2 pboResolution;
+
+uniform vec2 position;
+uniform vec2 size;
+uniform vec3 color;
+uniform float angle;
+uniform vec2 assetSize;
+
+uniform bool canTexture;
+
+vec2 rotate(vec2 uv, float th) {
+    return mat2(cos(th), sin(th), -sin(th), cos(th)) * uv;
+}
+
+bool rect_contains(float x, float y, float w, float h, float px, float py) {
+    return px >= x && py >= y && px <= x + w && py <= y + h;
+}
+
+void main() {
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec2 uv = vec2(texelCoord) / vec2(pboResolution);
+	uv -= 0.5;
+    uv.x *= float(pboResolution.x) / float(pboResolution.y);
+
+    vec2 softwarePosition = -(size / 2.0);
+    vec2 softwareP = uv;
+    softwareP -= position;
+    softwareP = rotate(softwareP, radians(angle));
+
+    if (rect_contains(softwarePosition.x, softwarePosition.y, size.x, size.y, softwareP.x, softwareP.y)) {
+        vec2 rectUV = vec2((softwareP.x - softwarePosition.x) / (size.x), (softwareP.y - softwarePosition.y) / (size.y));
+        vec3 rectColor = color;
+        if (canTexture) {
+            ivec2 textureSize = ivec2(assetSize);
+            vec4 texturePixel = imageLoad(textureAsset, ivec2(int(float(rectUV.x) * float(textureSize.x)), int(float(rectUV.y) * float(textureSize.y))));
+            rectColor *= texturePixel.rgb;
+        }
+        imageStore(pboColor, texelCoord, vec4(rectColor, 1.0));
+        imageStore(pboUV, texelCoord, vec4(rectUV, 0, 1));
+        imageStore(pboDepth, texelCoord, vec4(0.0));
+    }
+}

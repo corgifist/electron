@@ -3,8 +3,6 @@
 
 int Electron::PixelBuffer::filtering = GL_LINEAR;
 
-std::vector<Electron::RenderLayer *> Electron::RenderLayerRegistry::Registry;
-
 static GLuint basic_compute = 0;
 static GLuint compositor_compute = 0;
 static GLuint tex_transfer_compute = 0;
@@ -260,6 +258,7 @@ void Electron::AssetRegistry::Clear() { this->assets.clear(); }
 Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     this->graphicsOwner = globalCore;
     this->layerLibrary = layerLibrary;
+    Libraries::LoadLibrary("layers", layerLibrary);
     print("Loading dylib " + layerLibrary);
 
     this->beginFrame = graphicsOwner->renderFrame;
@@ -272,42 +271,31 @@ Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
     initializationProcedure(this);
     initialized = true;
 
-    RenderLayerRegistry::Registry.push_back(this);
-    this->registryIndex = RenderLayerRegistry::Registry.size() - 1;
-
     this->layerUsername = layerPublicName + " Layer";
     this->id = seedrand();
 }
 
 Electron::RenderLayer::~RenderLayer() {
-    RenderLayerRegistry::Registry.erase(RenderLayerRegistry::Registry.begin() +
-                                        registryIndex);
 }
 
 void Electron::RenderLayer::FetchImplementation() {
-    dylib *implementation = nullptr;
-    if (dylibRegistry.find(layerLibrary) == dylibRegistry.end()) {
-        print(layerLibrary << " is not loaded; loading");
-        dylibRegistry[layerLibrary] = dylib("layers", layerLibrary);
-    }
-    implementation = &dylibRegistry[layerLibrary];
+
     this->layerProcedure =
-        implementation
-            ->get_function<void(RenderLayer *, RenderRequestMetadata)>(
-                "LayerRender");
+        Libraries::GetFunction<void(RenderLayer *, RenderRequestMetadata)>(
+                layerLibrary, "LayerRender");
     this->propertiesProcedure =
-        implementation->get_function<void(RenderLayer *)>(
-            "LayerPropertiesRender");
+        Libraries::GetFunction<void(RenderLayer *)>(
+            layerLibrary, "LayerPropertiesRender");
     this->initializationProcedure =
-        implementation->get_function<void(RenderLayer *)>("LayerInitialize");
+        Libraries::GetFunction<void(RenderLayer *)>(layerLibrary, "LayerInitialize");
     this->sortingProcedure =
-        implementation->get_function<void(RenderLayer *)>("LayerSortKeyframes");
+        Libraries::GetFunction<void(RenderLayer *)>(layerLibrary, "LayerSortKeyframes");
     this->layerPublicName =
-        implementation->get_variable<std::string>("LayerName");
+        Libraries::GetVariable<std::string>(layerLibrary, "LayerName");
     this->layerColor =
-        implementation->get_variable<glm::vec4>("LayerTimelineColor");
+        Libraries::GetVariable<glm::vec4>(layerLibrary, "LayerTimelineColor");
     this->previewProperties =
-        implementation->get_variable<json_t>("LayerPreviewProperties");
+        Libraries::GetVariable<json_t>(layerLibrary, "LayerPreviewProperties");
     if (!layerProcedure)
         throw std::runtime_error("bad layer procedure!");
 }
@@ -694,7 +682,7 @@ void Electron::GraphicsCore::FetchAllLayers() {
         std::string transformedPath = std::regex_replace(
             base_name(entry.path().string()), std::regex(".dll|.so|lib"), "");
         print("Pre-render fetching " << transformedPath);
-        dylibRegistry[transformedPath] = dylib("layers", transformedPath);
+        dylibRegistry.push_back(transformedPath);
     }
     print("Fetched all layers");
 }

@@ -4,6 +4,7 @@
 #include "time.h"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_stdlib.h"
+#include "libraries.h"
 #include <GLES3/gl31.h>
 
 #define MAX_DEPTH 100000000
@@ -184,7 +185,6 @@ namespace Electron {
 
     class RenderLayer {
     public:
-        dylib layerImplementation;
         int beginFrame, endFrame, frameOffset;
         std::string layerLibrary;
         json_t properties;
@@ -224,10 +224,6 @@ namespace Electron {
         void SortKeyframes(json_t& keyframes);
         json_t InterpolateProperty(json_t property);
         json_t ExtractExactValue(json_t property);
-    };
-
-    struct RenderLayerRegistry {
-        static std::vector<RenderLayer*> Registry;
     };
 
     struct ResizableGPUTexture {

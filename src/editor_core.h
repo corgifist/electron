@@ -36,17 +36,12 @@ namespace Electron {
 
 #ifndef ELECTRON_IMPLEMENTATION_MODE
     struct ImplDylibs {
-        static dylib ProjectConfigurationDylib;
-        static dylib RenderPreviewDylib;
-        static dylib LayerPropertiesDylib;
-        static dylib AssetManagerDylib;
-        static dylib DockspaceDylib;
+        static std::string ProjectConfigurationDylib;
+        static std::string RenderPreviewDylib;
+        static std::string LayerPropertiesDylib;
+        static std::string AssetManagerDylib;
+        static std::string DockspaceDylib;
     };
-
-    void InitializeDylibs();
-
-    void DestroyDylibs();
-
 
 #endif
 

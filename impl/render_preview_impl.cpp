@@ -253,7 +253,7 @@ extern "C" {
                         plottingCounter = 0;
                     plottingRenderAverages[plottingCounter++] = renderAverage;
 
-                    ImGui::PlotLines("##renderStatictics", plottingRenderAverages.data(), plottingRenderAverages.size(), plottingCounter, NULL, -1, 2);
+                    ImGui::PlotLines("##renderStatictics", plottingRenderAverages.data(), plottingRenderAverages.size(), plottingCounter, NULL, 0.001, 0.033);
 
                     ImGui::EndTable();
                 }

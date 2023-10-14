@@ -1,17 +1,17 @@
 #include "editor_core.h"
 
 namespace Electron {
-dylib ImplDylibs::LayerPropertiesDylib{};
-int UICounters::LayerPropertiesCounter;
+    std::string ImplDylibs::LayerPropertiesDylib = "layer_properties_impl";
+    int UICounters::LayerPropertiesCounter;
 
-LayerProperties::LayerProperties() {
-    this->impl =
-        ImplDylibs::LayerPropertiesDylib.get_function<void(AppInstance *)>(
-            "LayerPropertiesRender");
-    UICounters::LayerPropertiesCounter++;
-}
+    LayerProperties::LayerProperties() {
+        this->impl =
+            Libraries::GetFunction<void(AppInstance *)>(
+                ImplDylibs::LayerPropertiesDylib, "LayerPropertiesRender");
+        UICounters::LayerPropertiesCounter++;
+    }
 
-LayerProperties::~LayerProperties() { UICounters::LayerPropertiesCounter = 0; }
+    LayerProperties::~LayerProperties() { UICounters::LayerPropertiesCounter = 0; }
 
-void LayerProperties::Render(AppInstance *instance) { impl(instance); }
+    void LayerProperties::Render(AppInstance *instance) { impl(instance); }
 }; // namespace Electron

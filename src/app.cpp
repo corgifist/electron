@@ -186,7 +186,6 @@ Electron::AppInstance::AppInstance() {
 
     this->assets.owner = &graphics;
 
-    InitializeDylibs();
     this->graphics.FetchAllLayers();
 
     RenderLayer::globalCore = &graphics;
@@ -354,7 +353,6 @@ editor_end:
 }
 
 void Electron::AppInstance::Terminate() {
-    DestroyDylibs();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -525,23 +523,4 @@ void Electron::AppInstance::SetupImGuiStyle() {
     style.GrabRounding = 4;
     style.ScaleAllSizes(JSON_AS_TYPE(configMap["UIScaling"], float));
 }
-
-namespace Electron {
-void InitializeDylibs() {
-    ImplDylibs::ProjectConfigurationDylib =
-        dylib(".", "project_configuration_impl");
-    ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
-    ImplDylibs::LayerPropertiesDylib = dylib(".", "layer_properties_impl");
-    ImplDylibs::AssetManagerDylib = dylib(".", "asset_manager_impl");
-    ImplDylibs::DockspaceDylib = dylib(".", "dockspace_impl");
-}
-
-void DestroyDylibs() {
-    ImplDylibs::ProjectConfigurationDylib =
-        dylib(".", "project_configuration_impl");
-    ImplDylibs::RenderPreviewDylib = dylib(".", "render_preview_impl");
-    ImplDylibs::LayerPropertiesDylib = dylib(".", "layer_properties_impl");
-    ImplDylibs::AssetManagerDylib = dylib(".", "asset_manager_impl");
-    ImplDylibs::DockspaceDylib = dylib(".", "dockspace_impl");
-}
-} // namespace Electron
+ // namespace Electron

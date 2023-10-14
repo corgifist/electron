@@ -1,13 +1,13 @@
 #include "editor_core.h"
 
 namespace Electron {
-dylib ImplDylibs::ProjectConfigurationDylib{};
+std::string ImplDylibs::ProjectConfigurationDylib = "project_configuration_impl";
 int UICounters::ProjectConfigurationCounter;
 
 ProjectConfiguration::ProjectConfiguration() {
     this->implFunction =
-        ImplDylibs::ProjectConfigurationDylib.get_function<void(AppInstance *)>(
-            "ProjectConfigurationRender");
+        Libraries::GetFunction<void(AppInstance *)>(
+            ImplDylibs::ProjectConfigurationDylib, "ProjectConfigurationRender");
     UICounters::ProjectConfigurationCounter++;
 }
 

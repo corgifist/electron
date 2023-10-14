@@ -51,7 +51,7 @@ extern "C" {
             }
             ImGui::SameLine();
             if (ImGui::Button(string_format("%s %s", ICON_FA_COPY, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY_ID")).c_str())) {
-                clip::set_text(std::to_string(targetLayer->id));
+                ImGui::SetClipboardText(CSTR(std::to_string(targetLayer->id)));
             }
             titleChildHeight = ImGui::GetCursorPos().y - beginCursor;
             ImGui::EndChild();

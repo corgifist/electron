@@ -2,11 +2,11 @@
 
 namespace Electron {
 
-dylib ImplDylibs::DockspaceDylib{};
+std::string ImplDylibs::DockspaceDylib = "dockspace_impl";
 
 Dockspace::Dockspace() {
-    this->impl = ImplDylibs::DockspaceDylib.get_function<void(AppInstance *)>(
-        "DockspaceRender");
+    this->impl = Libraries::GetFunction<void(AppInstance *)>(
+        ImplDylibs::DockspaceDylib, "DockspaceRender");
 }
 
 void Dockspace::Render(AppInstance *instance) { this->impl(instance); }

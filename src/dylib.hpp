@@ -44,6 +44,8 @@
  *  The dylib class can hold a dynamic library instance and interact with it 
  *  by getting its symbols like functions or global variables
  */
+#define dylib internalDylib
+
 class dylib {
 public:
     struct filename_components {
@@ -312,3 +314,4 @@ protected:
 #undef DYLIB_WIN_MAC_OTHER
 #undef DYLIB_WIN_OTHER
 #undef DYLIB_CPP17
+#undef dylib

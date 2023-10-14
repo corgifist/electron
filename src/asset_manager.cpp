@@ -1,13 +1,13 @@
 #include "editor_core.h"
 
 namespace Electron {
-dylib ImplDylibs::AssetManagerDylib{};
+std::string ImplDylibs::AssetManagerDylib = "asset_manager_impl";
 int UICounters::AssetManagerCounter;
 
 AssetManager::AssetManager() {
     this->impl =
-        ImplDylibs::AssetManagerDylib.get_function<void(AppInstance *)>(
-            "AssetManagerRender");
+        Libraries::GetFunction<void(AppInstance *)>(
+            ImplDylibs::AssetManagerDylib, "AssetManagerRender");
     UICounters::AssetManagerCounter = 1;
 }
 

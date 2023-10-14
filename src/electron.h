@@ -25,7 +25,6 @@
 #include <time.h>
 #include <chrono>
 #include "json.hpp"
-#include "clip.h"
 #include "dylib.hpp"
 #include "IconsFontAwesome5.h"
 #define GLM_FORCE_SWIZZLE
@@ -39,7 +38,7 @@
 #include "ImGui/imgui.h"
 
 
-typedef std::unordered_map<std::string, dylib> DylibRegistry;
+typedef std::vector<std::string> DylibRegistry;
 
 #define print(expr) std::cout << expr << std::endl
 #define JSON_AS_TYPE(x, type) (x).template get<type>()

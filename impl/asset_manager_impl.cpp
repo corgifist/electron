@@ -82,7 +82,7 @@ extern "C" {
                         ImGui::Text(string_format("%s: %s", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_ID"), hexId.c_str()).c_str());
                         ImGui::SameLine();
                         if (ImGui::Button(CSTR(string_format("%s %s", ICON_FA_COPY, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY_ID"))))) {
-                            clip::set_text(hexId);
+                            ImGui::SetClipboardText(CSTR(hexId));
                         }
                         glm::vec2 naturalAssetReoslution = asset.GetDimensions();
                         ImGui::Text(CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION"), (int) naturalAssetReoslution.x, (int) naturalAssetReoslution.y)));

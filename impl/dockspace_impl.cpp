@@ -34,9 +34,9 @@ extern "C" {
                 if (ImGui::BeginMenu(CSTR(ICON_FA_LAYER_GROUP + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))))) {
                     auto registry = instance->graphics.GetImplementationsRegistry();
                     for (auto& entry : registry) {
-                        std::string key = entry.first;
-
-                        if (ImGui::MenuItem(registry.at(key).get_variable<std::string>("LayerName").c_str(), "")) {
+                        std::string key = entry;
+                        Libraries::LoadLibrary("layers", key);
+                        if (ImGui::MenuItem(Libraries::GetVariable<std::string>(key, "LayerName").c_str(), "")) {
                             instance->graphics.AddRenderLayer(key);
                         }
                     }
