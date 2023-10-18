@@ -85,6 +85,10 @@ extern "C" {
                 previewScale -= 0.05f;
             }
 
+            if (ImGui::Shortcut(ImGuiKey_ModCtrl | ImGuiKey_R)) {
+                previewScale = 1;
+            }
+
             if (instance->graphics.firePlay) {
                 playing = !playing;
                 instance->graphics.firePlay = false;

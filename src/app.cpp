@@ -177,6 +177,7 @@ Electron::AppInstance::AppInstance() {
     this->projectOpened = false;
 
     this->graphics.PrecompileEssentialShaders();
+    Servers::InitializeCurl();
 
     this->graphics.owner = this;
     this->graphics.assetsPtr = &assets;
@@ -210,14 +211,20 @@ static void ChangeShowDemoWindow() { showDemoWindow = !showDemoWindow; }
 void Electron::AppInstance::Run() {
     AddShortcut({ImGuiKey_I}, ChangeShowDemoWindow);
     while (!glfwWindowShouldClose(this->displayHandle)) {
-
+        
         ImGuiIO &io = ImGui::GetIO();
         if (projectOpened) {
             project.SaveProject();
         }
 
-        std::ofstream configStream("config.json");
-        configStream << configMap.dump();
+        // std::ofstream configStream("config.json");
+        // configStream << configMap.dump();
+
+        Servers::AsyncWriterRequest({
+            {"action", "write"},
+            {"path", "config.json"},
+            {"content", configMap.dump()}
+        });
 
         if (JSON_AS_TYPE(configMap["LastProject"], std::string) != "null") {
             if (!file_exists(
@@ -353,6 +360,10 @@ editor_end:
 }
 
 void Electron::AppInstance::Terminate() {
+    Servers::AsyncWriterRequest({
+        {"action", "kill"}
+    });
+    Servers::DestroyCurl();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -449,8 +460,11 @@ bool Electron::AppInstance::ButtonCenteredOnLine(const char *label,
 void Electron::ProjectMap::SaveProject() {
     std::string propertiesDump = propertiesMap.dump();
 
-    std::ofstream propertiesStream(path + "/project.json");
-    propertiesStream << propertiesDump;
+    Servers::AsyncWriterRequest({
+        {"action", "write"},
+        {"path", path + "/project.json"},
+        {"content", propertiesDump}
+    });
 }
 
 void Electron::AppInstance::SetupImGuiStyle() {

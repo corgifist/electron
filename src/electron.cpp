@@ -1,5 +1,6 @@
 #include "backward.hpp"
 #include "electron.h"
+#include "libraries.h"
 #include "app.h"
 
 bool Electron::Rect::contains(Electron::Point p) {
@@ -24,6 +25,26 @@ std::string Electron::exec(const char *cmd) {
 }
 
 int main(int argc, char *argv[]) {
+    if (argc > 1) {
+        std::string serverType = "";
+        int port = 80;
+        int pid = 0;
+        for (int i = 1; i < argc; i++) {
+            std::string arg = argv[i];
+            if (arg == "--type") {
+                serverType = argv[++i];
+            } else if (arg == "--port") {
+                std::string ps = argv[++i];
+                port = std::stoi(ps);
+            } else if (arg == "--pid") {
+                pid = std::stoi(argv[++i]);
+            }
+        }
+        print("starting " << serverType << " server at port " << std::to_string(port));
+        Electron::Libraries::GetFunction<void(int, int)>(serverType, "ServerStart")(port, pid);
+        exit(0);
+    }
+    system((std::string("./") + argv[0] + " --type async_writer --port 4040 --pid " + std::to_string(getpid()) + " &").c_str());
     std::ofstream tempStream("electron.log");
     tempStream << "[ELECTRON LOG BEGIN]";
 

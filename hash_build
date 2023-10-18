@@ -22,7 +22,8 @@ impl_target_file = null
 
 object_add_compile_options(fPIC)
 object_add_compile_options(g) # include debug symbols
-object_add_compile_options(Wunicode)
+object_add_compile_options(Werror)
+object_add_compile_options("Wno-unused")
 object_add_compile_options("I /usr/include/")
 
 dump_compilation_commands(0)
@@ -32,7 +33,8 @@ target_impls = [
     render_preview_impl,
     layer_properties_impl,
     asset_manager_impl,
-    dockspace_impl
+    dockspace_impl,
+    async_writer
 ]
 
 target_layers = [
@@ -55,17 +57,10 @@ scenario build_core {
     info("starting Electron build")
     object_add_compile_definition("GLEW_STATIC")
     compilation_targets = cat(glob_files("src", "cpp"), glob_files("src", "c"))
-    compilation_targets = filter_list_from_string($compilation_targets, "clip")
     compilation_targets = filter_list_from_string($compilation_targets, "imgui")
     compilation_targets = filter_list_from_string($compilation_targets, "ImGui")
     compilation_targets = filter_list_from_string($compilation_targets, "implot")
     compilation_targets = filter_list_from_string($compilation_targets, "electron.cpp")
-    list_append($compilation_targets, "src/clip.cpp")
-    if eq(get_platform(), windows) {
-        list_append($compilation_targets, "src/clip_win.cpp")
-    } else {
-        list_append($compilation_targets, "src/clip_x11.cpp")
-    }
     objects = object_compile(
         $compilation_targets,
         $build_arch
@@ -76,11 +71,11 @@ scenario build_core {
         list_append($deps, opengl32)
         list_append($deps, glfw3)
         deps = [
-            opengl32, glfw3, windowscodecs, ole32, shlwapi, pthread, dbgeng, backtrace, dbgeng, bfd, dbghelp
+            opengl32, glfw3, windowscodecs, ole32, shlwapi, pthread, dbgeng, backtrace, dbgeng, bfd, dbghelp, curl
         ]
     } else {
         deps = [
-            glfw, m, Xrandr, Xi, X11, pthread, "stdc++", dl, backtrace, bfd, xcb
+            glfw, m, Xrandr, Xi, X11, pthread, "stdc++", dl, backtrace, bfd, xcb, curl
         ]
     }
 

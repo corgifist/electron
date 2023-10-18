@@ -341,7 +341,6 @@ void Electron::RenderLayer::RenderProperties() { propertiesProcedure(this); }
 void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type,
                                            json_t &property,
                                            std::string propertyName) {
-#ifndef ELECTRON_IMPLEMENTATION_MODE
     ImVec2 windowSize = ImGui::GetWindowSize();
     float inputFieldDivider = 8;
     if (ImGui::CollapsingHeader(propertyName.c_str())) {
@@ -488,7 +487,6 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type,
                 break;
         }
     }
-#endif
 }
 
 void Electron::RenderLayer::RenderTextureProperty(json_t &property,

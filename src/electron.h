@@ -24,6 +24,8 @@
 #include <cstdlib>
 #include <time.h>
 #include <chrono>
+#include <unistd.h>
+#include <signal.h>
 #include "json.hpp"
 #include "dylib.hpp"
 #include "IconsFontAwesome5.h"
@@ -136,6 +138,13 @@ namespace Electron {
     static std::ifstream::pos_type filesize(const char* filename) {
         std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
         return in.tellg(); 
+    }
+
+    static bool process_is_alive(int pid) {
+        if (0 == kill(pid, 0)) {
+            return true;
+        }
+        return false;
     }
 
     static std::string intToHex(int x) {

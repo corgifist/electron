@@ -552,7 +552,7 @@ void Timeline::Render(AppInstance *instance) {
                     logicSize);
 
                 if (MouseHoveringBounds(keyframeBounds) && !drag.isActive &&
-                    ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] &&
+                    ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && ImGui::IsWindowFocused() &&
                     !anyKeyframesDragged) {
                     drag.isActive = true;
                 }

@@ -14,14 +14,7 @@
 #include "graphics_core.h"
 
 #include "shortcuts.h"
-
-#define ELECTRON_JSON_TO_STRING(x) 
-
-#ifdef ELECTRON_IMPLEMENTATION_MODE
-    #define DIRECT_SIGNAL(instance, signal) ElectronImplDirectSignal(instance, signal)
-#else
-    #define DIRECT_SIGNAL(instance, signal) instance->ExecuteSignal(signal)
-#endif
+#include "servers.h"
 
 
 namespace UI {
