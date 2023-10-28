@@ -194,6 +194,16 @@ Electron::AppInstance::AppInstance() {
     // graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
     AppInstance::shadowTex =
         graphics.CreateBufferFromImage("misc/shadow.png").BuildGPUTexture();
+
+    Servers::AudioServerRequest({
+        {"action", "load_sample"},
+        {"path", "meow.ogg"},
+        {"handle", 0}
+    });
+    Servers::AudioServerRequest({
+        {"action", "play_sample"},
+        {"handle", 0}
+    });
 }
 
 Electron::AppInstance::~AppInstance() {
@@ -207,11 +217,34 @@ static bool showDemoWindow = false;
 
 static void ChangeShowDemoWindow() { showDemoWindow = !showDemoWindow; }
 
+void Electron::AppInstance::RenderCriticalError(std::string text, bool* p_open) {
+    std::string popupTitle = (std::string(ELECTRON_GET_LOCALIZATION(this, "CRITICAL_ERROR")) + "##" + std::string(std::to_string((uint64_t) p_open))).c_str();
+    ImGui::OpenPopup(popupTitle.c_str());
+
+    if (ImGui::BeginPopupModal(popupTitle.c_str(), p_open, ImGuiWindowFlags_NoResize)) {
+        ImGui::Text("%s", text.c_str());
+        ImGui::EndPopup();
+    }
+}
 
 void Electron::AppInstance::Run() {
     AddShortcut({ImGuiKey_I}, ChangeShowDemoWindow);
     while (!glfwWindowShouldClose(this->displayHandle)) {
-        
+        static bool audioServerDead = false;
+        if (!Servers::AudioServerRequest({
+            {"action", "alive"}
+        }) && !audioServerDead) {
+            audioServerDead = true;
+        }
+
+        static bool asyncWriterDead = false;
+        if (!Servers::AsyncWriterRequest({
+            {"action", "alive"}
+        }) && !asyncWriterDead) {
+            asyncWriterDead = true;
+        }
+
+
         ImGuiIO &io = ImGui::GetIO();
         if (projectOpened) {
             project.SaveProject();
@@ -253,6 +286,9 @@ void Electron::AppInstance::Run() {
 
         PixelBuffer::filtering =
             configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
+        if (projectOpened) {
+            project.propertiesMap["LastSelectedLayer"] = selectedRenderLayer;
+        }
 
         if (isNativeWindow) {
             int displayWidth, displayHeight;
@@ -298,7 +334,7 @@ void Electron::AppInstance::Run() {
             ImVec2 messageSize = ImGui::CalcTextSize(configMessage.c_str());
             ImVec2 windowSize = ImGui::GetWindowSize();
             ImGui::SetCursorPosX(windowSize.x / 2.0f - messageSize.x / 2.0f);
-            ImGui::Text(configMessage.c_str());
+            ImGui::Text("%s", configMessage.c_str());
 
             ImGuiStyle &style = ImGui::GetStyle();
             std::string okString = "OK";
@@ -307,6 +343,17 @@ void Electron::AppInstance::Run() {
                 showBadConfigMessage = false;
             }
             ImGui::End();
+        }
+
+
+        if (audioServerDead) {
+            static bool asOpen = true;
+            RenderCriticalError(ELECTRON_GET_LOCALIZATION(this, "AUDIO_SERVER_CRASHED"), &asOpen);
+        }
+
+        if (asyncWriterDead) {
+            static bool awOpen = true;
+            RenderCriticalError(ELECTRON_GET_LOCALIZATION(this, "ASYNC_WRITER_CRASHED"), &awOpen);
         }
 
         std::vector<ElectronUI *> uiCopy = this->content;
@@ -361,6 +408,9 @@ editor_end:
 
 void Electron::AppInstance::Terminate() {
     Servers::AsyncWriterRequest({
+        {"action", "kill"}
+    });
+    Servers::AudioServerRequest({
         {"action", "kill"}
     });
     Servers::DestroyCurl();

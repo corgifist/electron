@@ -150,7 +150,7 @@ void Timeline::Render(AppInstance *instance) {
         ImVec2 textSize = ImGui::CalcTextSize(noProjectOpened.c_str());
         ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - textSize.x / 2.0f,
                                    windowSize.y / 2.0f - textSize.y / 2.0f});
-        ImGui::Text(noProjectOpened.c_str());
+        ImGui::Text("%s", noProjectOpened.c_str());
         ImGui::End();
         ImGui::PopStyleVar(2);
         return;
@@ -220,7 +220,13 @@ void Timeline::Render(AppInstance *instance) {
         src_flags |= ImGuiDragDropFlags_SourceNoHoldToOpenOthers;
         ImGuiDragDropFlags target_flags = 0;
         target_flags |= ImGuiDragDropFlags_AcceptNoDrawDefaultRect;
-        ImGui::SetItemAllowOverlap();
+        bool visible = layer->visible;
+        if (visible) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.17f, 0.17f, 0.17f, 1));
+        if (ImGui::Button(string_format("%s", layer->visible ? ICON_FA_EYE : ICON_FA_EYE_SLASH).c_str())) {
+            layer->visible = !layer->visible;
+        }
+        if (visible) ImGui::PopStyleColor();
+        ImGui::SameLine();
         if (ImGui::CollapsingHeader(
                 (layer->layerUsername + "##" + std::to_string(i)).c_str())) {
             if (ImGui::IsItemHovered() &&

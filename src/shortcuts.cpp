@@ -9,6 +9,8 @@ void Electron::Shortcuts::Ctrl_P_O(ProjectMap projectMap) {
     owner->project = projectMap;
     owner->graphics.projectPath = projectMap.path;
 
+    owner->selectedRenderLayer = JSON_AS_TYPE(projectMap.propertiesMap["LastSelectedLayer"], int);
+
     owner->assets.LoadFromProject(projectMap.propertiesMap);
 }
 

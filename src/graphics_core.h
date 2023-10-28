@@ -203,6 +203,7 @@ namespace Electron {
         std::string layerUsername;
         int registryIndex;
         int id;
+        bool visible;
 
         static GraphicsCore* globalCore;
 

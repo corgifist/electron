@@ -14,38 +14,52 @@ extern "C" {
                 std::string projectWarningString = ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_NO_PROJECT");
                 ImVec2 warningSize = ImGui::CalcTextSize(projectWarningString.c_str());
                 ImGui::SetCursorPos({windowSize.x / 2.0f - warningSize.x / 2.0f, windowSize.y / 2.0f - warningSize.y / 2.0f});
-                ImGui::Text(CSTR(projectWarningString));
+                ImGui::Text("%s", CSTR(projectWarningString));
                 ImGui::End();
                 return;
             }
 
-            if (instance->selectedRenderLayer == -1 || instance->graphics.layers.size() == 0) {
+            static bool setup = false;
+            if (!setup) {
+                instance->selectedRenderLayer = JSON_AS_TYPE(instance->project.propertiesMap["LastSelectedLayer"], int);
+                setup = true;
+            }
+
+            bool layerExists = false;
+            if (instance->projectOpened) {
+                try {
+                    instance->graphics.GetLayerByID(instance->selectedRenderLayer);
+                    layerExists = true;
+                } catch (const std::runtime_error& err) {
+                    layerExists = false;
+                }
+            }
+            if (instance->selectedRenderLayer == -1 || instance->graphics.layers.size() == 0 || !layerExists) {
                 std::string noLayerWarning = ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_NO_LAYER_SELECTED");
                 ImVec2 warningSize = ImGui::CalcTextSize(CSTR(noLayerWarning));
                 ImGui::SetCursorPos({windowSize.x / 2.0f - warningSize.x / 2.0f, windowSize.y / 2.0f - warningSize.y / 2.0f});
-                ImGui::Text(CSTR(noLayerWarning));
+                ImGui::Text("%s", CSTR(noLayerWarning));
                 UI::End();
                 return;
             }
-
 
             static float titleChildHeight = 100;
             RenderLayer* targetLayer = instance->graphics.GetLayerByID(instance->selectedRenderLayer);
             ImGui::BeginChild("layerPropsTitleChild", ImVec2(ImGui::GetWindowSize().x, titleChildHeight), false, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
             float beginCursor = ImGui::GetCursorPos().y;
             ImGui::PushFont(instance->largeFont);
-                ImGui::Text(CSTR(std::string(ICON_FA_LAYER_GROUP " ") + targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(targetLayer->id) + ">" + ")"));
+                ImGui::Text("%s", CSTR(std::string(ICON_FA_LAYER_GROUP " ") + targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(targetLayer->id) + ">" + ")"));
             ImGui::PopFont();
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_RIGHT_CLICK_FOR_INFO"));
+                ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_RIGHT_CLICK_FOR_INFO"));
             }
             if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
                 ImGui::OpenPopup("layerPropAdditionalInfo", 0);
             }
             if (ImGui::BeginPopup("layerPropAdditionalInfo", 0)) {
                 ImGui::SeparatorText(CSTR(string_format("%s %s", ICON_FA_CIRCLE_INFO, CSTR(targetLayer->layerPublicName))));
-                ImGui::Text(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_DYNAMIC_LIBRARY")) + ": " + targetLayer->layerLibrary));
-                ImGui::Text(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_RENDER_BOUNDS")) + ": " + std::to_string(targetLayer->beginFrame) + " -> " + std::to_string(targetLayer->endFrame)));
+                ImGui::Text("%s", CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_DYNAMIC_LIBRARY")) + ": " + targetLayer->layerLibrary));
+                ImGui::Text("%s", CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_RENDER_BOUNDS")) + ": " + std::to_string(targetLayer->beginFrame) + " -> " + std::to_string(targetLayer->endFrame)));
                 ImGui::InputText(CSTR(std::string(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_LAYER_NAME"))), &targetLayer->layerUsername, 0);
                 ImGui::EndPopup();
             }

@@ -34,7 +34,8 @@ target_impls = [
     layer_properties_impl,
     asset_manager_impl,
     dockspace_impl,
-    async_writer
+    async_writer,
+    audio_server
 ]
 
 target_layers = [
@@ -68,14 +69,12 @@ scenario build_core {
 
     deps = list()
     if eq(get_platform(), windows) {
-        list_append($deps, opengl32)
-        list_append($deps, glfw3)
         deps = [
             opengl32, glfw3, windowscodecs, ole32, shlwapi, pthread, dbgeng, backtrace, dbgeng, bfd, dbghelp, curl
         ]
     } else {
         deps = [
-            glfw, m, Xrandr, Xi, X11, pthread, "stdc++", dl, backtrace, bfd, xcb, curl
+            glfw, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, GLESv2, EGL, notify
         ]
     }
 
@@ -112,6 +111,9 @@ scenario build_impl {
         impl_deps = [
             "stdc++", dl, pthread, backtrace, bfd, dl
         ]
+    }
+    if eq($impl_target_file, audio_server) {
+        impl_deps = cat($impl_deps, [soloud, SDL2])
     }
     link_executable($impl_objects, $shared_library_name, $impl_deps, shared)
 }

@@ -37,12 +37,12 @@ extern "C" {
             if (ImGui::BeginTabItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_PROJECT_CONFIGURATION"), nullptr, 0)) {
             if (instance->projectOpened) {
                 ProjectMap& project = instance->project;
-                std::string projectConfigurationTitle = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_PROJECT_CONFIGURATION");
+                std::string projectConfigurationTitle = string_format("%s %s", ICON_FA_GEAR, ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_PROJECT_CONFIGURATION"));
 
                 ImGui::PushFont(instance->largeFont);
                     ImVec2 titleSize = ImGui::CalcTextSize(CSTR(projectConfigurationTitle));
                     ImGui::SetCursorPosX(windowSize.x / 2.0f - titleSize.x / 2.0f);
-                    ImGui::Text(CSTR(projectConfigurationTitle));
+                    ImGui::Text("%s", CSTR(projectConfigurationTitle));
                 ImGui::PopFont();
                 ImGui::Separator();
 
@@ -71,16 +71,16 @@ extern "C" {
                     windowSize.x / 2.0f - tipSize.x / 2.0f,
                     windowSize.y / 2.0f - tipSize.y / 2.0f
                 });
-                ImGui::Text(projectTip.c_str());
+                ImGui::Text("%s", projectTip.c_str());
             }
             ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_CONFIGURATION"), nullptr, 0)) {
                 ImGui::PushFont(instance->largeFont);
-                    std::string editorConfigurationString = ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_CONFIGURATION");
+                    std::string editorConfigurationString = string_format("%s %s", ICON_FA_GEAR, ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_CONFIGURATION"));
                     ImVec2 editorConfigurationTextSize = ImGui::CalcTextSize(CSTR(editorConfigurationString));
                     ImGui::SetCursorPosX(windowSize.x / 2.0f - editorConfigurationTextSize.x / 2.0f);
-                    ImGui::Text(CSTR(editorConfigurationString));
+                    ImGui::Text("%s", CSTR(editorConfigurationString));
                 ImGui::PopFont();
                 ImGui::Separator();
                 
@@ -119,12 +119,12 @@ extern "C" {
                 ImGui::Checkbox(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESIZE_INTERPOLATION"), &resizeInterpolation);
                 instance->configMap["ResizeInterpolation"] = resizeInterpolation;
                 if (ImGui::IsItemHovered()) 
-                    ImGui::SetTooltip(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_SMOOTHNESS_DECREASE"));
+                    ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_SMOOTHNESS_DECREASE"));
 
                 float uiScaling = JSON_AS_TYPE(instance->configMap["UIScaling"], float);
                 ImGui::SliderFloat(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_EDITOR_UI_SCALING"), &uiScaling, 0.5f, 2.5f, "%0.1f", 0);
                 if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED"));
+                    ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED"));
                 instance->configMap["UIScaling"] = uiScaling;
                 
             ImGui::EndTabItem();

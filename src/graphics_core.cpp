@@ -256,6 +256,7 @@ std::string Electron::AssetRegistry::ImportAsset(std::string path) {
 void Electron::AssetRegistry::Clear() { this->assets.clear(); }
 
 Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
+    this->visible = true;
     this->graphicsOwner = globalCore;
     this->layerLibrary = layerLibrary;
     Libraries::LoadLibrary("layers", layerLibrary);
@@ -302,6 +303,7 @@ void Electron::RenderLayer::FetchImplementation() {
 
 void Electron::RenderLayer::Render(GraphicsCore *graphics,
                                    RenderRequestMetadata metadata) {
+    if (!visible) return;
     this->graphicsOwner = graphics;
     if (std::clamp((int)graphics->renderFrame, beginFrame, endFrame) ==
         (int)graphics->renderFrame)
@@ -534,17 +536,17 @@ void Electron::RenderLayer::RenderTextureProperty(json_t &property,
         }
         ImGui::Spacing();
         if (textureAsset == nullptr) {
-            ImGui::Text(("No asset with ID '" + textureID + "' found").c_str());
+            ImGui::Text("%s", ("No asset with ID '" + textureID + "' found").c_str());
         } else if (!textureAsset->IsTextureCompatible()) {
-            ImGui::Text(
+            ImGui::Text("%s", 
                 ("Asset with ID '" + textureID + "' is not texture-compatible")
                     .c_str());
         } else {
             RenderBuffer *pbo = &graphicsOwner->renderBuffer;
             glm::vec2 textureDimensions = textureAsset->GetDimensions();
-            ImGui::Text(("Asset name: " + textureAsset->name).c_str());
-            ImGui::Text(("Asset type: " + textureAsset->strType).c_str());
-            ImGui::Text(("SDF-Type asset size" + std::string(": ") +
+            ImGui::Text("%s", ("Asset name: " + textureAsset->name).c_str());
+            ImGui::Text("%s", ("Asset type: " + textureAsset->strType).c_str());
+            ImGui::Text("%s", ("SDF-Type asset size" + std::string(": ") +
                          std::to_string((textureDimensions.y / pbo->height)) +
                          "x" +
                          std::to_string((textureDimensions.x / pbo->width)))
@@ -556,7 +558,7 @@ void Electron::RenderLayer::RenderTextureProperty(json_t &property,
             static std::string searchFilter = "";
             ImGui::InputText("##PopupSearchFilter", &searchFilter, 0);
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip(string_format("%s %s",
+                ImGui::SetTooltip("%s", string_format("%s %s",
                                                 ICON_FA_MAGNIFYING_GLASS,
                                                 "Search filter")
                                       .c_str());

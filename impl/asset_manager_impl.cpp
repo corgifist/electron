@@ -23,7 +23,7 @@ extern "C" {
                 std::string noProjectOpened = ELECTRON_GET_LOCALIZATION(instance, "GENERIC_NO_PROJECT_IS_OPENED");
                 ImVec2 textSize = ImGui::CalcTextSize(CSTR(noProjectOpened));
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - textSize.x / 2.0f, windowSize.y / 2.0f - textSize.y / 2.0f});
-                ImGui::Text(CSTR(noProjectOpened));
+                ImGui::Text("%s", CSTR(noProjectOpened));
                 ImGui::End();
                 return;
             }
@@ -54,7 +54,7 @@ extern "C" {
                 if (assetSelected == -1) {
                     std::string noAssetSelectedMsg = ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_NO_ASSET_SELECTED");
                     ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize(CSTR(noAssetSelectedMsg)).x / 2.0f);
-                    ImGui::Text(CSTR(noAssetSelectedMsg));
+                    ImGui::Text("%s", CSTR(noAssetSelectedMsg));
                 } else {
                     TextureUnion& asset = instance->assets.assets[assetSelected];
                     ImVec2 acceptedPreviewResolution = {ImGui::GetContentRegionAvail().x * 0.35f, 128};
@@ -77,22 +77,22 @@ extern "C" {
                         ImGui::TableSetColumnIndex(1);
                         ImGui::InputText("##AssetName", &asset.name, 0);
                         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) 
-                            ImGui::SetTooltip(CSTR(string_format("%s %s", ICON_FA_PENCIL, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_RESOURCE_NAME"))));
+                            ImGui::SetTooltip("%s", CSTR(string_format("%s %s", ICON_FA_PENCIL, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_RESOURCE_NAME"))));
                         std::string hexId = intToHex(asset.id);
-                        ImGui::Text(string_format("%s: %s", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_ID"), hexId.c_str()).c_str());
+                        ImGui::Text("%s", string_format("%s: %s", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_ID"), hexId.c_str()).c_str());
                         ImGui::SameLine();
                         if (ImGui::Button(CSTR(string_format("%s %s", ICON_FA_COPY, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY_ID"))))) {
                             ImGui::SetClipboardText(CSTR(hexId));
                         }
                         glm::vec2 naturalAssetReoslution = asset.GetDimensions();
-                        ImGui::Text(CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION"), (int) naturalAssetReoslution.x, (int) naturalAssetReoslution.y)));
+                        ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION"), (int) naturalAssetReoslution.x, (int) naturalAssetReoslution.y)));
                     ImGui::EndTable();
                 }
                 ImGui::Spacing(); ImGui::Spacing();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
                 ImGui::InputText("##SearchFilterChild", &searchFilter, 0);
                 if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                    ImGui::SetTooltip(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_SEARCH")).c_str());
+                    ImGui::SetTooltip("%s", string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_SEARCH")).c_str());
                 if (ImGui::Selectable(string_format("%s %s", ICON_FA_FILE_IMPORT, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_IMPORT_ASSET")).c_str(), p)) {
                     ImGuiFileDialog::Instance()->OpenDialog("ImportAssetDlg", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_SELECT_ASSET_PATH"), IMPORT_EXTENSIONS, ".");
                 }
@@ -146,10 +146,10 @@ extern "C" {
                         if (column == 1) {
                             std::string path = asset.path;
                             path = std::filesystem::relative(path).string();
-                            ImGui::Text(CSTR(path));
+                            ImGui::Text("%s", CSTR(path));
                         }
                         if (column == 2) {
-                            ImGui::Text(CSTR(std::to_string((float) filesize(asset.path.c_str()) / 1024.0f / 1024.0f)));
+                            ImGui::Text("%s", CSTR(std::to_string((float) filesize(asset.path.c_str()) / 1024.0f / 1024.0f)));
                         }
                     }
                 
@@ -200,7 +200,7 @@ extern "C" {
                         ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - imageSize.x / 2.0f, windowSize.y / 2.0f - imageSize.y / 2.0f} + imageOffset);
                         ImGui::Image((ImTextureID)(uint64_t) textureID, imageSize);
                         if (ImGui::IsItemHovered()) {
-                            ImGui::SetTooltip(CSTR(string_format("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_LEFT_CLICK_FOR_CONTEXT_MENU"))));
+                            ImGui::SetTooltip("%s", CSTR(string_format("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_LEFT_CLICK_FOR_CONTEXT_MENU"))));
                         }
                         if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
                             ImGui::OpenPopup("assetContextMenu");
@@ -222,11 +222,11 @@ extern "C" {
                 if (ImGui::BeginTable("detailsTable", 2)) {
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
-                    ImGui::Text(CSTR(string_format("%s %s", asset.GetIcon().c_str(), asset.name.c_str())));
+                    ImGui::Text("%s", CSTR(string_format("%s %s", asset.GetIcon().c_str(), asset.name.c_str())));
                     ImGui::TableSetColumnIndex(1);
                     switch (asset.type) {
                         case TextureUnionType::Texture: {
-                            ImGui::Text(CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_RESOLUTION"), (int) asset.GetDimensions().x, (int) asset.GetDimensions().y)));
+                            ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_RESOLUTION"), (int) asset.GetDimensions().x, (int) asset.GetDimensions().y)));
                         }
                     }
                     ImGui::EndTable();
@@ -244,7 +244,7 @@ extern "C" {
                 std::string nothingToExamine = ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_NOTHING_TO_EXAMINE");
                 ImVec2 textSize = ImGui::CalcTextSize(CSTR(nothingToExamine));
                 ImGui::SetCursorPos({windowSize.x / 2.0f - textSize.x / 2.0f, windowSize.y / 2.0f - textSize.y / 2.0f});
-                ImGui::Text(CSTR(nothingToExamine));
+                ImGui::Text("%s", CSTR(nothingToExamine));
             ImGui::End();
         }
 
@@ -269,7 +269,7 @@ extern "C" {
         if (importErrorMessage != "") {
             UI::Begin(CSTR(string_format("%s %s", ICON_FA_EXCLAMATION, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_IMPORT_FAILURE"))), ElectronSignal_None, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
                 ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize(CSTR(importErrorMessage)).x / 2.0f);
-                ImGui::Text(CSTR(importErrorMessage));
+                ImGui::Text("%s", CSTR(importErrorMessage));
 
                 if (instance->ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_OK"))) {
                     importErrorMessage = "";

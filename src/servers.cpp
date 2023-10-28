@@ -10,7 +10,7 @@ namespace Electron {
     static CURL* hnd = nullptr;
 
 
-    void Servers::PerformSyncedRequest(int port, json_t request) {
+    bool Servers::PerformSyncedRequest(int port, json_t request) {
         CURLcode ret;
         std::string json_dump = request.dump();
         curl_easy_setopt(hnd, CURLOPT_URL, string_format("0.0.0.0:%i/request", port).c_str());
@@ -21,14 +21,19 @@ namespace Electron {
         curl_easy_setopt(hnd, CURLOPT_MAXREDIRS, 50L);
         curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, servers_write_data);
         ret = curl_easy_perform(hnd);
+        return ret == CURLE_OK;
     }
 
-    void Servers::ServerRequest(int port, json_t request) {
-        PerformSyncedRequest(port, request);
+    bool Servers::ServerRequest(int port, json_t request) {
+        return PerformSyncedRequest(port, request);
     }
 
-    void Servers::AsyncWriterRequest(json_t request) {
-        ServerRequest(4040, request);
+    bool Servers::AsyncWriterRequest(json_t request) {
+        return ServerRequest(4040, request);
+    }
+
+    bool Servers::AudioServerRequest(json_t request) {
+        return ServerRequest(4045, request);
     }
 
     void Servers::InitializeCurl() {

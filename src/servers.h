@@ -6,11 +6,12 @@
 namespace Electron {
     class Servers {
     private:
-        static void PerformSyncedRequest(int port, json_t request);
-        static void ServerRequest(int port, json_t request);
+        static bool PerformSyncedRequest(int port, json_t request);
+        static bool ServerRequest(int port, json_t request);
 
     public:
-        static void AsyncWriterRequest(json_t request);
+        static bool AsyncWriterRequest(json_t request);
+        static bool AudioServerRequest(json_t request);
         static void InitializeCurl();
         static void DestroyCurl();
     };

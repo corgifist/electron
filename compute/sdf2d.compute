@@ -38,7 +38,7 @@ void main() {
         vec3 rectColor = color;
         if (canTexture) {
             ivec2 textureSize = ivec2(assetSize);
-            vec4 texturePixel = imageLoad(textureAsset, ivec2(int(float(rectUV.x) * float(textureSize.x)), int(float(rectUV.y) * float(textureSize.y))));
+            vec4 texturePixel = imageLoad(textureAsset, ivec2(floor(float(rectUV.x) * float(textureSize.x)), floor(float(rectUV.y) * float(textureSize.y))));
             rectColor *= texturePixel.rgb;
         }
         imageStore(pboColor, texelCoord, vec4(rectColor, 1.0));

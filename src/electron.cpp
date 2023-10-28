@@ -3,6 +3,8 @@
 #include "libraries.h"
 #include "app.h"
 
+#define start_server(type, port) system((std::string("./") + argv[0] + " --type " + type + " --port " + std::to_string(port) + " --pid " + std::to_string(getpid()) + " &").c_str())
+
 bool Electron::Rect::contains(Electron::Point p) {
     return p.x >= x && p.y >= y && p.x <= x + w && p.y <= y + h;
 }
@@ -24,6 +26,8 @@ std::string Electron::exec(const char *cmd) {
     return result;
 }
 
+
+
 int main(int argc, char *argv[]) {
     if (argc > 1) {
         std::string serverType = "";
@@ -44,9 +48,12 @@ int main(int argc, char *argv[]) {
         Electron::Libraries::GetFunction<void(int, int)>(serverType, "ServerStart")(port, pid);
         exit(0);
     }
-    system((std::string("./") + argv[0] + " --type async_writer --port 4040 --pid " + std::to_string(getpid()) + " &").c_str());
+
+
     std::ofstream tempStream("electron.log");
     tempStream << "[ELECTRON LOG BEGIN]";
+    start_server("async_writer", 4040);
+    start_server("audio_server", 4045);
 
     /* std::ios_base::sync_with_stdio(false);
     std::cin.tie(0);

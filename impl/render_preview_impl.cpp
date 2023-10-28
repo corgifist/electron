@@ -65,7 +65,7 @@ extern "C" {
                 ImVec2 warningTextSize = ImGui::CalcTextSize(CSTR(projectRequiredString));
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - warningTextSize.x / 2.0f,  windowSize.y / 2.0f - warningTextSize.y / 2.0f});
-                ImGui::Text(CSTR(projectRequiredString));
+                ImGui::Text("%s", CSTR(projectRequiredString));
                 UI::End();
                 return;
             }
@@ -195,7 +195,7 @@ extern "C" {
                         ImGui::EndCombo();
                     }
                     if (ImGui::IsItemHovered()) {
-                        ImGui::SetTooltip(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_RESOLUTIONS_LABEL"));
+                        ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_RESOLUTIONS_LABEL"));
                     }
                     ImGui::TableNextColumn();
                     static std::string outputBufferTypes[] = {
@@ -219,7 +219,7 @@ extern "C" {
                         ImGui::EndCombo();
                     }
                     if (ImGui::IsItemHovered()) {
-                        ImGui::SetTooltip(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_OUTPUT_BUFFER_TYPE"));
+                        ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_OUTPUT_BUFFER_TYPE"));
                     }
                     instance->graphics.outputBufferType = rawBufferTypes[selectedOutputBufferType];
                     ImGui::TableNextColumn();
@@ -240,7 +240,7 @@ extern "C" {
                         ImGui::EndCombo();
                     }
                     if (ImGui::IsItemHovered()) {
-                        ImGui::SetTooltip(ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_OUTPUT_CHANNELS"));
+                        ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_OUTPUT_CHANNELS"));
                     }
 
                     ImGui::TableNextColumn();

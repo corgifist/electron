@@ -107,5 +107,8 @@
     "GENERIC_B": "B",
     "GENERIC_RGB": "RGB",
     "GENERIC_RESOLUTION": "Resolution",
-    "GENERIC_PLACEHOLDER": "Imagine here a powerful video editor with tons of effects and plugins available for free"
+    "GENERIC_PLACEHOLDER": "Imagine here a powerful video editor with tons of effects and plugins available for free",
+    "CRITICAL_ERROR": "Critical error",
+    "AUDIO_SERVER_CRASHED": "Audio server crashed, so now you cannot use audio playback in Electron",
+    "ASYNC_WRITER_CRASHED": "Async writer crashed, so now you cannot save any project or change editor configuration"
 }

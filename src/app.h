@@ -96,6 +96,8 @@ namespace Electron {
 
         void RestoreBadConfig();
 
+        void RenderCriticalError(std::string text, bool* p_open);
+
         Electron::ElectronVector2f GetNativeWindowSize();
         Electron::ElectronVector2f GetNativeWindowPos();
 
