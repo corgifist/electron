@@ -74,7 +74,7 @@ scenario build_core {
         ]
     } else {
         deps = [
-            glfw, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, GLESv2, EGL, notify
+            glfw, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, GLESv2, EGL
         ]
     }
 

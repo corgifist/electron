@@ -127,6 +127,10 @@ glm::vec2 Electron::TextureUnion::GetDimensions() {
         PixelBuffer pbo = std::get<PixelBuffer>(as);
         return {pbo.width, pbo.height};
     }
+    case TextureUnionType::Audio: {
+        DUMP_VAR((int) coverResolution.x);
+        return coverResolution;
+    }
     default: {
         return {0, 0};
     }
@@ -151,6 +155,9 @@ std::string Electron::TextureUnion::GetIcon() {
     case TextureUnionType::Texture: {
         return ICON_FA_IMAGE;
     }
+    case TextureUnionType::Audio: {
+        return ICON_FA_MUSIC;
+    }
     }
     return ICON_FA_QUESTION;
 }
@@ -167,12 +174,27 @@ void Electron::AssetRegistry::LoadFromProject(json_t project) {
             JSON_AS_TYPE(assetDescription["Path"], std::string);
         std::string internalName =
             JSON_AS_TYPE(assetDescription["InternalName"], std::string);
+        std::string audioCoverPath = "";
+        glm::vec2 audioCoverResolution = {0, 0};
+        if (type == TextureUnionType::Audio) {
+            audioCoverPath = JSON_AS_TYPE(assetDescription["AudioCoverPath"], std::string);
+            audioCoverResolution = {
+                JSON_AS_TYPE(assetDescription["AudioCoverResolution"].at(0), float),
+                JSON_AS_TYPE(assetDescription["AudioCoverResolution"].at(1), float)
+            };
+        }
         int id = JSON_AS_TYPE(assetDescription["ID"], int);
 
         AssetLoadInfo assetUnion = LoadAssetFromPath(resourcePath);
         if (assetUnion.returnMessage != "") {
             print(resourcePath << ": " << assetUnion.returnMessage);
             assetUnion.result.GenerateUVTexture();
+        }
+        assetUnion.result.audioCacheCover = audioCoverPath;
+        assetUnion.result.coverResolution = audioCoverResolution;
+        DUMP_VAR(assetUnion.result.audioCacheCover);
+        if (assetUnion.result.type == TextureUnionType::Audio) {
+            assetUnion.result.pboGpuTexture = this->owner->CreateBufferFromImage(audioCoverPath.c_str()).BuildGPUTexture();
         }
         assetUnion.result.name = internalName;
         assetUnion.result.id = id;
@@ -197,6 +219,8 @@ Electron::AssetRegistry::LoadAssetFromPath(std::string path) {
     if (hasEnding(lowerPath, ".png") || hasEnding(lowerPath, ".jpg") ||
         hasEnding(lowerPath, ".jpeg") || hasEnding(lowerPath, ".tga")) {
         targetAssetType = TextureUnionType::Texture;
+    } else if (hasEnding(lowerPath, ".ogg") || hasEnding(lowerPath, ".mp3") || hasEnding(lowerPath, ".wav")) {
+        targetAssetType = TextureUnionType::Audio;
     } else {
         retMessage = "Unsupported file format '" + path + "'";
         invalid = true;
@@ -225,6 +249,13 @@ Electron::AssetRegistry::LoadAssetFromPath(std::string path) {
                 std::get<PixelBuffer>(assetUnion.as).BuildGPUTexture();
             break;
         }
+        case TextureUnionType::Audio: {
+            AudioMetadata metadata{};
+            system(string_format("ffprobe %s &> .ffprobe_data", assetUnion.path.c_str()).c_str());
+            metadata.probe = read_file(".ffprobe_data");
+            assetUnion.as = metadata;
+            break;
+        }   
 
         default: {
             retMessage = "Editor is now unstable, restart now.";
@@ -249,6 +280,24 @@ std::string Electron::AssetRegistry::ImportAsset(std::string path) {
     if (loadInfo.returnMessage != "")
         return loadInfo.returnMessage;
     loadInfo.result.id = seedrand();
+    if (loadInfo.result.type == TextureUnionType::Audio) {
+        TextureUnion& tu = loadInfo.result;
+        if (!hasEnding(tu.path, ".ogg")) {
+            std::string formattedCachePath = string_format("cache/%i.ogg", Cache::GetCacheIndex());
+            system(string_format("ffmpeg -i %s %s", tu.path.c_str(), formattedCachePath.c_str()).c_str());
+            tu.path = formattedCachePath;
+        }
+        std::string coverPath = string_format("cache/%i.png", Cache::GetCacheIndex());
+        loadInfo.result.audioCacheCover = coverPath;
+        if (system(string_format("ffmpeg -i %s %s", tu.path.c_str(), coverPath.c_str()).c_str()) == 0) {
+            PixelBuffer coverBuffer = owner->CreateBufferFromImage(coverPath.c_str());
+            tu.audioCacheCover = coverPath;
+            tu.pboGpuTexture = coverBuffer.BuildGPUTexture();
+            tu.coverResolution = {
+                coverBuffer.width, coverBuffer.height
+            };
+        }
+    }
     assets.push_back(loadInfo.result);
     return loadInfo.returnMessage;
 }

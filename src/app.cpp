@@ -69,6 +69,10 @@ GLuint Electron::AppInstance::shadowTex = 0;
 Electron::AppInstance::AppInstance() {
     this->selectedRenderLayer = -1;
     this->showBadConfigMessage = false;
+    this->ffmpegAvailable = false;
+    if (system("ffmpeg -h") == 0 || system("ffprobe -h") == 0) {
+        ffmpegAvailable = true;
+    }
 
     glfwSetErrorCallback(electronGlfwError);
     if (!glfwInit()) {
@@ -111,9 +115,12 @@ Electron::AppInstance::AppInstance() {
 
     gladLoadGLES2(glfwGetProcAddress);
 
-    DUMP_VAR(glGetString(GL_RENDERER));
-    DUMP_VAR(glGetString(GL_VENDOR));
-    DUMP_VAR(glGetString(GL_VERSION));
+    this->renderer = std::string((const char*) glGetString(GL_RENDERER));
+    this->vendor = std::string((const char*) glGetString(GL_VENDOR));
+    this->version = std::string((const char*) glGetString(GL_VERSION));
+    DUMP_VAR(this->renderer);
+    DUMP_VAR(this->vendor);
+    DUMP_VAR(this->version);
 
     std::ostringstream oss;
     oss << glGetString(GL_VENDOR);
@@ -190,20 +197,11 @@ Electron::AppInstance::AppInstance() {
     this->graphics.FetchAllLayers();
 
     RenderLayer::globalCore = &graphics;
+    Cache::configReference = &configMap;
 
     // graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
     AppInstance::shadowTex =
         graphics.CreateBufferFromImage("misc/shadow.png").BuildGPUTexture();
-
-    Servers::AudioServerRequest({
-        {"action", "load_sample"},
-        {"path", "meow.ogg"},
-        {"handle", 0}
-    });
-    Servers::AudioServerRequest({
-        {"action", "play_sample"},
-        {"handle", 0}
-    });
 }
 
 Electron::AppInstance::~AppInstance() {
@@ -218,6 +216,7 @@ static bool showDemoWindow = false;
 static void ChangeShowDemoWindow() { showDemoWindow = !showDemoWindow; }
 
 void Electron::AppInstance::RenderCriticalError(std::string text, bool* p_open) {
+    if (*p_open == false) return;
     std::string popupTitle = (std::string(ELECTRON_GET_LOCALIZATION(this, "CRITICAL_ERROR")) + "##" + std::string(std::to_string((uint64_t) p_open))).c_str();
     ImGui::OpenPopup(popupTitle.c_str());
 
@@ -228,7 +227,9 @@ void Electron::AppInstance::RenderCriticalError(std::string text, bool* p_open) 
 }
 
 void Electron::AppInstance::Run() {
-    AddShortcut({ImGuiKey_I}, ChangeShowDemoWindow);
+    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_I)) {
+        ChangeShowDemoWindow();
+    }
     while (!glfwWindowShouldClose(this->displayHandle)) {
         static bool audioServerDead = false;
         if (!Servers::AudioServerRequest({
@@ -311,16 +312,6 @@ void Electron::AppInstance::Run() {
             ImGui::ShowDemoWindow();
         }
 
-        for (auto &sc : shortcutsPair) {
-            bool keysPressed = ImGui::GetIO().KeyCtrl;
-            for (auto &key : sc.keys) {
-                if (!ImGui::IsKeyPressed(key) || ImGui::IsAnyItemFocused())
-                    keysPressed = false;
-            }
-            if (keysPressed)
-                sc.impl();
-        }
-
         if (showBadConfigMessage) {
             ImGui::Begin(ELECTRON_GET_LOCALIZATION(
                              this, "CORRUPTED_CONFIG_MESSAGE_TITLE"),
@@ -343,6 +334,7 @@ void Electron::AppInstance::Run() {
                 showBadConfigMessage = false;
             }
             ImGui::End();
+            RenderCriticalError(ELECTRON_GET_LOCALIZATION(this, "CORRUPTED_CONFIG_MESSAGE_MESSAGE"), &showBadConfigMessage);
         }
 
 
@@ -357,6 +349,8 @@ void Electron::AppInstance::Run() {
         }
 
         std::vector<ElectronUI *> uiCopy = this->content;
+        static bool warningOpen = true;
+        if (!ffmpegAvailable) goto no_ffmpeg;
         for (auto &window : uiCopy) {
             bool exitEditor = false;
             try {
@@ -376,6 +370,12 @@ void Electron::AppInstance::Run() {
             delete this->content[destroyWindowTarget];
             this->content.erase(content.begin() + destroyWindowTarget);
         }
+        goto render_success;
+        no_ffmpeg:
+        RenderCriticalError(ELECTRON_GET_LOCALIZATION(this, "FFMPEG_IS_NOT_AVAILABLE"), &warningOpen);
+        if (!warningOpen) exit(1);
+
+        render_success:
         ImGui::Render();
         ImGui::EndFrame();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -396,6 +396,13 @@ void Electron::AppInstance::Run() {
                 assetDescription["Path"] = texUnion.path;
                 assetDescription["Type"] = texUnion.strType;
                 assetDescription["ID"] = texUnion.id;
+                assetDescription["AudioCoverPath"] = texUnion.audioCacheCover;
+                if (texUnion.type == TextureUnionType::Audio) {
+                    assetDescription["AudioProbeData"] = std::get<AudioMetadata>(texUnion.as).probe;
+                    assetDescription["AudioCoverResolution"] = {
+                        texUnion.coverResolution.x, texUnion.coverResolution.y
+                    };
+                }
                 assetRegistry.push_back(assetDescription);
             }
             project.propertiesMap["AssetRegistry"] = assetRegistry;
@@ -506,6 +513,7 @@ bool Electron::AppInstance::ButtonCenteredOnLine(const char *label,
 
     return ImGui::Button(label);
 }
+
 
 void Electron::ProjectMap::SaveProject() {
     std::string propertiesDump = propertiesMap.dump();

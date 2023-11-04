@@ -30,23 +30,6 @@ namespace Electron {
     class RenderPreview;
     class Shortcuts;
 
-    static ImVec4 color_from_hex(std::string l) {
-        std::string rgbcolor = l;
-
-        std::regex pattern("#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})");
-
-        std::smatch match;
-        if (std::regex_match(rgbcolor, match, pattern)) {
-            auto r = std::stoul(match[1].str(), nullptr, 16);
-            auto g = std::stoul(match[2].str(), nullptr, 16);
-            auto b = std::stoul(match[3].str(), nullptr, 16);
-            return ImVec4((float) r / 255.0f, (float) g / 255.0f, (float) b / 255.0f, 1.0f);
-        } else {
-            std::cout << rgbcolor << " is an invalid rgb color\n";
-        }
-        throw std::runtime_error("malformed hex color " + l);
-    }
-
     struct ProjectMap {
         json_t propertiesMap;
         std::string path;
@@ -56,32 +39,24 @@ namespace Electron {
         void SaveProject();
     };
 
-    typedef void (*Electron_ShortcutF)();
-    struct ShortcutPair {
-        std::vector<ImGuiKey> keys;
-        Electron_ShortcutF impl;
-
-        ShortcutPair() {}
-    };
-
     class AppInstance {
     public:
-        GLFWwindow* displayHandle;
-        std::vector<ElectronUI*> content;
-        json_t localizationMap, configMap;
-        GraphicsCore graphics;
-        ProjectMap project;
-        bool projectOpened;
-        bool isNativeWindow;
+        GLFWwindow* displayHandle; // GLFW window handle
+        std::vector<ElectronUI*> content; // Array of windows
+        json_t localizationMap, configMap; // Localization data and editor config
+        GraphicsCore graphics; // Graphics core of Electron
+        ProjectMap project; // Project instance
+        bool projectOpened; // True if any project is opened
+        bool isNativeWindow; // Always true (if config.json is not manually edited)
         bool showBadConfigMessage;
-        Shortcuts shortcuts;
-        ImGuiID nativeWindowCentralDockID;
-        int selectedRenderLayer;
-        AssetRegistry assets;
-        float fontSize;
-        std::vector<ShortcutPair> shortcutsPair;
-        static GLuint shadowTex;
-        ImGuiContext* context;
+        Shortcuts shortcuts; // Editor shortcuts implementation
+        int selectedRenderLayer; // Used in LayerProperties
+        AssetRegistry assets; // Library of assets
+        float fontSize; // Used in FontAtlas manipulations
+        static GLuint shadowTex; // Shadow texture for window dropshadows
+        ImGuiContext* context; // Store main ImGui context for using in impl files
+        std::string renderer, vendor, version; // GL Constants
+        bool ffmpegAvailable; // is FFMpeg available
 
         ImFont* largeFont;
         
@@ -103,15 +78,10 @@ namespace Electron {
 
         void SetupImGuiStyle();
 
+        int GetCacheIndex();
+
         void AddUIContent(ElectronUI* ui) {
             this->content.push_back(ui);
-        }
-        
-        void AddShortcut(std::vector<ImGuiKey> keys, Electron_ShortcutF impl) {
-            ShortcutPair pair{};
-            pair.keys = keys;
-            pair.impl = impl;
-            shortcutsPair.push_back(pair);
         }
 
         bool ButtonCenteredOnLine(const char* label, float alignment = 0.5f);

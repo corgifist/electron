@@ -51,6 +51,7 @@ extern "C" {
             bool p = false;
 
             ImGui::BeginChild("searchBarChild", ImVec2(windowSize.x, endCursorY - beginCursorY), false, 0);
+            if (assetSelected >= instance->assets.assets.size()) assetSelected = -1;
                 if (assetSelected == -1) {
                     std::string noAssetSelectedMsg = ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_NO_ASSET_SELECTED");
                     ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize(CSTR(noAssetSelectedMsg)).x / 2.0f);
@@ -61,6 +62,7 @@ extern "C" {
                     GLuint gpuPreview = -1;
                     glm::vec2 assetResolution = {0, 0};
                     switch (asset.type) {
+                        case TextureUnionType::Audio:
                         case TextureUnionType::Texture: {
                             gpuPreview = asset.pboGpuTexture;
                             assetResolution = asset.GetDimensions();
@@ -85,8 +87,15 @@ extern "C" {
                             ImGui::SetClipboardText(CSTR(hexId));
                         }
                         glm::vec2 naturalAssetReoslution = asset.GetDimensions();
-                        ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION"), (int) naturalAssetReoslution.x, (int) naturalAssetReoslution.y)));
-                    ImGui::EndTable();
+                        if (asset.type == TextureUnionType::Texture) {
+                            ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION"), (int) naturalAssetReoslution.x, (int) naturalAssetReoslution.y)));
+                        } else if (asset.type == TextureUnionType::Audio) {
+                            ImGui::Text("%s", ELECTRON_GET_LOCALIZATION(instance, "HOVER_TO_GET_PROBE_DATA"));
+                            if (ImGui::IsItemHovered()) {
+                                ImGui::SetTooltip("%s", std::get<AudioMetadata>(asset.as).probe.c_str());
+                            }
+                        }
+                        ImGui::EndTable();
                 }
                 ImGui::Spacing(); ImGui::Spacing();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);

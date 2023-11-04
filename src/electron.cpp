@@ -49,6 +49,10 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
+    if (!std::filesystem::exists("cache/")) {
+        print("cache folder not found, so creating one");
+        std::filesystem::create_directories("cache/");
+    }
 
     std::ofstream tempStream("electron.log");
     tempStream << "[ELECTRON LOG BEGIN]";

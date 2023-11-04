@@ -26,7 +26,7 @@ extern "C" {
                         UI::End();
                         throw ElectronSignal_ReloadSystem;
                     }
-                    if (ImGui::MenuItem(CSTR(ICON_FA_CROSS + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"))), "Ctrl+P+E")) {
+                    if (ImGui::MenuItem(CSTR(ICON_FA_XMARK + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"))), "Ctrl+P+E")) {
                         instance->shortcuts.Ctrl_P_E();
                     }
                     ImGui::EndMenu();

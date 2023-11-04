@@ -6,9 +6,10 @@
 #include "ImGui/imgui_stdlib.h"
 #include "libraries.h"
 #include <GLES3/gl31.h>
+#include "cache.h"
 
 #define MAX_DEPTH 100000000
-#define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.*"
+#define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.ogg,.mp3,.wav,.*"
 
 #define RENDER_THREADS_MULTIPLIER 1
 
@@ -57,7 +58,7 @@ namespace Electron {
     };
 
     enum class TextureUnionType {
-        Texture
+        Texture, Audio
     };
 
     class PixelBuffer {
@@ -80,7 +81,13 @@ namespace Electron {
         static void DestroyGPUTexture(GLuint texture);
     };
 
-    using InternalTextureUnion = std::variant<PixelBuffer>;
+    struct AudioMetadata {
+        std::string probe;
+
+        AudioMetadata() {}
+    };
+
+    using InternalTextureUnion = std::variant<PixelBuffer, AudioMetadata>;
     struct AssetRegistry;
     struct TextureUnion;
 
@@ -90,11 +97,13 @@ namespace Electron {
         std::string name;
         std::string path;
         std::string strType;
+        std::string audioCacheCover;
         GLuint pboGpuTexture;
         GLuint previousPboGpuTexture;
         bool invalid;
         float previewScale;
         AssetRegistry* assetOwner;
+        glm::vec2 coverResolution;
         int id;
 
         TextureUnion() {
@@ -164,6 +173,9 @@ namespace Electron {
             if (type == "Image") {
                 return TextureUnionType::Texture;
             }
+            if (type == "Audio") {
+                return TextureUnionType::Audio;
+            }
             return TextureUnionType::Texture;
         }
 
@@ -171,6 +183,9 @@ namespace Electron {
             switch (type) {
                 case TextureUnionType::Texture: {
                     return "Image";
+                }
+                case TextureUnionType::Audio: {
+                    return "Audio";
                 }
             }
             return "Image";
@@ -183,14 +198,14 @@ namespace Electron {
     typedef void (*Electron_PropertyRenderImplF)(RenderLayer*);
 
 
-    class RenderLayer {
+    class RenderLayer { // Rendering unit of Electron
     public:
-        int beginFrame, endFrame, frameOffset;
-        std::string layerLibrary;
-        json_t properties;
-        json_t internalData;
-        json_t previewProperties;
-        Electron_LayerImplF layerProcedure;
+        int beginFrame, endFrame, frameOffset; // Timing data
+        std::string layerLibrary; // Name of implementation library (e.g. libsdf2d.so)
+        json_t properties; // Properties of the layer (keyframes, values) that can be saved to JSON
+        json_t internalData; // JSON data that cannot be saved to file
+        json_t previewProperties; // No usage data
+        Electron_LayerImplF layerProcedure; //
         Electron_PropertyRenderImplF initializationProcedure;
         Electron_PropertyRenderImplF propertiesProcedure;
         Electron_PropertyRenderImplF sortingProcedure;
@@ -198,10 +213,9 @@ namespace Electron {
         bool initialized;
         std::string layerPublicName;
         float renderTime;
-        std::vector<std::any> anyData;
-        glm::vec4 layerColor;
-        std::string layerUsername;
-        int registryIndex;
+        std::vector<std::any> anyData; // Non-JSON data that cannot be saved to file
+        glm::vec4 layerColor; // Timeline layer color
+        std::string layerUsername; // Layer name given by user
         int id;
         bool visible;
 
@@ -251,6 +265,7 @@ namespace Electron {
         static int x, y, z;
     };
 
+    typedef int(*Electron_CacheIndexT)();
     class GraphicsCore {
     public:
         RenderBuffer renderBuffer;
@@ -265,6 +280,7 @@ namespace Electron {
         bool isPlaying;
         int* selectedLayerPtr;
         int fireAssetId;
+        Electron_CacheIndexT cacheProc;
 
 
         float renderFrame;

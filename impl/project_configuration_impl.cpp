@@ -126,6 +126,9 @@ extern "C" {
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_RESTART_REQUIRED"));
                 instance->configMap["UIScaling"] = uiScaling;
+                ImGui::Text("GL_RENDERER: %s", instance->renderer.c_str());
+                ImGui::Text("GL_VENDOR: %s", instance->vendor.c_str());
+                ImGui::Text("GL_VERSION: %s", instance->version.c_str());
                 
             ImGui::EndTabItem();
             }
