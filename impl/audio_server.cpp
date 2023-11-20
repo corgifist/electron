@@ -10,8 +10,10 @@ using namespace Electron;
 extern "C" {
     crow::SimpleApp* globalApp = nullptr;
     bool running = false;
-    std::unordered_map<int, std::unique_ptr<SoLoud::Wav>> handles;
+    std::unordered_map<std::string, std::unique_ptr<SoLoud::Wav>> cache;
     SoLoud::Soloud instance;
+
+    void Dummy() {}
 
     ELECTRON_EXPORT void ServerStart(int port, int pid) {
         crow::SimpleApp app;
@@ -40,15 +42,17 @@ extern "C" {
                     running = false;
                 }
                 if (action == "load_sample") {
-                    int index = (int) body["handle"].i();
-                    handles[index] = std::make_unique<SoLoud::Wav>(SoLoud::Wav());
-                    handles[index]->load(std::string(body["path"].s()).c_str());
+                    if (cache.find(body["path"].s()) != cache.end()) goto cache_exists;
+                    cache[body["path"].s()] = std::make_unique<SoLoud::Wav>(SoLoud::Wav());
+                    cache[body["path"].s()]->load(std::string(body["path"].s()).c_str());
+                    cache_exists:
+                    Dummy();
                 }
                 if (action == "play_sample") {
-                    instance.play(*handles[body["handle"].i()].get());
+                    result["handle"] = instance.play(*cache[body["path"].s()].get());
                 }
                 if (action == "stop_sample") {
-                    (*handles[body["handle"].i()].get()).stop();
+                    instance.stop(body["handle"].i());
                 }
                 return crow::response(result.dump());
             });

@@ -12,6 +12,7 @@
 
 #include "editor_core.h"
 #include "graphics_core.h"
+#include "async_ffmpeg.h"
 
 #include "shortcuts.h"
 #include "servers.h"
@@ -57,6 +58,8 @@ namespace Electron {
         ImGuiContext* context; // Store main ImGui context for using in impl files
         std::string renderer, vendor, version; // GL Constants
         bool ffmpegAvailable; // is FFMpeg available
+        std::thread ffmpegThread; // FFMpeg thread to perform some audio/video magic without hanging UI
+        bool running;
 
         ImFont* largeFont;
         

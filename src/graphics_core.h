@@ -5,7 +5,8 @@
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_stdlib.h"
 #include "libraries.h"
-#include <GLES3/gl31.h>
+#include "async_ffmpeg.h"
+#include "gles2.h"
 #include "cache.h"
 
 #define MAX_DEPTH 100000000
@@ -83,6 +84,7 @@ namespace Electron {
 
     struct AudioMetadata {
         std::string probe;
+        int audioLength;
 
         AudioMetadata() {}
     };
@@ -157,17 +159,26 @@ namespace Electron {
         ~RenderBuffer();
     };
 
+
+
     struct AssetRegistry {
         std::vector<TextureUnion> assets;
         GraphicsCore* owner;
 
-        AssetRegistry() {}
+        bool ffmpegActive;
+        std::vector<AsyncFFMpegOperation> operations;
+
+        AssetRegistry() {
+            this->ffmpegActive = false;
+        }
 
         void LoadFromProject(json_t project);
         void Clear();
 
         std::string ImportAsset(std::string path);
         AssetLoadInfo LoadAssetFromPath(std::string path);
+
+        void PushAsyncOperation(std::string cmd);
 
         static TextureUnionType TextureUnionTypeFromString(std::string type) {
             if (type == "Image") {

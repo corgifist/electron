@@ -4,14 +4,28 @@
 #include <curl/curl.h>
 
 namespace Electron {
+
+    struct ServerResponse {
+        bool alive;
+        std::string response;
+
+        ServerResponse(bool alive, std::string response) {
+            this->alive = alive;
+            this->response = response;
+        }
+
+        json_t ResponseToJSON() {
+            return json_t(response);
+        }
+    };
     class Servers {
     private:
-        static bool PerformSyncedRequest(int port, json_t request);
-        static bool ServerRequest(int port, json_t request);
+        static ServerResponse PerformSyncedRequest(int port, json_t request);
+        static ServerResponse ServerRequest(int port, json_t request);
 
     public:
-        static bool AsyncWriterRequest(json_t request);
-        static bool AudioServerRequest(json_t request);
+        static ServerResponse AsyncWriterRequest(json_t request);
+        static ServerResponse AudioServerRequest(json_t request);
         static void InitializeCurl();
         static void DestroyCurl();
     };

@@ -110,5 +110,9 @@
     "GENERIC_PLACEHOLDER": "Imagine here a powerful video editor with tons of effects and plugins available for free",
     "CRITICAL_ERROR": "Critical error",
     "AUDIO_SERVER_CRASHED": "Audio server crashed, so now you cannot use audio playback in Electron",
-    "ASYNC_WRITER_CRASHED": "Async writer crashed, so now you cannot save any project or change editor configuration"
+    "ASYNC_WRITER_CRASHED": "Async writer crashed, so now you cannot save any project or change editor configuration",
+    "FFMPEG_IS_NOT_AVAILABLE": "FFMpeg is not available! Install FFMpeg package and run Electron again!",
+    "HOVER_TO_GET_PROBE_DATA": "Hover to get FFProbe data",
+    "CLICK_TO_COPY": "Click to copy",
+    "FFMPEG_OPERATIONS_ARE_IN_PROGRESS": "FFMpeg operations are in progress, please wait"
 }

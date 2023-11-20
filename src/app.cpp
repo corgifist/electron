@@ -74,6 +74,16 @@ Electron::AppInstance::AppInstance() {
         ffmpegAvailable = true;
     }
 
+    #ifdef __linux__
+        std::string sessionType = getEnvVar("XDG_SESSION_TYPE");
+        if (sessionType == "wayland") {
+            glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
+            print("(linux-only) using wayland platform");
+        } else {
+            glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+            print("(linux-only) fallback to x11 platform");
+        }
+    #endif
     glfwSetErrorCallback(electronGlfwError);
     if (!glfwInit()) {
         throw std::runtime_error("cannot initialize glfw!");
@@ -231,17 +241,19 @@ void Electron::AppInstance::Run() {
         ChangeShowDemoWindow();
     }
     while (!glfwWindowShouldClose(this->displayHandle)) {
+        this->running = true;
+        this->context = ImGui::GetCurrentContext();   
         static bool audioServerDead = false;
         if (!Servers::AudioServerRequest({
             {"action", "alive"}
-        }) && !audioServerDead) {
+        }).alive && !audioServerDead) {
             audioServerDead = true;
         }
 
         static bool asyncWriterDead = false;
         if (!Servers::AsyncWriterRequest({
             {"action", "alive"}
-        }) && !asyncWriterDead) {
+        }).alive && !asyncWriterDead) {
             asyncWriterDead = true;
         }
 
@@ -350,7 +362,15 @@ void Electron::AppInstance::Run() {
 
         std::vector<ElectronUI *> uiCopy = this->content;
         static bool warningOpen = true;
+        std::string operationsPopupTag = string_format("%s#ffmpegActive", ELECTRON_GET_LOCALIZATION(this, "FFMPEG_OPERATIONS_ARE_IN_PROGRESS"));
+        AsyncFFMpegOperation* pOperation = nullptr;
         if (!ffmpegAvailable) goto no_ffmpeg;
+        if (assets.ffmpegActive && assets.operations.size() > 0) {
+            for (auto& op : assets.operations) {
+                if (op.Completed()) goto ffmpeg_active_operations;
+            }
+            assets.ffmpegActive = false;
+        }
         for (auto &window : uiCopy) {
             bool exitEditor = false;
             try {
@@ -374,6 +394,19 @@ void Electron::AppInstance::Run() {
         no_ffmpeg:
         RenderCriticalError(ELECTRON_GET_LOCALIZATION(this, "FFMPEG_IS_NOT_AVAILABLE"), &warningOpen);
         if (!warningOpen) exit(1);
+        goto render_success;
+
+        ffmpeg_active_operations:
+        ImGui::OpenPopup(operationsPopupTag.c_str());
+        for (auto& operation : assets.operations) {
+            if (!operation.Completed()) pOperation = &operation;
+        }
+        if (ImGui::BeginPopupModal(operationsPopupTag.c_str())) {
+            ImGui::Text("%s", pOperation->cmd.c_str());
+            ImGui::EndPopup();
+        }
+
+        goto render_success;
 
         render_success:
         ImGui::Render();
@@ -414,12 +447,16 @@ editor_end:
 }
 
 void Electron::AppInstance::Terminate() {
+    this->running = false;
     Servers::AsyncWriterRequest({
         {"action", "kill"}
     });
     Servers::AudioServerRequest({
         {"action", "kill"}
     });
+    for (auto& ffmpegOperations : assets.operations) {
+        ffmpegOperations.operation.join();
+    }
     Servers::DestroyCurl();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

@@ -90,8 +90,11 @@ extern "C" {
                         if (asset.type == TextureUnionType::Texture) {
                             ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION"), (int) naturalAssetReoslution.x, (int) naturalAssetReoslution.y)));
                         } else if (asset.type == TextureUnionType::Audio) {
-                            ImGui::Text("%s", ELECTRON_GET_LOCALIZATION(instance, "HOVER_TO_GET_PROBE_DATA"));
+                            ImGui::Text("* %s\n  %s", ELECTRON_GET_LOCALIZATION(instance, "HOVER_TO_GET_PROBE_DATA"), ELECTRON_GET_LOCALIZATION(instance, "CLICK_TO_COPY"));
                             if (ImGui::IsItemHovered()) {
+                                if (ImGui::GetIO().MouseClicked[ImGuiMouseButton_Left]) {
+                                    ImGui::SetClipboardText(std::get<AudioMetadata>(asset.as).probe.c_str());
+                                }
                                 ImGui::SetTooltip("%s", std::get<AudioMetadata>(asset.as).probe.c_str());
                             }
                         }
@@ -190,6 +193,7 @@ extern "C" {
                 windowSize = ImGui::GetWindowSize();
                 TextureUnion& asset = instance->assets.assets[assetSelected];
                 switch (asset.type) {
+                    case TextureUnionType::Audio:
                     case TextureUnionType::Texture: {
                         static DragStructure imageDrag{};
                         static ImVec2 imageOffset{};
@@ -229,16 +233,40 @@ extern "C" {
                 ImGui::BeginChild("assetExaminerDetails", ImVec2(ws.x, 30), false);
                 float firstCursor = ImGui::GetCursorPosY();
                 if (ImGui::BeginTable("detailsTable", 2)) {
+                    static int previousAssetID = -1;
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::Text("%s", CSTR(string_format("%s %s", asset.GetIcon().c_str(), asset.name.c_str())));
                     ImGui::TableSetColumnIndex(1);
+                    static float audioPlaybackProgress = 0;
+                    static float audioPlaybackLength = 0;
+                    static bool audioPlaybackPlaying = false;
+                    if (previousAssetID != asset.id && asset.type == TextureUnionType::Audio) {
+                        AudioMetadata audioMetadata = std::get<AudioMetadata>(asset.as);
+                        print("resetting audio constants");
+                        audioPlaybackPlaying = false;
+                        audioPlaybackLength = audioMetadata.audioLength;
+                        audioPlaybackProgress = 0;
+                    }
                     switch (asset.type) {
                         case TextureUnionType::Texture: {
                             ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_RESOLUTION"), (int) asset.GetDimensions().x, (int) asset.GetDimensions().y)));
+                            break;
+                        }
+                        case TextureUnionType::Audio: {
+                            audioPlaybackProgress = glm::clamp(audioPlaybackProgress, 0.0f, audioPlaybackLength);
+                            if (audioPlaybackProgress == audioPlaybackLength) audioPlaybackPlaying = false;
+                            if (audioPlaybackPlaying) audioPlaybackProgress += 1.0f / 60.0f;
+                            if (ImGui::Button(audioPlaybackPlaying ? ICON_FA_SQUARE : ICON_FA_PLAY)) {
+                                audioPlaybackPlaying = !audioPlaybackPlaying;
+                            }
+                            ImGui::SameLine();
+                            ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, "%0.1f", 0);
+                            break;
                         }
                     }
                     ImGui::EndTable();
+                    previousAssetID = asset.id;
                 }
                 propertiesHeight = ImGui::GetCursorPosY() - firstCursor;
                 ImGui::EndChild();

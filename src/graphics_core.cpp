@@ -128,7 +128,6 @@ glm::vec2 Electron::TextureUnion::GetDimensions() {
         return {pbo.width, pbo.height};
     }
     case TextureUnionType::Audio: {
-        DUMP_VAR((int) coverResolution.x);
         return coverResolution;
     }
     default: {
@@ -253,6 +252,16 @@ Electron::AssetRegistry::LoadAssetFromPath(std::string path) {
             AudioMetadata metadata{};
             system(string_format("ffprobe %s &> .ffprobe_data", assetUnion.path.c_str()).c_str());
             metadata.probe = read_file(".ffprobe_data");
+            std::vector<std::string> probeLines = split_string(metadata.probe, "\n");
+            for (auto& line : probeLines) {
+                line = trim_copy(line);
+                if (hasBegining(line, "Duration: ")) {
+                    int hours, minutes, seconds;
+                    DUMP_VAR(line);
+                    sscanf(line.c_str(), "Duration: %i:%i:%i.%*c", &hours, &minutes, &seconds);
+                    metadata.audioLength = seconds + (minutes * 60) + (hours * 3600);
+                }
+            }
             assetUnion.as = metadata;
             break;
         }   
@@ -275,6 +284,10 @@ Electron::AssetRegistry::LoadAssetFromPath(std::string path) {
     return result;
 }
 
+void Electron::AssetRegistry::PushAsyncOperation(std::string cmd) {
+    operations.push_back(AsyncFFMpegOperation(cmd));
+}
+
 std::string Electron::AssetRegistry::ImportAsset(std::string path) {
     AssetLoadInfo loadInfo = LoadAssetFromPath(path);
     if (loadInfo.returnMessage != "")
@@ -284,13 +297,13 @@ std::string Electron::AssetRegistry::ImportAsset(std::string path) {
         TextureUnion& tu = loadInfo.result;
         if (!hasEnding(tu.path, ".ogg")) {
             std::string formattedCachePath = string_format("cache/%i.ogg", Cache::GetCacheIndex());
-            system(string_format("ffmpeg -i %s %s", tu.path.c_str(), formattedCachePath.c_str()).c_str());
+            PushAsyncOperation(string_format("ffmpeg -i %s %s", tu.path.c_str(), formattedCachePath.c_str()));
             tu.path = formattedCachePath;
         }
         std::string coverPath = string_format("cache/%i.png", Cache::GetCacheIndex());
-        loadInfo.result.audioCacheCover = coverPath;
         if (system(string_format("ffmpeg -i %s %s", tu.path.c_str(), coverPath.c_str()).c_str()) == 0) {
             PixelBuffer coverBuffer = owner->CreateBufferFromImage(coverPath.c_str());
+            loadInfo.result.audioCacheCover = coverPath;
             tu.audioCacheCover = coverPath;
             tu.pboGpuTexture = coverBuffer.BuildGPUTexture();
             tu.coverResolution = {

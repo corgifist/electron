@@ -149,6 +149,7 @@
 #if (defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV))
 #include <OpenGLES/ES3/gl.h>    // Use GL ES 3
 #else
+#define  GLAD_GLES2_IMPLEMENTATION
 #include "../gles2.h"
 #endif
 #elif !defined(IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
