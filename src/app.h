@@ -16,13 +16,9 @@
 
 #include "shortcuts.h"
 #include "servers.h"
+#include "asset_registry.h"
 
 
-namespace UI {
-    void DropShadow();
-    void Begin(const char* name, Electron::ElectronSignal signal, ImGuiWindowFlags flags);
-    void End();
-};
 namespace Electron {
 
     class ElectronUI;
@@ -31,37 +27,34 @@ namespace Electron {
     class RenderPreview;
     class Shortcuts;
 
-    struct ProjectMap {
-        json_t propertiesMap;
-        std::string path;
-
-        ProjectMap() {};
-
-        void SaveProject();
+    namespace UI {
+        void DropShadow();
+        void Begin(const char* name, Electron::ElectronSignal signal, ImGuiWindowFlags flags);
+        void End();
     };
 
+    // Initializes OpenGL and renders UI
     class AppInstance {
     public:
         GLFWwindow* displayHandle; // GLFW window handle
         std::vector<ElectronUI*> content; // Array of windows
-        json_t localizationMap, configMap; // Localization data and editor config
+
         GraphicsCore graphics; // Graphics core of Electron
-        ProjectMap project; // Project instance
+
+        ImGuiContext* context; // Store main ImGui context for using in impl files
+        std::string renderer, vendor, version; // GL Constants
+        AssetRegistry assets; // Library of assets
+        Shortcuts shortcuts; // Editor shortcuts implementation
         bool projectOpened; // True if any project is opened
         bool isNativeWindow; // Always true (if config.json is not manually edited)
         bool showBadConfigMessage;
-        Shortcuts shortcuts; // Editor shortcuts implementation
-        int selectedRenderLayer; // Used in LayerProperties
-        AssetRegistry assets; // Library of assets
-        float fontSize; // Used in FontAtlas manipulations
-        static GLuint shadowTex; // Shadow texture for window dropshadows
-        ImGuiContext* context; // Store main ImGui context for using in impl files
-        std::string renderer, vendor, version; // GL Constants
         bool ffmpegAvailable; // is FFMpeg available
-        std::thread ffmpegThread; // FFMpeg thread to perform some audio/video magic without hanging UI
         bool running;
 
-        ImFont* largeFont;
+
+        float fontSize; // Used in FontAtlas manipulations
+        static GLuint shadowTex; // Shadow texture for window dropshadows
+        static ImFont* largeFont;
         
         AppInstance();
         ~AppInstance();
@@ -76,8 +69,8 @@ namespace Electron {
 
         void RenderCriticalError(std::string text, bool* p_open);
 
-        Electron::ElectronVector2f GetNativeWindowSize();
-        Electron::ElectronVector2f GetNativeWindowPos();
+        ImVec2 GetNativeWindowSize();
+        ImVec2 GetNativeWindowPos();
 
         void SetupImGuiStyle();
 

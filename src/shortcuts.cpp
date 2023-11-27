@@ -1,29 +1,35 @@
 #include "shortcuts.h"
 
-void Electron::Shortcuts::Ctrl_W_R() {
-    owner->ExecuteSignal(ElectronSignal_SpawnRenderPreview);
+namespace Electron {
+void Shortcuts::Ctrl_W_R() {
+    Shared::app->ExecuteSignal(ElectronSignal_SpawnRenderPreview);
 }
 
-void Electron::Shortcuts::Ctrl_P_O(ProjectMap projectMap) {
-    owner->projectOpened = true;
-    owner->project = projectMap;
-    owner->graphics.projectPath = projectMap.path;
+void Shortcuts::Ctrl_P_O(ProjectMap projectMap) {
+    Shared::app->projectOpened = true;
+    Shared::project = projectMap;
 
-    owner->selectedRenderLayer = JSON_AS_TYPE(projectMap.propertiesMap["LastSelectedLayer"], int);
+    Shared::selectedRenderLayer = JSON_AS_TYPE(projectMap.propertiesMap["LastSelectedLayer"], int);
 
-    owner->assets.LoadFromProject(projectMap.propertiesMap);
+    Shared::assets->LoadFromProject(projectMap.propertiesMap);
 }
 
-void Electron::Shortcuts::Ctrl_P_E() { throw ElectronSignal_CloseEditor; }
+void Shortcuts::Ctrl_P_E() { throw ElectronSignal_CloseEditor; }
 
-void Electron::Shortcuts::Ctrl_W_L() {
-    owner->ExecuteSignal(ElectronSignal_SpawnLayerProperties);
+void Shortcuts::Ctrl_W_L() {
+    Shared::app->ExecuteSignal(ElectronSignal_SpawnLayerProperties);
 }
 
-void Electron::Shortcuts::Ctrl_W_A() {
-    owner->ExecuteSignal(ElectronSignal_SpawnAssetManager);
+void Shortcuts::Ctrl_W_A() {
+   Shared::app->ExecuteSignal(ElectronSignal_SpawnAssetManager);
 }
 
-void Electron::Shortcuts::Ctrl_W_T() {
-    owner->ExecuteSignal(ElectronSignal_SpawnTimeline);
+void Shortcuts::Ctrl_W_T() {
+    Shared::app->ExecuteSignal(ElectronSignal_SpawnTimeline);
+}
+
+void Shortcuts::Ctrl_E_C() {
+    system("rm -r cache");
+    system("mkdir cache");
+}
 }

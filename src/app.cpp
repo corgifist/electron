@@ -3,6 +3,13 @@
 #define GLAD_GLES2_IMPLEMENTATION
 #include "gles2.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+namespace Electron {
+
+    ImFont* AppInstance::largeFont = nullptr;
+
 namespace UI {
 void RenderDropShadow(ImTextureID tex_id, float size, ImU8 opacity) {
     ImVec2 p = ImGui::GetWindowPos();
@@ -35,13 +42,13 @@ void RenderDropShadow(ImTextureID tex_id, float size, ImU8 opacity) {
 }
 
 void DropShadow() {
-    RenderDropShadow((ImTextureID)(uint64_t) Electron::AppInstance::shadowTex, 24.0f,
+    RenderDropShadow((ImTextureID)(uint64_t) AppInstance::shadowTex, 24.0f,
                          100);
 }
 
-void Begin(const char *name, Electron::ElectronSignal signal,
+void Begin(const char *name, ElectronSignal signal,
            ImGuiWindowFlags flags) {
-    if (signal == Electron::ElectronSignal_None) {
+    if (signal == ElectronSignal_None) {
         ImGui::Begin(name, nullptr, flags);
         DropShadow();
     } else {
@@ -49,7 +56,7 @@ void Begin(const char *name, Electron::ElectronSignal signal,
         ImGui::Begin(name, &pOpen, flags);
         DropShadow();
         if (!pOpen) {
-            if (signal == Electron::ElectronSignal_CloseWindow) {
+            if (signal == ElectronSignal_CloseWindow) {
                 ImGui::End();
             }
             throw signal;
@@ -65,17 +72,30 @@ static void electronGlfwError(int id, const char *description) {
     print("GLFW_ERROR: " << description);
 }
 
-GLuint Electron::AppInstance::shadowTex = 0;
-Electron::AppInstance::AppInstance() {
-    this->selectedRenderLayer = -1;
+GLuint AppInstance::shadowTex = 0;
+AppInstance::AppInstance() {
     this->showBadConfigMessage = false;
     this->ffmpegAvailable = false;
-    if (system("ffmpeg -h") == 0 || system("ffprobe -h") == 0) {
+    Shared::app = this;
+    Shared::graphics = &graphics;
+    Shared::assets = &assets;
+    if (system("ffmpeg -h > /dev/null") == 0 && system("ffprobe -h > /dev/null") == 0) {
         ffmpegAvailable = true;
     }
+    try {
+        Shared::configMap = json_t::parse(
+            std::fstream("config.json")); // config needs to be initialized ASAP
+    } catch (json_t::parse_error &ex) {
+        RestoreBadConfig();
+    }
+
+    Cache::cacheIndex = JSON_AS_TYPE(Shared::configMap["CacheIndex"], int);
 
     #ifdef __linux__
         std::string sessionType = getEnvVar("XDG_SESSION_TYPE");
+        if (JSON_AS_TYPE(Shared::configMap["PreferX11"], bool) == true) {
+            sessionType = "x11";
+        }
         if (sessionType == "wayland") {
             glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
             print("(linux-only) using wayland platform");
@@ -92,14 +112,8 @@ Electron::AppInstance::AppInstance() {
     glfwGetVersion(&major, &minor, &rev);
     print("GLFW version: " << major << "." << minor << " " << rev);
 
-    try {
-        this->configMap = json_t::parse(
-            std::fstream("config.json")); // config needs to be initialized ASAP
-    } catch (json_t::parse_error &ex) {
-        RestoreBadConfig();
-    }
-    float uiScaling = JSON_AS_TYPE(configMap["UIScaling"], float);
-    this->isNativeWindow = configMap["ViewportMethod"] == "native-window";
+    float uiScaling = JSON_AS_TYPE(Shared::configMap["UIScaling"], float);
+    this->isNativeWindow = (Shared::configMap["ViewportMethod"] == "native-window");
 
     glfwDefaultWindowHints();
     glfwWindowHint(GLFW_RESIZABLE, isNativeWindow);
@@ -111,8 +125,8 @@ Electron::AppInstance::AppInstance() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 
     std::vector<int> maybeSize = {
-        JSON_AS_TYPE(configMap["LastWindowSize"].at(0), int),
-        JSON_AS_TYPE(configMap["LastWindowSize"].at(1), int)};
+        JSON_AS_TYPE(Shared::configMap["LastWindowSize"].at(0), int),
+        JSON_AS_TYPE(Shared::configMap["LastWindowSize"].at(1), int)};
     this->displayHandle = glfwCreateWindow(isNativeWindow ? maybeSize[0] : 8,
                                            isNativeWindow ? maybeSize[1] : 8,
                                            "Electron", nullptr, nullptr);
@@ -190,31 +204,21 @@ Electron::AppInstance::AppInstance() {
     ImGui_ImplOpenGL3_Init();
     DUMP_VAR(io.BackendRendererName);
 
-    this->localizationMap = json_t::parse(std::fstream("localization_en.json"));
+    Shared::localizationMap = json_t::parse(std::fstream("localization_en.json"));
     this->projectOpened = false;
 
     this->graphics.PrecompileEssentialShaders();
     Servers::InitializeCurl();
 
-    this->graphics.owner = this;
-    this->graphics.assetsPtr = &assets;
-    this->graphics.selectedLayerPtr = &selectedRenderLayer;
     this->graphics.ResizeRenderBuffer(128, 128);
-    this->shortcuts.owner = this;
-
-    this->assets.owner = &graphics;
 
     this->graphics.FetchAllLayers();
 
-    RenderLayer::globalCore = &graphics;
-    Cache::configReference = &configMap;
-
     // graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
-    AppInstance::shadowTex =
-        graphics.CreateBufferFromImage("misc/shadow.png").BuildGPUTexture();
+    AppInstance::shadowTex = PixelBuffer("misc/shadow.png").BuildGPUTexture();
 }
 
-Electron::AppInstance::~AppInstance() {
+AppInstance::~AppInstance() {
     for (auto ui : this->content) {
         delete ui;
     }
@@ -225,21 +229,19 @@ static bool showDemoWindow = false;
 
 static void ChangeShowDemoWindow() { showDemoWindow = !showDemoWindow; }
 
-void Electron::AppInstance::RenderCriticalError(std::string text, bool* p_open) {
+void AppInstance::RenderCriticalError(std::string text, bool* p_open) {
     if (*p_open == false) return;
-    std::string popupTitle = (std::string(ELECTRON_GET_LOCALIZATION(this, "CRITICAL_ERROR")) + "##" + std::string(std::to_string((uint64_t) p_open))).c_str();
+    std::string popupTitle = (std::string(ELECTRON_GET_LOCALIZATION("CRITICAL_ERROR")) + "##" + std::string(std::to_string((uint64_t) p_open))).c_str();
     ImGui::OpenPopup(popupTitle.c_str());
 
-    if (ImGui::BeginPopupModal(popupTitle.c_str(), p_open, ImGuiWindowFlags_NoResize)) {
+    if (ImGui::BeginPopupModal(popupTitle.c_str(), p_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) {
+        ImGui::SetWindowPos({GetNativeWindowSize().x / 2.0f - ImGui::GetWindowSize().x / 2.0f, GetNativeWindowSize().y / 2.0f - ImGui::GetWindowSize().y / 2.0f});
         ImGui::Text("%s", text.c_str());
         ImGui::EndPopup();
     }
 }
 
-void Electron::AppInstance::Run() {
-    if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_I)) {
-        ChangeShowDemoWindow();
-    }
+void AppInstance::Run() {
     while (!glfwWindowShouldClose(this->displayHandle)) {
         this->running = true;
         this->context = ImGui::GetCurrentContext();   
@@ -260,7 +262,7 @@ void Electron::AppInstance::Run() {
 
         ImGuiIO &io = ImGui::GetIO();
         if (projectOpened) {
-            project.SaveProject();
+            Shared::project.SaveProject();
         }
 
         // std::ofstream configStream("config.json");
@@ -269,22 +271,23 @@ void Electron::AppInstance::Run() {
         Servers::AsyncWriterRequest({
             {"action", "write"},
             {"path", "config.json"},
-            {"content", configMap.dump()}
+            {"content", Shared::configMap.dump()}
         });
 
-        if (JSON_AS_TYPE(configMap["LastProject"], std::string) != "null") {
+        if (JSON_AS_TYPE(Shared::configMap["LastProject"], std::string) != "null") {
             if (!file_exists(
-                    JSON_AS_TYPE(configMap["LastProject"], std::string))) {
-                configMap["LastProject"] = "null";
+                    JSON_AS_TYPE(Shared::configMap["LastProject"], std::string))) {
+                Shared::configMap["LastProject"] = "null";
             }
         }
         int width, height;
         glfwGetWindowSize(displayHandle, &width, &height);
-        configMap["LastWindowSize"] = {width, height};
+        Shared::configMap["LastWindowSize"] = {width, height};
 
         if (projectOpened) {
-            configMap["LastProject"] = project.path;
+            Shared::configMap["LastProject"] = Shared::project.path;
         }
+        Shared::configMap["CacheIndex"] = Cache::cacheIndex;
 
         int renderLengthCandidate = 0;
         for (auto &layer : graphics.layers) {
@@ -298,9 +301,9 @@ void Electron::AppInstance::Run() {
                                           (float)graphics.renderLength);
 
         PixelBuffer::filtering =
-            configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
+            Shared::configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
         if (projectOpened) {
-            project.propertiesMap["LastSelectedLayer"] = selectedRenderLayer;
+            Shared::project.propertiesMap["LastSelectedLayer"] = Shared::selectedRenderLayer;
         }
 
         if (isNativeWindow) {
@@ -320,57 +323,65 @@ void Electron::AppInstance::Run() {
 
         int windowIndex = 0;
         int destroyWindowTarget = -1;
+        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_I)) {
+            ChangeShowDemoWindow();
+        }
         if (showDemoWindow) {
             ImGui::ShowDemoWindow();
         }
 
         if (showBadConfigMessage) {
-            ImGui::Begin(ELECTRON_GET_LOCALIZATION(
-                             this, "CORRUPTED_CONFIG_MESSAGE_TITLE"),
-                         nullptr,
-                         ImGuiWindowFlags_NoCollapse |
-                             ImGuiWindowFlags_NoDocking |
-                             ImGuiWindowFlags_AlwaysAutoResize);
-            ImGui::FocusWindow(ImGui::GetCurrentWindow());
-            std::string configMessage = ELECTRON_GET_LOCALIZATION(
-                this, "CORRUPTED_CONFIG_MESSAGE_MESSAGE");
-            ImVec2 messageSize = ImGui::CalcTextSize(configMessage.c_str());
-            ImVec2 windowSize = ImGui::GetWindowSize();
-            ImGui::SetCursorPosX(windowSize.x / 2.0f - messageSize.x / 2.0f);
-            ImGui::Text("%s", configMessage.c_str());
-
-            ImGuiStyle &style = ImGui::GetStyle();
-            std::string okString = "OK";
-            ImVec2 okSize = ImGui::CalcTextSize(okString.c_str());
-            if (ButtonCenteredOnLine(okString.c_str())) {
-                showBadConfigMessage = false;
-            }
-            ImGui::End();
-            RenderCriticalError(ELECTRON_GET_LOCALIZATION(this, "CORRUPTED_CONFIG_MESSAGE_MESSAGE"), &showBadConfigMessage);
+            RenderCriticalError(ELECTRON_GET_LOCALIZATION("CORRUPTED_CONFIG_MESSAGE_MESSAGE"), &showBadConfigMessage);
         }
 
 
         if (audioServerDead) {
             static bool asOpen = true;
-            RenderCriticalError(ELECTRON_GET_LOCALIZATION(this, "AUDIO_SERVER_CRASHED"), &asOpen);
+            RenderCriticalError(ELECTRON_GET_LOCALIZATION("AUDIO_SERVER_CRASHED"), &asOpen);
         }
 
         if (asyncWriterDead) {
             static bool awOpen = true;
-            RenderCriticalError(ELECTRON_GET_LOCALIZATION(this, "ASYNC_WRITER_CRASHED"), &awOpen);
+            RenderCriticalError(ELECTRON_GET_LOCALIZATION("ASYNC_WRITER_CRASHED"), &awOpen);
+        }
+
+        if (Shared::assets->faultyAssets.size() != 0) {
+            ImGui::OpenPopup(ELECTRON_GET_LOCALIZATION("CRITICAL_ERROR"));
+            if (ImGui::BeginPopupModal(ELECTRON_GET_LOCALIZATION("CRITICAL_ERROR"), nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::SetWindowPos({GetNativeWindowSize().x / 2.0f - ImGui::GetWindowSize().x / 2.0f, GetNativeWindowSize().y / 2.0f - ImGui::GetWindowSize().y / 2.0f});
+                ImGui::Text("%s:", ELECTRON_GET_LOCALIZATION("SOME_ASSETS_ARE_CORRUPTED"));
+                for (auto& asset : Shared::assets->faultyAssets) {
+                    ImGui::BulletText("%s %s | %s", TextureUnion::GetIconByType(asset.type), asset.name.c_str(), asset.path.c_str());
+                }
+                if (ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
+                    Shared::assets->faultyAssets.clear();
+                }
+                ImGui::EndPopup();
+            }
         }
 
         std::vector<ElectronUI *> uiCopy = this->content;
         static bool warningOpen = true;
-        std::string operationsPopupTag = string_format("%s#ffmpegActive", ELECTRON_GET_LOCALIZATION(this, "FFMPEG_OPERATIONS_ARE_IN_PROGRESS"));
+        std::string operationsPopupTag = string_format("%s##ffmpegActive", ELECTRON_GET_LOCALIZATION("FFMPEG_OPERATIONS_ARE_IN_PROGRESS"));
         AsyncFFMpegOperation* pOperation = nullptr;
         if (!ffmpegAvailable) goto no_ffmpeg;
-        if (assets.ffmpegActive && assets.operations.size() > 0) {
-            for (auto& op : assets.operations) {
-                if (op.Completed()) goto ffmpeg_active_operations;
+        // Execute competition procedures of AsyncFFMpegOperations
+        for (auto& op : assets.operations) {
+            if (op.Completed() && !op.procCompleted && op.proc != nullptr) {
+                op.proc(op.args);
+                op.procCompleted = true;
             }
-            assets.ffmpegActive = false;
         }
+        // Show modal dialogs while performing AsyncFFMpegOperations
+        if (assets.operations.size() > 0) {
+            for (auto& op : assets.operations) {
+                if (!op.Completed()) {
+                    pOperation = &op;
+                    goto ffmpeg_active_operations;
+                }
+            }
+        }
+        // Render UI
         for (auto &window : uiCopy) {
             bool exitEditor = false;
             try {
@@ -392,19 +403,17 @@ void Electron::AppInstance::Run() {
         }
         goto render_success;
         no_ffmpeg:
-        RenderCriticalError(ELECTRON_GET_LOCALIZATION(this, "FFMPEG_IS_NOT_AVAILABLE"), &warningOpen);
+        RenderCriticalError(ELECTRON_GET_LOCALIZATION("FFMPEG_IS_NOT_AVAILABLE"), &warningOpen);
         if (!warningOpen) exit(1);
         goto render_success;
 
         ffmpeg_active_operations:
         ImGui::OpenPopup(operationsPopupTag.c_str());
-        for (auto& operation : assets.operations) {
-            if (!operation.Completed()) pOperation = &operation;
-        }
-        if (ImGui::BeginPopupModal(operationsPopupTag.c_str())) {
-            ImGui::Text("%s", pOperation->cmd.c_str());
+        if (ImGui::BeginPopupModal(operationsPopupTag.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize)) {
+            ImGui::Text("%s", pOperation->Cmd().c_str());
             ImGui::EndPopup();
         }
+
 
         goto render_success;
 
@@ -438,7 +447,7 @@ void Electron::AppInstance::Run() {
                 }
                 assetRegistry.push_back(assetDescription);
             }
-            project.propertiesMap["AssetRegistry"] = assetRegistry;
+            Shared::project.propertiesMap["AssetRegistry"] = assetRegistry;
         }
     }
 editor_end:
@@ -446,7 +455,7 @@ editor_end:
     Terminate();
 }
 
-void Electron::AppInstance::Terminate() {
+void AppInstance::Terminate() {
     this->running = false;
     Servers::AsyncWriterRequest({
         {"action", "kill"}
@@ -454,16 +463,14 @@ void Electron::AppInstance::Terminate() {
     Servers::AudioServerRequest({
         {"action", "kill"}
     });
-    for (auto& ffmpegOperations : assets.operations) {
-        ffmpegOperations.operation.join();
-    }
+
     Servers::DestroyCurl();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 }
 
-void Electron::AppInstance::ExecuteSignal(ElectronSignal signal,
+void AppInstance::ExecuteSignal(ElectronSignal signal,
                                           int windowIndex,
                                           int &destroyWindowTarget,
                                           bool &exitEditor) {
@@ -507,37 +514,37 @@ void Electron::AppInstance::ExecuteSignal(ElectronSignal signal,
     }
 }
 
-void Electron::AppInstance::ExecuteSignal(ElectronSignal signal) {
+void AppInstance::ExecuteSignal(ElectronSignal signal) {
     bool boolRef = false;
     int intRef = 0;
     ExecuteSignal(signal, 0, intRef, boolRef);
 }
 
-void Electron::AppInstance::RestoreBadConfig() {
-    this->configMap["RenderPreviewTimelinePrescision"] = 2;
-    this->configMap["ResizeInterpolation"] = true;
-    this->configMap["TextureFiltering"] = "nearest";
-    this->configMap["ViewportMethod"] = "native-window";
-    this->configMap["UIScaling"] = 1.0f;
-    this->configMap["LastProject"] = "null";
-    this->configMap["LastWindowSize"] = {1280, 720};
+void AppInstance::RestoreBadConfig() {
+    Shared::configMap["RenderPreviewTimelinePrescision"] = 2;
+    Shared::configMap["ResizeInterpolation"] = true;
+    Shared::configMap["TextureFiltering"] = "nearest";
+    Shared::configMap["ViewportMethod"] = "native-window";
+    Shared::configMap["UIScaling"] = 1.0f;
+    Shared::configMap["LastProject"] = "null";
+    Shared::configMap["LastWindowSize"] = {1280, 720};
 
     this->showBadConfigMessage = true;
 }
 
-Electron::ElectronVector2f Electron::AppInstance::GetNativeWindowSize() {
+ImVec2 AppInstance::GetNativeWindowSize() {
     int width, height;
     glfwGetWindowSize(this->displayHandle, &width, &height);
-    return Electron::ElectronVector2f{(float) width, (float) height};
+    return ImVec2{(float) width, (float) height};
 }
 
-Electron::ElectronVector2f Electron::AppInstance::GetNativeWindowPos() {
+ImVec2 AppInstance::GetNativeWindowPos() {
     int x, y;
     glfwGetWindowPos(this->displayHandle, &x, &y);
-    return Electron::ElectronVector2f{(float) x, (float) y};
+    return ImVec2{(float) x, (float) y};
 }
 
-bool Electron::AppInstance::ButtonCenteredOnLine(const char *label,
+bool AppInstance::ButtonCenteredOnLine(const char *label,
                                                  float alignment) {
     ImGuiStyle &style = ImGui::GetStyle();
 
@@ -551,18 +558,7 @@ bool Electron::AppInstance::ButtonCenteredOnLine(const char *label,
     return ImGui::Button(label);
 }
 
-
-void Electron::ProjectMap::SaveProject() {
-    std::string propertiesDump = propertiesMap.dump();
-
-    Servers::AsyncWriterRequest({
-        {"action", "write"},
-        {"path", path + "/project.json"},
-        {"content", propertiesDump}
-    });
-}
-
-void Electron::AppInstance::SetupImGuiStyle() {
+void AppInstance::SetupImGuiStyle() {
 
     // Unreal style by dev0-1 from ImThemes
     ImVec4 *colors = ImGui::GetStyle().Colors;
@@ -630,6 +626,6 @@ void Electron::AppInstance::SetupImGuiStyle() {
     style.TabRounding = 4;
     style.ScrollbarRounding = 4;
     style.GrabRounding = 4;
-    style.ScaleAllSizes(JSON_AS_TYPE(configMap["UIScaling"], float));
+    style.ScaleAllSizes(JSON_AS_TYPE(Shared::configMap["UIScaling"], float));
 }
- // namespace Electron
+} // namespace Electron

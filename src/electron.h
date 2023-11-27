@@ -1,6 +1,9 @@
 #pragma once
 
 #define IMGUI_DEFINE_MATH_OPERATORS
+#define GLM_FORCE_SWIZZLE
+#define GLFW_INCLUDE_NONE
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -25,29 +28,28 @@
 #include <time.h>
 #include <chrono>
 #include <unistd.h>
+#include <condition_variable>
 #include <signal.h>
-#include "json.hpp"
-#include "dylib.hpp"
-#ifdef WIN32
-    #include <windows.h>
-#endif
-#include "IconsFontAwesome5.h"
-#define GLM_FORCE_SWIZZLE
-#include "glm/glm.hpp"
-#include "glm/gtx/matrix_transform_2d.hpp"
+#include <tuple>
+#include <boost/process.hpp>
+#include <utility>
 
-#define GLFW_INCLUDE_NONE
 #include "gles2.h"
 #include "GLFW/glfw3.h"
 
 #include "ImGui/imgui.h"
 
+#include "json.hpp"
+#include "dylib.hpp"
+#include "IconsFontAwesome5.h"
+#include "glm/glm.hpp"
+#include "glm/gtx/matrix_transform_2d.hpp"
 
 typedef std::vector<std::string> DylibRegistry;
 
 #define print(expr) std::cout << expr << std::endl
 #define JSON_AS_TYPE(x, type) (x).template get<type>()
-#define ELECTRON_GET_LOCALIZATION(instance, localization) (((instance->localizationMap[localization]).template get<std::string>()).c_str())
+#define ELECTRON_GET_LOCALIZATION(localization) (((Shared::localizationMap[localization]).template get<std::string>()).c_str())
 
 #define DUMP_VAR(var) print(#var << " = " << (var))
 
@@ -251,42 +253,18 @@ namespace Electron {
         return val == NULL ? std::string("") : std::string(val);
     }
 
-    struct ElectronVector2f {
-        float x, y;
+    template<typename Func, typename Tup, std::size_t... index>
+    decltype(auto) invoke_helper(Func&& func, Tup&& tup, std::index_sequence<index...>) {
+        return func(std::get<index>(std::forward<Tup>(tup))...);
+    }
 
-        ElectronVector2f(float x, float y) {
-            this->x = x;
-            this->y = y;
-        }
-
-        ElectronVector2f() {}
-    };
-
-    struct Point {
-        float x, y;
-
-        Point(float x, float y) {
-            this->x = x;
-            this->y = y;
-        }
-
-        Point() {}
-    };
-
-    struct Rect {
-        float x, y, w, h;
-    
-        Rect(float x, float y, float w, float h) {
-            this->x = x;
-            this->y = y;
-            this->w = w;
-            this->h = h;
-        }
-
-        Rect() {}
-
-        bool contains(Point p);
-    };
+    template<typename Func, typename Tup>
+    decltype(auto) invoke(Func&& func, Tup&& tup) {
+        constexpr auto Size = std::tuple_size<typename std::decay<Tup>::type>::value;
+        return invoke_helper(std::forward<Func>(func),
+                            std::forward<Tup>(tup),
+                            std::make_index_sequence<Size>{});
+    }
 
     static ImVec2 FitRectInRect(ImVec2 screen, ImVec2 rectangle) {
         ImVec2 dst = screen;

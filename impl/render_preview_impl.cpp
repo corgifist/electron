@@ -38,7 +38,7 @@ extern "C" {
         ImGui::GetWindowDrawList()->AddRectFilled(bounds.UL, bounds.BR, ImGui::ColorConvertFloat4ToU32(color));
     }
 
-    ELECTRON_EXPORT void RenderPreviewRender(AppInstance* instance, RenderPreview* owner) {
+    ELECTRON_EXPORT void RenderPreviewRender(AppInstance* instance) {
         ImGui::SetCurrentContext(instance->context);
         static ResolutionVariant resolutionVariants[9];
         static bool firstSetup = true;
@@ -58,10 +58,10 @@ extern "C" {
         ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
         static DragStructure imagePreviewDrag{};
         static ImVec2 imageOffset{0, 0};
-        UI::Begin((std::string(ICON_FA_IMAGE " ") + ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::RenderPreviewCounter)).c_str(), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
+        UI::Begin((std::string(ICON_FA_IMAGE " ") + ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::RenderPreviewCounter)).c_str(), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
             ImVec2 windowSize = ImGui::GetWindowSize();
             if (!instance->projectOpened) {
-                std::string projectRequiredString = ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_PROJECT_REQUIRED_WARNING");
+                std::string projectRequiredString = ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_PROJECT_REQUIRED_WARNING");
                 ImVec2 warningTextSize = ImGui::CalcTextSize(CSTR(projectRequiredString));
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - warningTextSize.x / 2.0f,  windowSize.y / 2.0f - warningTextSize.y / 2.0f});
@@ -69,15 +69,15 @@ extern "C" {
                 UI::End();
                 return;
             }
-            static int selectedChannel = JSON_AS_TYPE(instance->project.propertiesMap["LastColorBuffer"], int);
-            instance->project.propertiesMap["LastColorBuffer"] = selectedChannel;
+            static int selectedChannel = JSON_AS_TYPE(Shared::project.propertiesMap["LastColorBuffer"], int);
+            Shared::project.propertiesMap["LastColorBuffer"] = selectedChannel;
 
-            bool resizeLerpEnabled = JSON_AS_TYPE(instance->configMap["ResizeInterpolation"], bool);
+            bool resizeLerpEnabled = JSON_AS_TYPE(Shared::configMap["ResizeInterpolation"], bool);
 
             static bool playing = false;
-            static bool looping = JSON_AS_TYPE(instance->project.propertiesMap["LoopPlayback"], bool);
-            static int selectedResolutionVariant = JSON_AS_TYPE(instance->project.propertiesMap["PreviewResolution"], int);
-            static float previewScale = JSON_AS_TYPE(instance->project.propertiesMap["RenderPreviewScale"], float);
+            static bool looping = JSON_AS_TYPE(Shared::project.propertiesMap["LoopPlayback"], bool);
+            static int selectedResolutionVariant = JSON_AS_TYPE(Shared::project.propertiesMap["PreviewResolution"], int);
+            static float previewScale = JSON_AS_TYPE(Shared::project.propertiesMap["RenderPreviewScale"], float);
             if (ImGui::Shortcut(ImGuiKey_ModCtrl | ImGuiKey_KeypadAdd)) {
                 previewScale += 0.05f;
             }
@@ -89,10 +89,6 @@ extern "C" {
                 previewScale = 1;
             }
 
-            if (instance->graphics.firePlay) {
-                playing = !playing;
-                instance->graphics.firePlay = false;
-            }
             instance->graphics.isPlaying = playing;
             if (playing) {
                 if ((int) instance->graphics.renderFrame >= instance->graphics.renderLength) {
@@ -110,30 +106,24 @@ extern "C" {
             RenderBuffer* rbo = &instance->graphics.renderBuffer;
             if (firstSetup) {
                 RebuildPreviewResolutions(resolutionVariants, {(float) rbo->width, (float) rbo->height});
-                instance->graphics.renderFrame = JSON_AS_TYPE(instance->project.propertiesMap["TimelineValue"], int);
+                instance->graphics.renderFrame = JSON_AS_TYPE(Shared::project.propertiesMap["TimelineValue"], int);
                 firstSetup = false;
             }
             
             GLuint previewTexture = instance->graphics.GetPreviewBufferByOutputType();
-            instance->project.propertiesMap["LoopPlayback"] = looping;
-            instance->project.propertiesMap["TimelineValue"] = instance->graphics.renderFrame;
-            instance->project.propertiesMap["PreviewResolution"] = selectedResolutionVariant;
-            instance->project.propertiesMap["RenderPreviewScale"] = previewScale;
+            Shared::project.propertiesMap["LoopPlayback"] = looping;
+            Shared::project.propertiesMap["TimelineValue"] = instance->graphics.renderFrame;
+            Shared::project.propertiesMap["PreviewResolution"] = selectedResolutionVariant;
+            Shared::project.propertiesMap["RenderPreviewScale"] = previewScale;
 
             float windowAspectRatio = windowSize.x / windowSize.y;
             windowAspectRatio = glm::clamp(windowAspectRatio, 0.0f, 1.0f);
             ImVec2 previewTextureSize = FitRectInRect(windowSize, {(float) resolutionVariants[0].width, (float) resolutionVariants[0].height}) * previewScale;
-            instance->graphics.renderFramerate = JSON_AS_TYPE(instance->project.propertiesMap["Framerate"], int);
+            instance->graphics.renderFramerate = JSON_AS_TYPE(Shared::project.propertiesMap["Framerate"], int);
             
-            RenderRequestMetadata metadata;
-            metadata.backgroundColor = JSON_AS_TYPE(instance->project.propertiesMap["BackgroundColor"], std::vector<float>);
-            metadata.beginX = 0;
-            metadata.beginY = 0;
-            metadata.endX = rbo->width;
-            metadata.endY = rbo->height;
             std::vector<float> renderTimes{};
-            instance->graphics.RequestRenderBufferCleaningWithinRegion(metadata);
-            renderTimes = instance->graphics.RequestRenderWithinRegion(metadata);
+            instance->graphics.RequestRenderBufferCleaningWithinRegion();
+            renderTimes = instance->graphics.RequestRenderWithinRegion();
 
             static float propertiesHeight = 50;
             static ImVec2 previousWindowPos = ImGui::GetWindowPos();
@@ -195,13 +185,13 @@ extern "C" {
                         ImGui::EndCombo();
                     }
                     if (ImGui::IsItemHovered()) {
-                        ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_RESOLUTIONS_LABEL"));
+                        ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_RESOLUTIONS_LABEL"));
                     }
                     ImGui::TableNextColumn();
                     static std::string outputBufferTypes[] = {
-                        ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_COLOR_BUFFER"),
-                        ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_UV_BUFFER"),
-                        ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_DEPTH_BUFFER")
+                        ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_COLOR_BUFFER"),
+                        ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_UV_BUFFER"),
+                        ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_DEPTH_BUFFER")
                     };
                     static PreviewOutputBufferType rawBufferTypes[] = {
                         PreviewOutputBufferType_Color,
@@ -219,15 +209,15 @@ extern "C" {
                         ImGui::EndCombo();
                     }
                     if (ImGui::IsItemHovered()) {
-                        ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_OUTPUT_BUFFER_TYPE"));
+                        ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_OUTPUT_BUFFER_TYPE"));
                     }
                     instance->graphics.outputBufferType = rawBufferTypes[selectedOutputBufferType];
                     ImGui::TableNextColumn();
                     static std::string channelTypes[] = {
-                        ELECTRON_GET_LOCALIZATION(instance, "GENERIC_R"),
-                        ELECTRON_GET_LOCALIZATION(instance, "GENERIC_G"),
-                        ELECTRON_GET_LOCALIZATION(instance, "GENERIC_B"),
-                        ELECTRON_GET_LOCALIZATION(instance, "GENERIC_RGB")
+                        ELECTRON_GET_LOCALIZATION("GENERIC_R"),
+                        ELECTRON_GET_LOCALIZATION("GENERIC_G"),
+                        ELECTRON_GET_LOCALIZATION("GENERIC_B"),
+                        ELECTRON_GET_LOCALIZATION("GENERIC_RGB")
                     };
 
                     if (ImGui::BeginCombo("##channelType", CSTR(channelTypes[selectedChannel]))) {
@@ -240,7 +230,7 @@ extern "C" {
                         ImGui::EndCombo();
                     }
                     if (ImGui::IsItemHovered()) {
-                        ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION(instance, "RENDER_PREVIEW_OUTPUT_CHANNELS"));
+                        ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_OUTPUT_CHANNELS"));
                     }
 
                     ImGui::TableNextColumn();
@@ -264,7 +254,7 @@ extern "C" {
                 propertiesHeight = ImGui::GetCursorPosY() - firstCursor;
             ImGui::EndChild();
         UI::End();
-        std::vector<int> projectResolution = JSON_AS_TYPE(instance->project.propertiesMap["ProjectResolution"], std::vector<int>);
+        std::vector<int> projectResolution = JSON_AS_TYPE(Shared::project.propertiesMap["ProjectResolution"], std::vector<int>);
         if ((resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1]) && !beginInterpolation) {
             instance->graphics.ResizeRenderBuffer(projectResolution[0], projectResolution[1]);
 

@@ -1,3 +1,4 @@
+#include "electron.h"
 #include "drag_utils.h"
 #include "editor_core.h"
 #define LEGEND_LAYER_DRAG_DROP "LEGEND_LAYER_DRAG_DROP"
@@ -65,33 +66,33 @@ static void TimelineRenderLayerPopup(AppInstance *instance, int i,
         ImGui::SeparatorText(layer->layerUsername.c_str());
         if (ImGui::MenuItem(string_format("%s %s", ICON_FA_COPY,
                                           ELECTRON_GET_LOCALIZATION(
-                                              instance, "GENERIC_COPY"))
+                                              "GENERIC_COPY"))
                                 .c_str(),
                             "Ctrl+C")) {
             copyContainer = *layer;
         }
         if (ImGui::MenuItem(string_format("%s %s", ICON_FA_PASTE,
                                           ELECTRON_GET_LOCALIZATION(
-                                              instance, "GENERIC_PASTE"))
+                                              "GENERIC_PASTE"))
                                 .c_str(),
                             "Ctrl+V")) {
             layerCopyTarget = i;
         }
         if (ImGui::MenuItem(string_format("%s %s", ICON_FA_PASTE,
                                           ELECTRON_GET_LOCALIZATION(
-                                              instance, "GENERIC_DUPLICATE"))
+                                              "GENERIC_DUPLICATE"))
                                 .c_str(),
                             "Ctrl+D")) {
             layerDuplicationTarget = i;
         }
         if (ImGui::MenuItem(string_format("%s %s", ICON_FA_TRASH_CAN,
                                           ELECTRON_GET_LOCALIZATION(
-                                              instance, "GENERIC_DELETE"))
+                                             "GENERIC_DELETE"))
                                 .c_str(),
                             "Delete")) {
             layerDeleteionTarget = i;
-            if (layer->id == instance->selectedRenderLayer) {
-                instance->selectedRenderLayer = -1;
+            if (layer->id == Shared::selectedRenderLayer) {
+                Shared::selectedRenderLayer = -1;
             }
         }
         ImGui::EndPopup();
@@ -136,7 +137,7 @@ void Timeline::Render(AppInstance *instance) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
     ImGui::Begin((std::string(ICON_FA_TIMELINE " ") +
-                  ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE"))
+                  ELECTRON_GET_LOCALIZATION("TIMELINE_TITLE"))
                      .c_str(),
                  &pOpen, 0);
     if (!pOpen) {
@@ -146,7 +147,7 @@ void Timeline::Render(AppInstance *instance) {
     if (!instance->projectOpened) {
         ImVec2 windowSize = ImGui::GetWindowSize();
         std::string noProjectOpened =
-            ELECTRON_GET_LOCALIZATION(instance, "GENERIC_NO_PROJECT_IS_OPENED");
+            ELECTRON_GET_LOCALIZATION("GENERIC_NO_PROJECT_IS_OPENED");
         ImVec2 textSize = ImGui::CalcTextSize(noProjectOpened.c_str());
         ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - textSize.x / 2.0f,
                                    windowSize.y / 2.0f - textSize.y / 2.0f});
@@ -171,8 +172,8 @@ void Timeline::Render(AppInstance *instance) {
     }
 
     static float legendWidth =
-        JSON_AS_TYPE(instance->project.propertiesMap["LegendWidth"], float);
-    instance->project.propertiesMap["LegendWidth"] = legendWidth;
+        JSON_AS_TYPE(Shared::project.propertiesMap["LegendWidth"], float);
+    Shared::project.propertiesMap["LegendWidth"] = legendWidth;
     legendWidth = glm::clamp(legendWidth, 0.1f, 0.8f);
     ImVec2 legendSize(canvasSize.x * legendWidth, canvasSize.y);
     float ticksBackgroundHeight = canvasSize.y * 0.05f;
@@ -204,7 +205,7 @@ void Timeline::Render(AppInstance *instance) {
     ImGui::SetScrollY(legendScrollY);
     DrawRect(fillerTicksBackground, style.Colors[ImGuiCol_WindowBg] * 0.7f);
     float propertiesStep =
-        glm::floor(22 * JSON_AS_TYPE(instance->configMap["UIScaling"], float));
+        glm::floor(22 * JSON_AS_TYPE(Shared::configMap["UIScaling"], float));
     float propertiesCoordAcc = 0;
     for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
         RenderLayer *layer = &instance->graphics.layers[i];
@@ -362,7 +363,7 @@ void Timeline::Render(AppInstance *instance) {
                             string_format(
                                 "%s %s", ICON_FA_PLUS,
                                 ELECTRON_GET_LOCALIZATION(
-                                    instance, "TIMELINE_ADD_KEYFRAME"))
+                                    "TIMELINE_ADD_KEYFRAME"))
                                 .c_str())) {
                         json_t xKeyframe = propertyMap.at(keyframeIndex);
                         xKeyframe.at(0) = (int)layerViewTime;
@@ -486,7 +487,7 @@ void Timeline::Render(AppInstance *instance) {
 
     float layerOffsetY = ticksBackgroundHeight;
     float layerSizeY =
-        22 * JSON_AS_TYPE(instance->configMap["UIScaling"], float);
+        22 * JSON_AS_TYPE(Shared::configMap["UIScaling"], float);
     if (universalLayerDrags.size() != instance->graphics.layers.size()) {
         universalLayerDrags =
             std::vector<DragStructure>(instance->graphics.layers.size());
@@ -588,7 +589,7 @@ void Timeline::Render(AppInstance *instance) {
                     if (ImGui::MenuItem(
                             string_format("%s %s", ICON_FA_TRASH,
                                           ELECTRON_GET_LOCALIZATION(
-                                              instance, "GENERIC_DELETE"))
+                                              "GENERIC_DELETE"))
                                 .c_str())) {
                         keyframeDeletionTarget = j;
                         DUMP_VAR(keyframeDeletionTarget);
@@ -596,7 +597,7 @@ void Timeline::Render(AppInstance *instance) {
                     if (ImGui::MenuItem(
                             string_format("%s %s", ICON_FA_PASTE,
                                           ELECTRON_GET_LOCALIZATION(
-                                              instance, "GENERIC_DUPLICATE"))
+                                              "GENERIC_DUPLICATE"))
                                 .c_str())) {
                         keyframeDuplicationTarget = j;
                     }
@@ -702,7 +703,7 @@ void Timeline::Render(AppInstance *instance) {
             }
             if (selected && !ImGui::GetIO().KeyCtrl) multipleDragSelectedLayers.clear();
 
-            instance->selectedRenderLayer = layer->id;
+            Shared::selectedRenderLayer = layer->id;
         }
         if (ImGui::GetIO().KeyCtrl)
             bool dragged = TimelineRenderDragNDrop(instance, i);
@@ -881,17 +882,15 @@ void Timeline::Render(AppInstance *instance) {
     ImGui::PopStyleVar(2);
     if (ImGui::BeginPopup("TimelinePopup")) {
         anyPopupsOpen = true;
-        ImGui::SeparatorText(
-            ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE"));
+        ImGui::SeparatorText(string_format("%s %s", ICON_FA_TIMELINE, ELECTRON_GET_LOCALIZATION("TIMELINE_TITLE")).c_str());
         if (ImGui::BeginMenu(
-                ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_ADD_LAYER"))) {
+                ELECTRON_GET_LOCALIZATION("TIMELINE_ADD_LAYER"))) {
             for (auto &entry : GraphicsCore::GetImplementationsRegistry()) {
                 Libraries::LoadLibrary("layers", entry);
                 
                 if (ImGui::MenuItem(
-                        Libraries::GetVariable<std::string>(entry, "LayerName").c_str())) {
-                    instance->graphics.layers.push_back(
-                        RenderLayer(entry));
+                        string_format("%s %s (%s)", ICON_FA_PLUS, Libraries::GetVariable<std::string>(entry, "LayerName").c_str(), entry.c_str()).c_str())) {
+                    Shared::graphics->AddRenderLayer(entry);
                 }
             }
             ImGui::EndMenu();
@@ -902,34 +901,34 @@ void Timeline::Render(AppInstance *instance) {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
     if (ImGui::IsKeyPressed(ImGuiKey_Space) && ImGui::GetIO().KeyCtrl) {
-        instance->graphics.firePlay = true;
+        Shared::graphics->isPlaying = true;
     }
 
     if (ImGui::Shortcut(ImGuiKey_C | ImGuiMod_Ctrl)) {
         copyContainer =
-            *instance->graphics.GetLayerByID(instance->selectedRenderLayer);
+            *instance->graphics.GetLayerByID(Shared::selectedRenderLayer);
         print("Copied layer with ID " << copyContainer.id);
     }
 
     if (ImGui::Shortcut(ImGuiKey_V | ImGuiMod_Ctrl) &&
         copyContainer.initialized) {
         layerCopyTarget =
-            instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
+            instance->graphics.GetLayerIndexByID(Shared::selectedRenderLayer);
     }
 
     if (ImGui::Shortcut(ImGuiKey_D | ImGuiMod_Ctrl)) {
         layerDuplicationTarget =
-            instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
+            instance->graphics.GetLayerIndexByID(Shared::selectedRenderLayer);
     }
 
-    if (ImGui::Shortcut(ImGuiKey_Delete) && instance->selectedRenderLayer > 0 &&
+    if (ImGui::Shortcut(ImGuiKey_Delete) && Shared::selectedRenderLayer > 0 &&
          multipleDragSelectedLayers.empty()) {
         layerDeleteionTarget =
-            instance->graphics.GetLayerIndexByID(instance->selectedRenderLayer);
-        instance->selectedRenderLayer = -1;
+            instance->graphics.GetLayerIndexByID(Shared::selectedRenderLayer);
+        Shared::selectedRenderLayer = -1;
     }
 
-    if (ImGui::Shortcut(ImGuiKey_Delete) && instance->selectedRenderLayer > 0 && !multipleDragSelectedLayers.empty()) {
+    if (ImGui::Shortcut(ImGuiKey_Delete) && Shared::selectedRenderLayer > 0 && !multipleDragSelectedLayers.empty()) {
         std::vector<int> layerIndices{};
         for (auto& index : multipleDragSelectedLayers) {
             layerIndices.push_back(instance->graphics.layers[index].id);
@@ -938,7 +937,7 @@ void Timeline::Render(AppInstance *instance) {
             auto& layers = instance->graphics.layers;
             layers.erase(layers.begin() + instance->graphics.GetLayerIndexByID(layerIndex));
         }
-        instance->selectedRenderLayer = -1;
+        Shared::selectedRenderLayer = -1;
     }  
     ImGui::EndChild();
 

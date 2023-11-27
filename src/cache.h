@@ -2,9 +2,9 @@
 #include "electron.h"
 
 namespace Electron {
-    class Cache {
-    public:
-        static json_t* configReference;
+    // Just a helper tool to get unique number
+    struct Cache {
+        static int cacheIndex;
         static int GetCacheIndex();
     };
 }

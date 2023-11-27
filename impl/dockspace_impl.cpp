@@ -1,5 +1,6 @@
 #include "editor_core.h"
 #include "app.h"
+#include "shared.h"
 #include "ImGuiFileDialog.h"
 #define CSTR(x) ((x).c_str())
 
@@ -7,53 +8,55 @@ using namespace Electron;
 
 extern "C" {
 
-    void DockspaceRenderTabBar(AppInstance* instance) {
+    void DockspaceRenderTabBar(AppInstance* instance, bool& openModal) {
         if (ImGui::BeginMenuBar()) {
-                if (ImGui::BeginMenu(string_format("%s %s", ICON_FA_FOLDER_OPEN, ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU")).c_str())) {
-                    if (ImGui::MenuItem(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN")), "Ctrl+P+O")) {
+                if (ImGui::BeginMenu(string_format("%s %s", ICON_FA_FOLDER_OPEN, ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU")).c_str())) {
+                    if (ImGui::MenuItem(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN")), "Ctrl+P+O")) {
                         ImGuiFileDialog::Instance()->OpenDialog("OpenProjectDialog", "Open project", nullptr, ".");
                     }
-                    if (ImGui::MenuItem(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_OPEN_RECENT_PROJECT")) + ": " + JSON_AS_TYPE(instance->configMap["LastProject"], std::string)), "Ctrl+P+L", false, JSON_AS_TYPE(instance->configMap["LastProject"], std::string) != "null")) {
+                    if (ImGui::MenuItem(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_OPEN_RECENT_PROJECT")) + ": " + JSON_AS_TYPE(Shared::configMap["LastProject"], std::string)), "Ctrl+P+L", false, JSON_AS_TYPE(Shared::configMap["LastProject"], std::string) != "null")) {
                         ProjectMap project{};
-                        project.path = instance->configMap["LastProject"];
+                        project.path = Shared::configMap["LastProject"];
                         project.propertiesMap = json_t::parse(std::fstream(std::string(project.path) + "/project.json"));
-                        instance->shortcuts.Ctrl_P_O(project);
+                        Shortcuts::Ctrl_P_O(project);
                     }
                     ImGui::Separator();
-                    if (ImGui::MenuItem(CSTR(ICON_FA_RECYCLE + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "RELOAD_APPLICATION"))), "")) {
+                    if (ImGui::MenuItem(CSTR(ICON_FA_TRASH_CAN + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION("CLEAR_PROJECT_CACHES"))), "Ctrl+E+C")) {
+                        openModal = true;
+                    }
+                    if (ImGui::MenuItem(CSTR(ICON_FA_SPINNER + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION("RELOAD_APPLICATION"))), "")) {
                         ImGui::EndMenu();
                         ImGui::EndMenuBar();
                         UI::End();
                         throw ElectronSignal_ReloadSystem;
                     }
-                    if (ImGui::MenuItem(CSTR(ICON_FA_XMARK + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"))), "Ctrl+P+E")) {
-                        instance->shortcuts.Ctrl_P_E();
+                    if (ImGui::MenuItem(CSTR(ICON_FA_XMARK + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"))), "Ctrl+P+E")) {
+                        Shortcuts::Ctrl_P_E();
                     }
                     ImGui::EndMenu();
                 }
-                if (ImGui::BeginMenu(CSTR(ICON_FA_LAYER_GROUP + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))))) {
+                if (ImGui::BeginMenu(CSTR(ICON_FA_LAYER_GROUP + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))))) {
                     auto registry = instance->graphics.GetImplementationsRegistry();
-                    for (auto& entry : registry) {
-                        std::string key = entry;
+                    for (auto& key : registry) {
                         Libraries::LoadLibrary("layers", key);
-                        if (ImGui::MenuItem(Libraries::GetVariable<std::string>(key, "LayerName").c_str(), "")) {
+                        if (ImGui::MenuItem(string_format("%s %s (%s)", ICON_FA_PLUS, Libraries::GetVariable<std::string>(key, "LayerName").c_str(), key.c_str()).c_str())) {
                             instance->graphics.AddRenderLayer(key);
                         }
                     }
                     ImGui::EndMenu();
                 }
-                if (ImGui::BeginMenu(CSTR(std::string(ICON_FA_TOOLBOX + std::string(" ") + ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))))) {
-                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION(instance, "PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU_RENDER_PREVIEW"), "Ctrl+W+R", false, UICounters::RenderPreviewCounter != 1)) {
-                        instance->shortcuts.Ctrl_W_R();
+                if (ImGui::BeginMenu(CSTR(std::string(ICON_FA_TOOLBOX + std::string(" ") + ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))))) {
+                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_WINDOW_TITLE"), "Ctrl+W+R", false, UICounters::RenderPreviewCounter != 1)) {
+                        Shortcuts::Ctrl_W_R();
                     }
-                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION(instance, "LAYER_PROPERTIES_TITLE"), "Ctrl+W+L", false, UICounters::LayerPropertiesCounter != 1)) {
-                        instance->shortcuts.Ctrl_W_L();
+                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_TITLE"), "Ctrl+W+L", false, UICounters::LayerPropertiesCounter != 1)) {
+                        Shortcuts::Ctrl_W_L();
                     }
-                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE"), "Ctrl+W+A", false, UICounters::AssetManagerCounter != 1)) {
-                        instance->shortcuts.Ctrl_W_A();
+                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_TITLE"), "Ctrl+W+A", false, UICounters::AssetManagerCounter != 1)) {
+                        Shortcuts::Ctrl_W_A();
                     }
-                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION(instance, "TIMELINE_TITLE"), "Ctrl+W+T", false, UICounters::TimelineCounter != 1)) {
-                        instance->shortcuts.Ctrl_W_T();
+                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION("TIMELINE_TITLE"), "Ctrl+W+T", false, UICounters::TimelineCounter != 1)) {
+                        Shortcuts::Ctrl_W_T();
                     }
                     ImGui::EndMenu();
                 }
@@ -87,12 +90,28 @@ extern "C" {
 
             UI::Begin(label, ElectronSignal_None, host_window_flags);
             ImGui::PopStyleVar(3);
+            bool openModal = false;
+            static bool modalActive = true;
             if (instance->isNativeWindow) {
-                DockspaceRenderTabBar(instance);
+                DockspaceRenderTabBar(instance, openModal);
+            }
+            if (openModal) {
+                ImGui::OpenPopup(ELECTRON_GET_LOCALIZATION("ARE_YOU_SURE"));
+                modalActive = true;
             }
 
             ImGuiID dockspace_id = ImGui::GetID("DockSpace");
             ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags, nullptr);
+
+            if (ImGui::BeginPopupModal(ELECTRON_GET_LOCALIZATION("ARE_YOU_SURE"), &modalActive, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::Text(ELECTRON_GET_LOCALIZATION("PROJECT_INVALIDATION_WARNING"));
+                ImGui::Spacing();
+                if (instance->ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
+                    instance->shortcuts.Ctrl_E_C();
+                    modalActive = false;
+                };
+                ImGui::EndPopup();
+            }
 
             UI::End();
         };

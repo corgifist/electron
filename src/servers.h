@@ -18,6 +18,8 @@ namespace Electron {
             return json_t(response);
         }
     };
+
+    // Provides ability to communicate with electron servers
     class Servers {
     private:
         static ServerResponse PerformSyncedRequest(int port, json_t request);

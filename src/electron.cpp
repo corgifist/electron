@@ -5,10 +5,6 @@
 
 #define start_server(type, port) system((std::string("./") + argv[0] + " --type " + type + " --port " + std::to_string(port) + " --pid " + std::to_string(getpid()) + " &").c_str())
 
-bool Electron::Rect::contains(Electron::Point p) {
-    return p.x >= x && p.y >= y && p.x <= x + w && p.y <= y + h;
-}
-
 std::string Electron::exec(const char *cmd) {
     char buffer[128];
     std::string result = "";

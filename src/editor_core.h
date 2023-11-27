@@ -59,8 +59,6 @@ namespace Electron {
     };
 
     typedef void (*Electron_ImplF)(AppInstance*);
-    typedef void (*Electron_RenderPreviewImplF)(AppInstance*, RenderPreview*);
-    typedef void (*Electron_TimelineF)(AppInstance* owner, Timeline*);
 
     class ProjectConfiguration : public ElectronUI {
     private:
@@ -77,7 +75,7 @@ namespace Electron {
 
     class RenderPreview : public ElectronUI {
     private:
-        Electron_RenderPreviewImplF implFunction;
+        Electron_ImplF implFunction;
 
     public:
         RenderPreview();

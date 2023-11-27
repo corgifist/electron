@@ -17,10 +17,10 @@ extern "C" {
         ImGui::SetCurrentContext(instance->context);
 
         static bool showPreview = true;
-        UI::Begin(CSTR(std::string(ICON_FA_FOLDER " ") + ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TITLE") + std::string("##") + std::to_string(UICounters::AssetManagerCounter)), ElectronSignal_CloseWindow, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+        UI::Begin(CSTR(std::string(ICON_FA_FOLDER " ") + ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_TITLE") + std::string("##") + std::to_string(UICounters::AssetManagerCounter)), ElectronSignal_CloseWindow, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             ImVec2 windowSize = ImGui::GetContentRegionAvail();
             if (!instance->projectOpened) {
-                std::string noProjectOpened = ELECTRON_GET_LOCALIZATION(instance, "GENERIC_NO_PROJECT_IS_OPENED");
+                std::string noProjectOpened = ELECTRON_GET_LOCALIZATION("GENERIC_NO_PROJECT_IS_OPENED");
                 ImVec2 textSize = ImGui::CalcTextSize(CSTR(noProjectOpened));
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - textSize.x / 2.0f, windowSize.y / 2.0f - textSize.y / 2.0f});
                 ImGui::Text("%s", CSTR(noProjectOpened));
@@ -29,31 +29,20 @@ extern "C" {
             }
 
             static std::string importErrorMessage = "";
-            static std::string searchFilter = JSON_AS_TYPE(instance->project.propertiesMap["AssetSearch"], std::string);
-            instance->project.propertiesMap["AssetSearch"] = searchFilter;
+            static std::string searchFilter = JSON_AS_TYPE(Shared::project.propertiesMap["AssetSearch"], std::string);
+            Shared::project.propertiesMap["AssetSearch"] = searchFilter;
             static float beginCursorY = 0;
             static float endCursorY = 0;
 
-            static int assetSelected = JSON_AS_TYPE(instance->project.propertiesMap["AssetSelected"], int);
-            instance->project.propertiesMap["AssetSelected"] = assetSelected;
+            static int assetSelected = JSON_AS_TYPE(Shared::project.propertiesMap["AssetSelected"], int);
+            Shared::project.propertiesMap["AssetSelected"] = assetSelected;
 
-            if (instance->graphics.fireAssetId != -1) {
-                int iterIndex = 0;
-                for (auto& asset : instance->assets.assets) {
-                    if (asset.id == instance->graphics.fireAssetId) {
-                        assetSelected = iterIndex;
-                        break;
-                    }
-                    iterIndex++;
-                }
-                instance->graphics.fireAssetId = -1;
-            }
             bool p = false;
 
             ImGui::BeginChild("searchBarChild", ImVec2(windowSize.x, endCursorY - beginCursorY), false, 0);
             if (assetSelected >= instance->assets.assets.size()) assetSelected = -1;
                 if (assetSelected == -1) {
-                    std::string noAssetSelectedMsg = ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_NO_ASSET_SELECTED");
+                    std::string noAssetSelectedMsg = ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_NO_ASSET_SELECTED");
                     ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize(CSTR(noAssetSelectedMsg)).x / 2.0f);
                     ImGui::Text("%s", CSTR(noAssetSelectedMsg));
                 } else {
@@ -79,18 +68,18 @@ extern "C" {
                         ImGui::TableSetColumnIndex(1);
                         ImGui::InputText("##AssetName", &asset.name, 0);
                         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) 
-                            ImGui::SetTooltip("%s", CSTR(string_format("%s %s", ICON_FA_PENCIL, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_RESOURCE_NAME"))));
+                            ImGui::SetTooltip("%s", CSTR(string_format("%s %s", ICON_FA_PENCIL, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_RESOURCE_NAME"))));
                         std::string hexId = intToHex(asset.id);
-                        ImGui::Text("%s", string_format("%s: %s", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_ID"), hexId.c_str()).c_str());
+                        ImGui::Text("%s", string_format("%s: %s", ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_ASSET_ID"), hexId.c_str()).c_str());
                         ImGui::SameLine();
-                        if (ImGui::Button(CSTR(string_format("%s %s", ICON_FA_COPY, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_COPY_ID"))))) {
+                        if (ImGui::Button(CSTR(string_format("%s %s", ICON_FA_COPY, ELECTRON_GET_LOCALIZATION("GENERIC_COPY_ID"))))) {
                             ImGui::SetClipboardText(CSTR(hexId));
                         }
                         glm::vec2 naturalAssetReoslution = asset.GetDimensions();
                         if (asset.type == TextureUnionType::Texture) {
-                            ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_TEXTURE_RESOLUTION"), (int) naturalAssetReoslution.x, (int) naturalAssetReoslution.y)));
+                            ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_TEXTURE_RESOLUTION"), (int) naturalAssetReoslution.x, (int) naturalAssetReoslution.y)));
                         } else if (asset.type == TextureUnionType::Audio) {
-                            ImGui::Text("* %s\n  %s", ELECTRON_GET_LOCALIZATION(instance, "HOVER_TO_GET_PROBE_DATA"), ELECTRON_GET_LOCALIZATION(instance, "CLICK_TO_COPY"));
+                            ImGui::Text("* %s\n  %s", ELECTRON_GET_LOCALIZATION("HOVER_TO_GET_PROBE_DATA"), ELECTRON_GET_LOCALIZATION("CLICK_TO_COPY"));
                             if (ImGui::IsItemHovered()) {
                                 if (ImGui::GetIO().MouseClicked[ImGuiMouseButton_Left]) {
                                     ImGui::SetClipboardText(std::get<AudioMetadata>(asset.as).probe.c_str());
@@ -104,9 +93,9 @@ extern "C" {
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
                 ImGui::InputText("##SearchFilterChild", &searchFilter, 0);
                 if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                    ImGui::SetTooltip("%s", string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_SEARCH")).c_str());
-                if (ImGui::Selectable(string_format("%s %s", ICON_FA_FILE_IMPORT, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_IMPORT_ASSET")).c_str(), p)) {
-                    ImGuiFileDialog::Instance()->OpenDialog("ImportAssetDlg", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_SELECT_ASSET_PATH"), IMPORT_EXTENSIONS, ".");
+                    ImGui::SetTooltip("%s", string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_SEARCH")).c_str());
+                if (ImGui::Selectable(string_format("%s %s", ICON_FA_FILE_IMPORT, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_IMPORT_ASSET")).c_str(), p)) {
+                    ImGuiFileDialog::Instance()->OpenDialog("ImportAssetDlg", ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_SELECT_ASSET_PATH"), IMPORT_EXTENSIONS, ".");
                 }
                 endCursorY = ImGui::GetCursorPos().y;
             ImGui::EndChild();
@@ -115,9 +104,9 @@ extern "C" {
             int assetDeletionIndex = -1;
             static int targetAssetBrowsePath = -1;
             if (ImGui::BeginTable("AssetsTable", 3, ImGuiTableFlags_Resizable)) {
-                ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_NAME"));
-                ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_PATH"));
-                ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_SIZE"));
+                ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_NAME"));
+                ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_PATH"));
+                ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_SIZE"));
                 ImGui::TableHeadersRow();
                 for (auto& asset : instance->assets.assets) {
                     ImGui::TableNextRow();
@@ -138,14 +127,14 @@ extern "C" {
 
                             if (ImGui::BeginPopup(string_format("AssetPopup%i", asset.id).c_str(), 0)) {
                                 ImGui::SeparatorText(CSTR(asset.name));
-                                if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_EXAMINE_ASSET"))))) {
+                                if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_EXAMINE_ASSET"))))) {
                                     showPreview = true;
                                 }
-                                if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_RECYCLE, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_REIMPORT_ASSET"))), "")) {
-                                    ImGuiFileDialog::Instance()->OpenDialog("BrowseAssetPath", ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_BROWSE_ASSET_PATH"), IMPORT_EXTENSIONS, ".");
+                                if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_RECYCLE, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_REIMPORT_ASSET"))), "")) {
+                                    ImGuiFileDialog::Instance()->OpenDialog("BrowseAssetPath", ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_BROWSE_ASSET_PATH"), IMPORT_EXTENSIONS, ".");
                                     targetAssetBrowsePath = assetIndex;
                                 }
-                                if (ImGui::MenuItem(string_format("%s %s", ICON_FA_TRASH_CAN, ELECTRON_GET_LOCALIZATION(instance, "GENERIC_DELETE")).c_str(), "")) {
+                                if (ImGui::MenuItem(string_format("%s %s", ICON_FA_TRASH_CAN, ELECTRON_GET_LOCALIZATION("GENERIC_DELETE")).c_str(), "")) {
                                     assetDeletionIndex = assetIndex;
                                     showPreview = false;
                                     if (assetIndex == assetSelected) {
@@ -173,11 +162,11 @@ extern "C" {
         UI::End();
 
         if (showPreview && assetSelected != -1) {
-            ImGui::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_EXAMINER"))), &showPreview, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
+            ImGui::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_ASSET_EXAMINER"))), &showPreview, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
                 windowSize = ImGui::GetContentRegionAvail();
                 UI::DropShadow();
-                static float assetPreviewScale = JSON_AS_TYPE(instance->project.propertiesMap["LastAssetPreviewScale"], float);
-                instance->project.propertiesMap["LastAssetPreviewScale"] = assetPreviewScale;
+                static float assetPreviewScale = JSON_AS_TYPE(Shared::project.propertiesMap["LastAssetPreviewScale"], float);
+                Shared::project.propertiesMap["LastAssetPreviewScale"] = assetPreviewScale;
                 if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd)) {
                     assetPreviewScale += 0.2f;
                 }
@@ -213,7 +202,7 @@ extern "C" {
                         ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - imageSize.x / 2.0f, windowSize.y / 2.0f - imageSize.y / 2.0f} + imageOffset);
                         ImGui::Image((ImTextureID)(uint64_t) textureID, imageSize);
                         if (ImGui::IsItemHovered()) {
-                            ImGui::SetTooltip("%s", CSTR(string_format("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_LEFT_CLICK_FOR_CONTEXT_MENU"))));
+                            ImGui::SetTooltip("%s", CSTR(string_format("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_LEFT_CLICK_FOR_CONTEXT_MENU"))));
                         }
                         if (ImGui::IsItemHovered() && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
                             ImGui::OpenPopup("assetContextMenu");
@@ -224,7 +213,7 @@ extern "C" {
                 }
                 if (ImGui::BeginPopup("assetContextMenu")) {
                     ImGui::SeparatorText(asset.name.c_str());
-                    if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_INFO, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_MORE_INFO"))))) {
+                    if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_INFO, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_MORE_INFO"))))) {
                         system(CSTR(string_format("xdg-open %s &", asset.path.c_str())));
                     }
                     ImGui::EndPopup();
@@ -243,14 +232,13 @@ extern "C" {
                     static bool audioPlaybackPlaying = false;
                     if (previousAssetID != asset.id && asset.type == TextureUnionType::Audio) {
                         AudioMetadata audioMetadata = std::get<AudioMetadata>(asset.as);
-                        print("resetting audio constants");
                         audioPlaybackPlaying = false;
                         audioPlaybackLength = audioMetadata.audioLength;
                         audioPlaybackProgress = 0;
                     }
                     switch (asset.type) {
                         case TextureUnionType::Texture: {
-                            ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION(instance, "GENERIC_RESOLUTION"), (int) asset.GetDimensions().x, (int) asset.GetDimensions().y)));
+                            ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION("GENERIC_RESOLUTION"), (int) asset.GetDimensions().x, (int) asset.GetDimensions().y)));
                             break;
                         }
                         case TextureUnionType::Audio: {
@@ -275,10 +263,10 @@ extern "C" {
 
             ImGui::End();
         } else if (showPreview && assetSelected == -1) {
-            ImGui::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_ASSET_EXAMINER"))), &showPreview, 0);
+            ImGui::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_ASSET_EXAMINER"))), &showPreview, 0);
                 windowSize = ImGui::GetContentRegionAvail();
                 UI::DropShadow();
-                std::string nothingToExamine = ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_NOTHING_TO_EXAMINE");
+                std::string nothingToExamine = ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_NOTHING_TO_EXAMINE");
                 ImVec2 textSize = ImGui::CalcTextSize(CSTR(nothingToExamine));
                 ImGui::SetCursorPos({windowSize.x / 2.0f - textSize.x / 2.0f, windowSize.y / 2.0f - textSize.y / 2.0f});
                 ImGui::Text("%s", CSTR(nothingToExamine));
@@ -297,26 +285,31 @@ extern "C" {
             if (ImGuiFileDialog::Instance()->IsOk()) {
                 AssetRegistry& reg = instance->assets;
                 reg.assets[targetAssetBrowsePath].path = ImGuiFileDialog::Instance()->GetFilePathName();
-                reg.assets[targetAssetBrowsePath].RebuildAssetData(&instance->graphics);
+                reg.assets[targetAssetBrowsePath].RebuildAssetData();
             }
 
             ImGuiFileDialog::Instance()->Close();
         }
 
         if (importErrorMessage != "") {
-            UI::Begin(CSTR(string_format("%s %s", ICON_FA_EXCLAMATION, ELECTRON_GET_LOCALIZATION(instance, "ASSET_MANAGER_IMPORT_FAILURE"))), ElectronSignal_None, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+            std::string popupTitle = string_format("%s %s", ICON_FA_EXCLAMATION, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_IMPORT_FAILURE"));
+            ImGui::OpenPopup(popupTitle.c_str());
+            if (ImGui::BeginPopupModal(popupTitle.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize)) {
                 ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize(CSTR(importErrorMessage)).x / 2.0f);
                 ImGui::Text("%s", CSTR(importErrorMessage));
 
-                if (instance->ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION(instance, "GENERIC_OK"))) {
+                if (instance->ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
                     importErrorMessage = "";
                 }
-            UI::End();
+                ImGui::EndPopup();
+            }
+            
         }
 
         if (assetDeletionIndex != -1) {
             auto& assets = instance->assets.assets;
-            if (assets.at(assetDeletionIndex).type == TextureUnionType::Texture) {
+            TextureUnionType type = assets.at(assetDeletionIndex).type;
+            if (type == TextureUnionType::Texture || type == TextureUnionType::Audio) {
                 PixelBuffer::DestroyGPUTexture(assets.at(assetDeletionIndex).pboGpuTexture);
             }
             assets.erase(assets.begin() + assetDeletionIndex);

@@ -49,20 +49,20 @@ extern "C" {
         owner->properties["EnableTexturing"] = true;
 
         if (sdf2d_compute == -1) {
-            sdf2d_compute = owner->graphicsOwner->CompileComputeShader("sdf2d.compute");
+            sdf2d_compute = GraphicsCore::CompileComputeShader("sdf2d.compute");
         }
     }
 
-    ELECTRON_EXPORT void LayerRender(RenderLayer* owner, RenderRequestMetadata metadata) {
-        RenderBuffer* pbo = &owner->graphicsOwner->renderBuffer;
-        GraphicsCore* core = owner->graphicsOwner;
+    ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
+        RenderBuffer* pbo = &Shared::graphics->renderBuffer;
+        GraphicsCore* core = Shared::graphics;
         if (owner->anyData.size() == 0) {
-            owner->anyData.push_back(ResizableRenderBuffer(owner->graphicsOwner, pbo->width, pbo->height));
+            owner->anyData.push_back(ResizableRenderBuffer(pbo->width, pbo->height));
         }
 
         ResizableRenderBuffer rrb = std::any_cast<ResizableRenderBuffer>(owner->anyData[0]);
         
-        core->RequestTextureCollectionCleaning(rrb.color.texture, rrb.uv.texture, rrb.depth.texture, pbo->width, pbo->height, metadata);
+        core->RequestTextureCollectionCleaning(rrb.color.texture, rrb.uv.texture, rrb.depth.texture, pbo->width, pbo->height);
         rrb.CheckForResize(pbo);
         owner->anyData[0] = rrb;
 
@@ -83,7 +83,7 @@ extern "C" {
         bool texturingEnabled = JSON_AS_TYPE(owner->properties["EnableTexturing"], bool);
         std::string textureID = JSON_AS_TYPE(owner->properties["TextureID"], std::string);
         TextureUnion* asset = nullptr;
-        auto& assets = owner->graphicsOwner->owner->assets.assets;
+        auto& assets = Shared::assets->assets;
         for (int i = 0; i < assets.size(); i++) {
             if (intToHex(assets.at(i).id) == textureID) {
                 if (assets.at(i).IsTextureCompatible())
@@ -93,32 +93,32 @@ extern "C" {
 
         bool canTexture = (asset != nullptr && texturingEnabled);
 
-        owner->graphicsOwner->BindGPUTexture(rrb.color.texture, 0, GL_WRITE_ONLY);
-        owner->graphicsOwner->BindGPUTexture(rrb.uv.texture, 1, GL_WRITE_ONLY);
-        owner->graphicsOwner->BindGPUTexture(rrb.depth.texture, 2, GL_WRITE_ONLY);
+        GraphicsCore::BindGPUTexture(rrb.color.texture, 0, GL_WRITE_ONLY);
+        GraphicsCore::BindGPUTexture(rrb.uv.texture, 1, GL_WRITE_ONLY);
+        GraphicsCore::BindGPUTexture(rrb.depth.texture, 2, GL_WRITE_ONLY);
         if (canTexture) {
-            owner->graphicsOwner->BindGPUTexture(asset->pboGpuTexture, 3, GL_READ_ONLY);
+            GraphicsCore::BindGPUTexture(asset->pboGpuTexture, 3, GL_READ_ONLY);
         }
-        owner->graphicsOwner->UseShader(sdf2d_compute);
-        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "pboResolution", pbo->width, pbo->height);
-        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "position", position);
-        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "size", size);
-        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "angle", angle);
-        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "color", color);
-        owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "canTexture", canTexture ? 1 : 0);
+        GraphicsCore::UseShader(sdf2d_compute);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "pboResolution", pbo->width, pbo->height);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "position", position);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "size", size);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "angle", angle);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "color", color);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "canTexture", canTexture ? 1 : 0);
         if (asset) {
-            owner->graphicsOwner->ShaderSetUniform(sdf2d_compute, "assetSize", asset->GetDimensions());
+            GraphicsCore::ShaderSetUniform(sdf2d_compute, "assetSize", asset->GetDimensions());
         }
-        owner->graphicsOwner->DispatchComputeShader(pbo->width, pbo->height, 1);
-        owner->graphicsOwner->ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
+        GraphicsCore::DispatchComputeShader(pbo->width, pbo->height, 1);
+        GraphicsCore::ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
 
-        owner->graphicsOwner->CallCompositor(rrb.color, rrb.uv, rrb.depth);
+        Shared::graphics->CallCompositor(rrb.color, rrb.uv, rrb.depth);
 
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
-        AppInstance* instance = layer->graphicsOwner->owner;
-        RenderBuffer* pbo = &layer->graphicsOwner->renderBuffer;
+        AppInstance* instance = Shared::app;
+        RenderBuffer* pbo = &Shared::graphics->renderBuffer;
 
         bool texturingEnabled = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
         ImGui::Checkbox("Enable texturing", &texturingEnabled);

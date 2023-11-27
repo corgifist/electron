@@ -1,12 +1,10 @@
 #include "cache.h"
 
 namespace Electron {
-    json_t* Cache::configReference;
+    int Cache::cacheIndex = 0;
 
     int Cache::GetCacheIndex() {
-        int index = JSON_AS_TYPE(configReference->at("CacheIndex"), int);
-        int retValue = index;
-        configReference->at("CacheIndex") = index + 1;
-        return retValue;
+        cacheIndex += 2;
+        return cacheIndex;
     }
 }

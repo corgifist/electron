@@ -6,7 +6,7 @@ int UICounters::RenderPreviewCounter;
 
 RenderPreview::RenderPreview() {
     this->implFunction =
-            Libraries::GetFunction<void(AppInstance *, RenderPreview *)>(
+            Libraries::GetFunction<void(AppInstance *)>(
                 ImplDylibs::RenderPreviewDylib, "RenderPreviewRender");
     UICounters::RenderPreviewCounter++;
 }
@@ -14,6 +14,6 @@ RenderPreview::RenderPreview() {
 RenderPreview::~RenderPreview() { UICounters::RenderPreviewCounter--; }
 
 void RenderPreview::Render(AppInstance *instance) {
-    this->implFunction(instance, this);
+    this->implFunction(instance);
 }
 } // namespace Electron

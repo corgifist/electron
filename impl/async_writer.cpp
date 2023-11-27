@@ -45,6 +45,7 @@ extern "C" {
         running = true;
         app.port(port)
             .bindaddr("0.0.0.0")
+            .concurrency(2)
             .timeout(5)
             .run();
 

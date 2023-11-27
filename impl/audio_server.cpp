@@ -61,6 +61,7 @@ extern "C" {
         app.port(port)
             .bindaddr("0.0.0.0")
             .timeout(5)
+            .concurrency(2)
             .run();
 
         thread.join();

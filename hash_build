@@ -1,18 +1,18 @@
 build_arch = "64"
+base_exec_name = "electron"
 if eq(get_platform(), windows) {
     target_exec = "electron.exe"
     dylib_prefix = ".dll"
-    dylib_id = ""
+    dylib_id = "lib"
     object_add_link_options(mwindows)
 } else {
     target_exec = "electron"
     dylib_prefix = ".so"
     dylib_id = "lib"
 }
+print(cat("Platform: ", get_platform()))
 
 load_module("scripts/electron_build_utils.py")
-gles_path = ":libGLESv2.so.angle"
-egl_path = ":libEGL.so.angle"
 
 std_cxx = "20"
 
@@ -25,7 +25,6 @@ object_add_compile_options(g) # include debug symbols
 object_add_compile_options(Werror)
 object_add_compile_options("Wno-unused")
 object_add_compile_options("I /usr/include/")
-
 dump_compilation_commands(0)
 
 target_impls = [
@@ -51,7 +50,13 @@ scenario build_imgui {
         $imgui_targets,
         $build_arch
     )
-    link_executable($imgui_objects, cat($dylib_id, cat("imgui", $dylib_prefix)), [], shared)
+    if eq(get_platform(), windows) {
+        deps = [opengl32, GLESv2, glfw3]
+    } else {
+        deps = []
+    }
+
+    link_executable($imgui_objects, cat($dylib_id, cat("imgui", $dylib_prefix)), $deps, shared, imgui)
 }
 
 scenario build_core {
@@ -70,11 +75,12 @@ scenario build_core {
     deps = list()
     if eq(get_platform(), windows) {
         deps = [
-            opengl32, glfw3, windowscodecs, ole32, shlwapi, pthread, dbgeng, backtrace, dbgeng, bfd, dbghelp, curl
+            opengl32, glfw3, windowscodecs, ole32, shlwapi, pthread, dbgeng, backtrace, dbgeng, bfd, dbghelp, imgui, curl, kernel32, user32, gdi32, winspool, comdlg32, advapi32, shell32, oleaut32, uuid, comctl32, wsock32, ldap, odbc32, z, ssl, crypto, crypt32, nghttp2
         ]
     } else {
         deps = [
-            glfw, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, GLESv2, EGL
+            glfw, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, GLESv2, EGL, imgui, boost_filesystem
+            
         ]
     }
 
@@ -84,7 +90,7 @@ scenario build_core {
     } else {
         object_add_link_options("rdynamic")
     }
-    link_executable($objects, cat($dylib_id, cat($target_exec, $dylib_prefix)), $deps, shared)
+    link_executable($objects, cat($dylib_id, cat($base_exec_name, $dylib_prefix)), $deps, shared, electron)
 }
 
 scenario build_starter {
@@ -148,6 +154,7 @@ scenario build {
     if path_exists($target_exec) {
         rm($target_exec)
     }
+    write_build_number()
     call_scenario(build_imgui)
     call_scenario(build_core)
     call_scenario(build_starter)
