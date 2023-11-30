@@ -1,17 +1,15 @@
-#define WITH_MINIAUDIO
 #include "crow.h"
 #include "editor_core.h"
 #include "soloud/soloud.h"
 #include "soloud/soloud_wav.h"
-#include "soloud/soloud_thread.h"
 
 using namespace Electron;
 
 extern "C" {
     crow::SimpleApp* globalApp = nullptr;
     bool running = false;
-    std::unordered_map<std::string, std::unique_ptr<SoLoud::Wav>> cache;
-    SoLoud::Soloud instance;
+    std::unordered_map<std::string, SoLoud::Wav> cache;
+    SoLoud::Soloud* globalInstance;
 
     void Dummy() {}
 
@@ -19,7 +17,9 @@ extern "C" {
         crow::SimpleApp app;
         app.loglevel(crow::LogLevel::Warning);
         globalApp = &app;
-        instance.init();
+        globalInstance = new SoLoud::Soloud();
+        globalInstance->init();
+        DUMP_VAR(globalInstance->getBackendString());
         auto thread = std::thread([](int pid) {
             while (true) {
                 if (!process_is_alive(pid)) break;
@@ -43,16 +43,22 @@ extern "C" {
                 }
                 if (action == "load_sample") {
                     if (cache.find(body["path"].s()) != cache.end()) goto cache_exists;
-                    cache[body["path"].s()] = std::make_unique<SoLoud::Wav>(SoLoud::Wav());
-                    cache[body["path"].s()]->load(std::string(body["path"].s()).c_str());
+                    cache[body["path"].s()] = SoLoud::Wav();
+                    cache[body["path"].s()].load(std::string(body["path"].s()).c_str());
                     cache_exists:
                     Dummy();
                 }
                 if (action == "play_sample") {
-                    result["handle"] = instance.play(*cache[body["path"].s()].get());
+                    result["handle"] = globalInstance->play(cache[body["path"].s()]);
+                }
+                if (action == "pause_sample") {
+                    globalInstance->setPause(body["handle"].i(), body["pause"].b());
                 }
                 if (action == "stop_sample") {
-                    instance.stop(body["handle"].i());
+                    globalInstance->stop(body["handle"].i());
+                }
+                if (action == "seek_sample") {
+                    globalInstance->seek(body["handle"].i(), body["seek"].d());
                 }
                 return crow::response(result.dump());
             });
@@ -63,8 +69,6 @@ extern "C" {
             .timeout(5)
             .concurrency(2)
             .run();
-
         thread.join();
-        instance.deinit();
     }
 }

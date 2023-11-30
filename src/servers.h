@@ -15,7 +15,7 @@ namespace Electron {
         }
 
         json_t ResponseToJSON() {
-            return json_t(response);
+            return json_t::parse(response);
         }
     };
 

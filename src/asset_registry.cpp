@@ -76,9 +76,11 @@ void AssetRegistry::LoadFromProject(json_t project) {
             JSON_AS_TYPE(assetDescription["InternalName"], std::string);
         try {
         std::string audioCoverPath = "";
-        glm::vec2 audioCoverResolution = {0, 0};
         if (type == TextureUnionType::Audio) {
             audioCoverPath = JSON_AS_TYPE(assetDescription["AudioCoverPath"], std::string);
+        }
+        glm::vec2 audioCoverResolution = {0, 0};
+        if (type == TextureUnionType::Audio && audioCoverPath != "") {
             audioCoverResolution = {
                 JSON_AS_TYPE(assetDescription["AudioCoverResolution"].at(0), float),
                 JSON_AS_TYPE(assetDescription["AudioCoverResolution"].at(1), float)
@@ -94,7 +96,7 @@ void AssetRegistry::LoadFromProject(json_t project) {
         assetUnion.result.audioCacheCover = audioCoverPath;
         assetUnion.result.coverResolution = audioCoverResolution;
         DUMP_VAR(assetUnion.result.audioCacheCover);
-        if (assetUnion.result.type == TextureUnionType::Audio) {
+        if (assetUnion.result.type == TextureUnionType::Audio && audioCoverPath != "") {
             assetUnion.result.pboGpuTexture = PixelBuffer(audioCoverPath).BuildGPUTexture();
         }
         assetUnion.result.name = internalName;
@@ -194,8 +196,8 @@ std::string AssetRegistry::ImportAsset(std::string path) {
     if (loadInfo.result.type == TextureUnionType::Audio) {
         TextureUnion* tu = &assets[assets.size() - 1];
         std::string originalAudioPath = tu->path;
-        if (!hasEnding(tu->path, ".ogg")) {
-            std::string formattedCachePath = string_format("cache/%i.ogg", Cache::GetCacheIndex());
+        if (!hasEnding(tu->path, ".wav")) {
+            std::string formattedCachePath = string_format("cache/%i.wav", Cache::GetCacheIndex());
             // PushAsyncOperation(string_format("ffmpeg -i %s %s", tu.path.c_str(), formattedCachePath.c_str()), nullptr, {});
             operations.push_back(AsyncFFMpegOperation(
                 nullptr, {},
@@ -203,20 +205,31 @@ std::string AssetRegistry::ImportAsset(std::string path) {
             ));
             tu->path = formattedCachePath;
         }
-        std::string coverPath = string_format("cache/%i.png", Cache::GetCacheIndex());
-        /* Perform async cover extraction*/
-        operations.push_back(AsyncFFMpegOperation(
-            [](OperationArgs_T& args) {
-                std::string coverPath = std::any_cast<std::string>(args[0]);
-                TextureUnion* tu = std::any_cast<TextureUnion*>(args[1]);
-                PixelBuffer coverBuffer = PixelBuffer(coverPath);
-                tu->audioCacheCover = coverPath;
-                tu->pboGpuTexture = coverBuffer.BuildGPUTexture();
-                tu->coverResolution = {
-                    coverBuffer.width, coverBuffer.height
-                };
-            }, {coverPath, tu}, {"ffmpeg", "-i", originalAudioPath, coverPath}
-        ));
+        AudioMetadata metadata = std::get<AudioMetadata>(tu->as);
+        // Import audio cover
+        if (metadata.probe.find("attached pic") != std::string::npos) {
+            std::string coverPath = string_format("cache/%i.png", Cache::GetCacheIndex());
+            /* Perform async cover extraction*/
+            operations.push_back(AsyncFFMpegOperation(
+                [](OperationArgs_T& args) {
+                    std::string coverPath = std::any_cast<std::string>(args[0]);
+                    TextureUnion* tu = std::any_cast<TextureUnion*>(args[1]);
+                    PixelBuffer coverBuffer = PixelBuffer(coverPath);
+                    tu->audioCacheCover = coverPath;
+                    tu->pboGpuTexture = coverBuffer.BuildGPUTexture();
+                    tu->coverResolution = {
+                        coverBuffer.width, coverBuffer.height
+                    };
+                }, {coverPath, tu}, {"ffmpeg", "-i", originalAudioPath, coverPath}
+            ));
+        } else {
+            PixelBuffer wavTex = PixelBuffer("misc/wav.png");
+            tu->audioCacheCover = "misc/wav.png";
+            tu->pboGpuTexture = wavTex.BuildGPUTexture();
+            tu->coverResolution = {
+                wavTex.width, wavTex.height
+            };
+        }
     }
     return loadInfo.returnMessage;
 }
