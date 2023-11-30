@@ -113,5 +113,6 @@
     "PROJECT_INVALIDATION_WARNING": "This operation will make all projects invalid, so you won't be able to edit them later",
     "PREFER_X11_SESSION": "Prefer X11 Editor Session",
     "BUILD_NUMBER": "Build Number",
-    "SOME_ASSETS_ARE_CORRUPTED": "Electron couldn't fully process your assets, because some of them were corrupted"
+    "SOME_ASSETS_ARE_CORRUPTED": "Electron couldn't fully process your assets, because some of them were corrupted",
+    "IMPORT_COVER_AS_IMAGE": "Import Audio Cover as Asset"
 }
