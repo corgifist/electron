@@ -37,6 +37,7 @@ void GraphicsCore::FetchAllLayers() {
     for (auto &entry : iterator) {
         std::string transformedPath = std::regex_replace(
             base_name(entry.path().string()), std::regex(".dll|.so|lib"), "");
+        Libraries::LoadLibrary("layers", transformedPath);
         print("Pre-render fetching " << transformedPath);
         dylibRegistry.push_back(transformedPath);
     }

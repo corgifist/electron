@@ -310,10 +310,17 @@ void Electron::RenderLayer::RenderTextureProperty(json_t &property,
                 if (searchFilter != "" &&
                     asset.name.find(searchFilter) == std::string::npos)
                     continue;
+                if (!asset.IsTextureCompatible()) continue;
                 if (ImGui::Selectable(
                         string_format("%s %s", icon.c_str(), asset.name.c_str())
                             .c_str())) {
                     textureID = intToHex(asset.id);
+                }
+                if ((asset.type == TextureUnionType::Texture || asset.type == TextureUnionType::Audio) &&
+                    ImGui::IsItemHovered() && ImGui::BeginTooltip()) {
+                        glm::vec2 resolution = asset.GetDimensions();
+                        ImGui::Image((ImTextureID) ((uint64_t) asset.pboGpuTexture), FitRectInRect(ImVec2(128, 128), ImVec2(resolution.x, resolution.y)));
+                        ImGui::EndTooltip();
                 }
             }
             ImGui::EndPopup();

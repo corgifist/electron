@@ -457,17 +457,17 @@ editor_end:
 
 void AppInstance::Terminate() {
     this->running = false;
+
+    Servers::DestroyCurl();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
     Servers::AsyncWriterRequest({
         {"action", "kill"}
     });
     Servers::AudioServerRequest({
         {"action", "kill"}
     });
-
-    Servers::DestroyCurl();
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
 }
 
 void AppInstance::ExecuteSignal(ElectronSignal signal,

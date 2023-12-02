@@ -155,6 +155,13 @@ AssetRegistry::LoadAssetFromPath(std::string path) {
             AudioMetadata metadata{};
             system(string_format("ffprobe %s &> .ffprobe_data", assetUnion.path.c_str()).c_str());
             metadata.probe = read_file(".ffprobe_data");
+            std::string transformProbe = "";
+            bool appendProbe = false;
+            for (auto& line : split_string(metadata.probe, "\n")) {
+                if (line.find("Input") == 0) appendProbe = true;
+                if (appendProbe) transformProbe += line + "\n";
+            }
+            metadata.probe = transformProbe;
             std::vector<std::string> probeLines = split_string(metadata.probe, "\n");
             for (auto& line : probeLines) {
                 line = trim_copy(line);

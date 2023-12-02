@@ -153,4 +153,6 @@ extern "C" {
         json_t& angle = layer->properties["Angle"];
         layer->SortKeyframes(angle);
     }
+
+    ELECTRON_EXPORT void LayerPrefetch() {}
 }
