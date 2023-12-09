@@ -5,24 +5,7 @@
 
 #define start_server(type, port) system((std::string("./") + argv[0] + " --type " + type + " --port " + std::to_string(port) + " --pid " + std::to_string(getpid()) + " &").c_str())
 
-std::string Electron::exec(const char *cmd) {
-    char buffer[128];
-    std::string result = "";
-    FILE *pipe = popen(cmd, "r");
-    if (!pipe)
-        throw std::runtime_error("popen() failed!");
-    try {
-        while (fgets(buffer, sizeof buffer, pipe) != NULL) {
-            result += buffer;
-        }
-    } catch (...) {
-        pclose(pipe);
-    }
-    pclose(pipe);
-    return result;
-}
-
-
+using namespace Electron;
 
 int main(int argc, char *argv[]) {
     if (argc > 1) {
@@ -41,7 +24,7 @@ int main(int argc, char *argv[]) {
             }
         }
         print("starting " << serverType << " server at port " << std::to_string(port));
-        Electron::Libraries::GetFunction<void(int, int)>(serverType, "ServerStart")(port, pid);
+        Libraries::GetFunction<void(int, int)>(serverType, "ServerStart")(port, pid);
         exit(0);
     }
 
@@ -59,17 +42,18 @@ int main(int argc, char *argv[]) {
     std::cin.tie(0);
     std::cout.rdbuf(tempStream.rdbuf()); */
 
-    Electron::AppInstance instance;
-    instance.AddUIContent(new Electron::Dockspace());
-    instance.AddUIContent(new Electron::ProjectConfiguration());
-    instance.AddUIContent(new Electron::RenderPreview());
-    instance.AddUIContent(new Electron::LayerProperties());
-    instance.AddUIContent(new Electron::AssetManager());
-    instance.AddUIContent(new Electron::Timeline());
+    AppInstance instance;
+    instance.ExecuteSignal(Signal::_SpawnDockspace);
+    instance.ExecuteSignal(Signal::_SpawnProjectConfiguration);
+    instance.ExecuteSignal(Signal::_SpawnRenderPreview);
+    instance.ExecuteSignal(Signal::_SpawnLayerProperties);
+    instance.ExecuteSignal(Signal::_SpawnAssetExaminer);
+    instance.ExecuteSignal(Signal::_SpawnAssetManager);
+    instance.ExecuteSignal(Signal::_SpawnTimeline);
     try {
         instance.Run();
-    } catch (Electron::ElectronSignal signal) {
-        if (signal == Electron::ElectronSignal_ReloadSystem) {
+    } catch (Signal signal) {
+        if (signal == Signal::_ReloadSystem) {
             instance.Terminate();
             goto system_reloaded;
         }
@@ -78,6 +62,6 @@ int main(int argc, char *argv[]) {
     return 0;
 
 system_reloaded:
-    Electron::exec(argv[0]);
+    system(string_format("%s &", argv[0]).c_str());
     return 0;
 }

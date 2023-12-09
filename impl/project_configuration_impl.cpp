@@ -12,7 +12,7 @@ using namespace Electron;
 extern "C" {
 
 
-    ELECTRON_EXPORT void ProjectConfigurationRender(AppInstance* instance) {
+    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
         ImGui::SetCurrentContext(instance->context);
         static bool dockInitialized = false;
 
@@ -29,7 +29,7 @@ extern "C" {
             ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
         }
  
-        UI::Begin(CSTR(std::string(ICON_FA_SCREWDRIVER " ") + ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::ProjectConfigurationCounter)), instance->isNativeWindow ? ElectronSignal_CloseWindow : ElectronSignal_CloseEditor, dockFlags);
+        UI::Begin(CSTR(std::string(ICON_FA_SCREWDRIVER " ") + ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::ProjectConfigurationCounter)), instance->isNativeWindow ? Signal::_CloseWindow : Signal::_CloseEditor, dockFlags);
             std::string projectTip = ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_CREATE_PROJECT_TIP");
             ImVec2 windowSize = ImGui::GetWindowSize();
             ImVec2 tipSize = ImGui::CalcTextSize(projectTip.c_str());

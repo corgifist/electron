@@ -17,6 +17,7 @@ extern "C" {
                 if (!running) break;
             }
             globalApp->stop();
+            exit(0);
         }, pid);
 
         CROW_ROUTE(app, "/request")

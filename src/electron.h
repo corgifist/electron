@@ -59,20 +59,20 @@ namespace Electron {
     typedef nlohmann::json json_t;
 
     typedef enum {
-        ElectronSignal_CloseEditor,
-        ElectronSignal_CloseWindow,
-        ElectronSignal_SpawnRenderPreview,
-        ElectronSignal_SpawnLayerProperties,
-        ElectronSignal_ReloadSystem,
-        ElectronSignal_SpawnAssetManager,
-        ElectronSignal_SpawnTimeline,
-        ElectronSignal_A,
-        ElectronSignal_B,
-        ElectronSignal_None
-    } ElectronSignal;
-
-
-    std::string exec(const char* cmd);
+        _CloseEditor,
+        _CloseWindow,
+        _SpawnRenderPreview,
+        _SpawnLayerProperties,
+        _ReloadSystem,
+        _SpawnAssetManager,
+        _SpawnProjectConfiguration,
+        _SpawnTimeline,
+        _SpawnDockspace,
+        _SpawnAssetExaminer,
+        _A,
+        _B,
+        _None
+    } Signal;
 
     inline bool file_exists(const std::string& name) {
         return std::filesystem::exists(name); 
@@ -271,5 +271,15 @@ namespace Electron {
         ImVec2 src = rectangle;
         float scale = glm::min(dst.x / src.x, dst.y / src.y);
         return ImVec2{src.x * scale, src.y * scale};
+    }
+
+    static std::string filterFFProbe(std::string ffprobe) {
+        std::string transformProbe = "";
+        bool appendProbe = false;
+        for (auto& line : split_string(ffprobe, "\n")) {
+            if (line.find("Input") == 0) appendProbe = true;
+            if (appendProbe) transformProbe += line + "\n";
+        }
+        return transformProbe;
     }
 }

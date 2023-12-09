@@ -14,10 +14,7 @@ RenderBuffer::RenderBuffer(GraphicsCore *core, int width,
 RenderBuffer::~RenderBuffer() {}
 
 
-
 GraphicsCore::GraphicsCore() {
-    this->previousRenderBufferTexture = -1;
-    this->renderBufferTexture = -1;
 
     this->renderFrame = 0;
     this->renderFramerate = 60; // default render framerate
@@ -67,6 +64,10 @@ void ResizableGPUTexture::CheckForResize(RenderBuffer *pbo) {
     }
 }
 
+void ResizableGPUTexture::Destroy() {
+    PixelBuffer::DestroyGPUTexture(texture);
+}
+
 ResizableRenderBuffer::ResizableRenderBuffer(int width, int height) {
     this->color = ResizableGPUTexture(width, height);
     this->uv = ResizableGPUTexture(width, height);
@@ -77,6 +78,12 @@ void ResizableRenderBuffer::CheckForResize(RenderBuffer* pbo) {
     color.CheckForResize(pbo);
     uv.CheckForResize(pbo);
     depth.CheckForResize(pbo);
+}
+
+void ResizableRenderBuffer::Destroy() {
+    color.Destroy();
+    uv.Destroy();
+    depth.Destroy();
 }
 
 RenderLayer *GraphicsCore::GetLayerByID(int id) {
@@ -147,13 +154,7 @@ std::vector<float> GraphicsCore::RequestRenderWithinRegion() {
     return renderTimes;
 }
 
-void GraphicsCore::CleanPreviewGPUTexture() {}
-
-void GraphicsCore::BuildPreviewGPUTexture() {
-    renderBufferTexture = GetPreviewBufferByOutputType();
-}
-
-GLuint GraphicsCore::GetPreviewBufferByOutputType() {
+GLuint GraphicsCore::GetPreviewGPUTexture() {
     switch (outputBufferType) {
     case PreviewOutputBufferType_Color:
         return renderBuffer.colorBuffer;

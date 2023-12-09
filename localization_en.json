@@ -68,7 +68,7 @@
     "ASSET_MANAGER_BROWSE_ASSET_PATH": "Browse Asset Path",
     "ASSET_MANAGER_REIMPORT_ASSET": "Reimport Asset",
     "ASSET_MANAGER_ASSET_ID": "Asset ID",
-    "ASSET_MANAGER_SEARCH": "Search",
+    "ASSET_MANAGER_SEARCH": "Search by Name or ID",
     "ASSET_MANAGER_EXAMINE_ASSET": "Examine Asset",
     "ASSET_MANAGER_ASSET_EXAMINER": "Asset Examiner",
     "ASSET_MANAGER_NO_ASSET_SELECTED": "No Asset Selected",
@@ -105,7 +105,7 @@
     "AUDIO_SERVER_CRASHED": "Audio server crashed, so now you cannot use audio playback in Electron",
     "ASYNC_WRITER_CRASHED": "Async writer crashed, so now you cannot save any project or change editor configuration",
     "FFMPEG_IS_NOT_AVAILABLE": "FFMpeg is not Available! Install FFMpeg Package and Run Electron Again!",
-    "HOVER_TO_GET_PROBE_DATA": "Hover to Get FFProbe data",
+    "HOVER_TO_GET_PROBE_DATA": "FFProbe Data Here",
     "CLICK_TO_COPY": "Click to copy",
     "FFMPEG_OPERATIONS_ARE_IN_PROGRESS": "FFMpeg Operations are in Progress, Please Wait",
     "CLEAR_PROJECT_CACHES": "Clear Editor Cache",
@@ -114,5 +114,9 @@
     "PREFER_X11_SESSION": "Prefer X11 Editor Session",
     "BUILD_NUMBER": "Build Number",
     "SOME_ASSETS_ARE_CORRUPTED": "Electron couldn't fully process your assets, because some of them were corrupted",
-    "IMPORT_COVER_AS_IMAGE": "Import Audio Cover as Asset"
+    "IMPORT_COVER_AS_IMAGE": "Import Audio Cover as Asset",
+    "BACKGROUND_OPERATIONS": "FFMpeg is Active in Background",
+    "GENERIC_IMPORTING": "Importing",
+    "GATHERING_COVER": "Gathering Cover",
+    "FFPROBE_GATHERING": "Gathering FFProbe Data"
 }

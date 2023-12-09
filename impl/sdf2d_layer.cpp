@@ -154,5 +154,8 @@ extern "C" {
         layer->SortKeyframes(angle);
     }
 
-    ELECTRON_EXPORT void LayerPrefetch() {}
+    ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {
+        ResizableRenderBuffer rbo = std::any_cast<ResizableRenderBuffer>(layer->anyData[0]);
+        rbo.Destroy();
+    }
 }

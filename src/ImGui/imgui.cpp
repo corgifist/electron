@@ -5574,7 +5574,7 @@ bool ImGui::BeginChildEx(const char* name, ImGuiID id, const ImVec2& size_arg, b
     const float backup_border_size = g.Style.ChildBorderSize;
     if (!border)
         g.Style.ChildBorderSize = 0.0f;
-    bool ret = Begin(temp_window_name, NULL, flags);
+    bool ret = Begin(temp_window_name, NULL, flags, false);
     g.Style.ChildBorderSize = backup_border_size;
 
     ImGuiWindow* child_window = g.CurrentWindow;
@@ -6493,7 +6493,7 @@ ImGuiWindow* ImGui::FindBlockingModal(ImGuiWindow* window)
 //   You can use the "##" or "###" markers to use the same label with different id, or same id with different label. See documentation at the top of this file.
 // - Return false when window is collapsed, so you can early out in your code. You always need to call ImGui::End() even if false is returned.
 // - Passing 'bool* p_open' displays a Close button on the upper-right corner of the window, the pointed value will be set to false when the button is pressed.
-bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
+bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags, bool apply_shadow)
 {
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = g.Style;
@@ -7336,6 +7336,40 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         if (window->AutoFitFramesX > 0) { window->AutoFitFramesX++; }
         if (window->AutoFitFramesY > 0) { window->AutoFitFramesY++; }
         return false;
+    }
+
+    // Render tasty dropshadow effect, so so-called depth effect will be achieved
+    if (!window->SkipItems && apply_shadow) {
+            ImVec2 p = ImGui::GetWindowPos();
+        ImVec2 s = ImGui::GetWindowSize();
+        ImVec2 m = {p.x + s.x, p.y + s.y};
+        float uv0 = 0.0f;      // left/top region
+        float uv1 = 0.333333f; // leftward/upper region
+        float uv2 = 0.666666f; // rightward/lower region
+        float uv3 = 1.0f;      // right/bottom region
+        ImU8 opacity = 100;
+        float size = 24.0f;
+        ImU32 col = (opacity << 24) | 0xFFFFFF;
+        ImDrawList *dl = ImGui::GetWindowDrawList();
+        ImTextureID tex_id = (ImTextureID) ((uint64_t) ShadowRenderer::texture);
+        dl->PushClipRectFullScreen();
+        dl->AddImage(tex_id, {p.x - size, p.y - size}, {p.x, p.y}, {uv0, uv0},
+                    {uv1, uv1}, col);
+        dl->AddImage(tex_id, {p.x, p.y - size}, {m.x, p.y}, {uv1, uv0}, {uv2, uv1},
+                    col);
+        dl->AddImage(tex_id, {m.x, p.y - size}, {m.x + size, p.y}, {uv2, uv0},
+                    {uv3, uv1}, col);
+        dl->AddImage(tex_id, {p.x - size, p.y}, {p.x, m.y}, {uv0, uv1}, {uv1, uv2},
+                    col);
+        dl->AddImage(tex_id, {m.x, p.y}, {m.x + size, m.y}, {uv2, uv1}, {uv3, uv2},
+                    col);
+        dl->AddImage(tex_id, {p.x - size, m.y}, {p.x, m.y + size}, {uv0, uv2},
+                    {uv1, uv3}, col);
+        dl->AddImage(tex_id, {p.x, m.y}, {m.x, m.y + size}, {uv1, uv2}, {uv2, uv3},
+                    col);
+        dl->AddImage(tex_id, {m.x, m.y}, {m.x + size, m.y + size}, {uv2, uv2},
+                    {uv3, uv3}, col);
+        dl->PopClipRect();
     }
 
     return !window->SkipItems;
@@ -9302,21 +9336,20 @@ void ImGui::UpdateMouseWheel()
     if (ImGuiWindow* window = (g.WheelingWindow ? g.WheelingWindow : FindBestWheelingWindow(wheel)))
         if (!(window->Flags & ImGuiWindowFlags_NoScrollWithMouse) && !(window->Flags & ImGuiWindowFlags_NoMouseInputs))
         {
-            const float scroll_speed = ImFloor(window->CalcFontSize() * 100 * g.IO.DeltaTime + 7.5f);
             bool do_scroll[2] = { wheel.x != 0.0f && window->ScrollMax.x != 0.0f, wheel.y != 0.0f && window->ScrollMax.y != 0.0f };
             if (do_scroll[ImGuiAxis_X] && do_scroll[ImGuiAxis_Y])
                 do_scroll[(g.WheelingAxisAvg.x > g.WheelingAxisAvg.y) ? ImGuiAxis_Y : ImGuiAxis_X] = false;
             if (do_scroll[ImGuiAxis_X])
             {
                 LockWheelingWindow(window, wheel.x);
-                float max_step = window->InnerRect.GetWidth() * 0.67f;
+                float max_step = ImFloor(window->CalcFontSize() * 100 * g.IO.DeltaTime + 7.5f);
                 float scroll_step = ImFloor(ImMin(2 * window->CalcFontSize(), max_step));
                 SetScrollX(window, window->Scroll.x - wheel.x * scroll_step);
             }
             if (do_scroll[ImGuiAxis_Y])
             {
                 LockWheelingWindow(window, wheel.y);
-                SetScrollY(window, window->Scroll.y - wheel.y * scroll_speed);
+                SetScrollY(window, window->Scroll.y - wheel.y * ImFloor(window->CalcFontSize() * 100 * g.IO.DeltaTime + 7.5f));
             }
         }
 }

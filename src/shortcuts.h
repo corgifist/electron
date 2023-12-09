@@ -14,6 +14,7 @@ namespace Electron {
         static void Ctrl_W_A();
         static void Ctrl_W_T();
         static void Ctrl_E_C();
+        static void Ctrl_W_E();
     };
 }
 

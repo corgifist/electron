@@ -79,6 +79,7 @@ void AssetRegistry::LoadFromProject(json_t project) {
         if (type == TextureUnionType::Audio) {
             audioCoverPath = JSON_AS_TYPE(assetDescription["AudioCoverPath"], std::string);
         }
+        std::string ffprobeData = JSON_AS_TYPE(assetDescription["FFProbeData"], std::string);
         glm::vec2 audioCoverResolution = {0, 0};
         if (type == TextureUnionType::Audio && audioCoverPath != "") {
             audioCoverResolution = {
@@ -89,6 +90,7 @@ void AssetRegistry::LoadFromProject(json_t project) {
         int id = JSON_AS_TYPE(assetDescription["ID"], int);
 
         AssetLoadInfo assetUnion = LoadAssetFromPath(resourcePath);
+        assetUnion.result.ffprobeData = ffprobeData;
         if (assetUnion.returnMessage != "") {
             print(resourcePath << ": " << assetUnion.returnMessage);
             assetUnion.result.GenerateUVTexture();
@@ -98,6 +100,21 @@ void AssetRegistry::LoadFromProject(json_t project) {
         DUMP_VAR(assetUnion.result.audioCacheCover);
         if (assetUnion.result.type == TextureUnionType::Audio && audioCoverPath != "") {
             assetUnion.result.pboGpuTexture = PixelBuffer(audioCoverPath).BuildGPUTexture();
+        }
+        if (assetUnion.result.type == TextureUnionType::Audio) {
+            AudioMetadata metadata = std::get<AudioMetadata>(assetUnion.result.as);
+            metadata.probe = JSON_AS_TYPE(assetDescription["AudioProbeData"], std::string);
+            std::vector<std::string> probeLines = split_string(metadata.probe, "\n");
+
+            for (auto& line : probeLines) {
+                line = trim_copy(line);
+                if (hasBegining(line, "Duration: ")) {
+                    int hours, minutes, seconds;
+                    sscanf(line.c_str(), "Duration: %i:%i:%i.%*c", &hours, &minutes, &seconds);
+                    metadata.audioLength = seconds + (minutes * 60) + (hours * 3600);
+                }
+            }
+            assetUnion.result.as = metadata;
         }
         assetUnion.result.name = internalName;
         assetUnion.result.id = id;
@@ -152,26 +169,7 @@ AssetRegistry::LoadAssetFromPath(std::string path) {
             break;
         }
         case TextureUnionType::Audio: {
-            AudioMetadata metadata{};
-            system(string_format("ffprobe %s &> .ffprobe_data", assetUnion.path.c_str()).c_str());
-            metadata.probe = read_file(".ffprobe_data");
-            std::string transformProbe = "";
-            bool appendProbe = false;
-            for (auto& line : split_string(metadata.probe, "\n")) {
-                if (line.find("Input") == 0) appendProbe = true;
-                if (appendProbe) transformProbe += line + "\n";
-            }
-            metadata.probe = transformProbe;
-            std::vector<std::string> probeLines = split_string(metadata.probe, "\n");
-            for (auto& line : probeLines) {
-                line = trim_copy(line);
-                if (hasBegining(line, "Duration: ")) {
-                    int hours, minutes, seconds;
-                    sscanf(line.c_str(), "Duration: %i:%i:%i.%*c", &hours, &minutes, &seconds);
-                    metadata.audioLength = seconds + (minutes * 60) + (hours * 3600);
-                }
-            }
-            assetUnion.as = metadata;
+            assetUnion.as = AudioMetadata();
             break;
         }   
 
@@ -202,42 +200,77 @@ std::string AssetRegistry::ImportAsset(std::string path) {
     assets.push_back(loadInfo.result);
     if (loadInfo.result.type == TextureUnionType::Audio) {
         TextureUnion* tu = &assets[assets.size() - 1];
+        tu->as = AudioMetadata();
+        tu->ready = false;
         std::string originalAudioPath = tu->path;
-        if (!hasEnding(tu->path, ".wav")) {
-            std::string formattedCachePath = string_format("cache/%i.wav", Cache::GetCacheIndex());
-            // PushAsyncOperation(string_format("ffmpeg -i %s %s", tu.path.c_str(), formattedCachePath.c_str()), nullptr, {});
-            operations.push_back(AsyncFFMpegOperation(
-                nullptr, {},
-                {"ffmpeg", "-i", tu->path, formattedCachePath}
-            ));
-            tu->path = formattedCachePath;
-        }
-        AudioMetadata metadata = std::get<AudioMetadata>(tu->as);
-        // Import audio cover
-        if (metadata.probe.find("attached pic") != std::string::npos) {
-            std::string coverPath = string_format("cache/%i.png", Cache::GetCacheIndex());
-            /* Perform async cover extraction*/
-            operations.push_back(AsyncFFMpegOperation(
-                [](OperationArgs_T& args) {
-                    std::string coverPath = std::any_cast<std::string>(args[0]);
-                    TextureUnion* tu = std::any_cast<TextureUnion*>(args[1]);
-                    PixelBuffer coverBuffer = PixelBuffer(coverPath);
-                    tu->audioCacheCover = coverPath;
-                    tu->pboGpuTexture = coverBuffer.BuildGPUTexture();
+
+        // Gather FFProbe data and extract cover
+        operations.push_back(AsyncFFMpegOperation(
+            [](OperationArgs_T& args) {
+                TextureUnion* tu = std::any_cast<TextureUnion*>(args[0]);
+                std::vector<AsyncFFMpegOperation>* operations = 
+                    std::any_cast<std::vector<AsyncFFMpegOperation>*>(args[1]);
+                std::string originalAudioPath = std::any_cast<std::string>(args[2]);
+                int cacheIndex = std::any_cast<int>(args[3]);
+                std::string ffprobe = filterFFProbe(read_file(".ffprobe_data"));
+                AudioMetadata metadata{};
+                metadata.probe = ffprobe;
+                std::vector<std::string> probeLines = split_string(metadata.probe, "\n");
+                for (auto& line : probeLines) {
+                    line = trim_copy(line);
+                    if (hasBegining(line, "Duration: ")) {
+                        int hours, minutes, seconds;
+                        sscanf(line.c_str(), "Duration: %i:%i:%i.%*c", &hours, &minutes, &seconds);
+                        metadata.audioLength = seconds + (minutes * 60) + (hours * 3600);
+                    }
+                }
+                tu->as = metadata;
+                if (metadata.probe.find("attached pic") != std::string::npos) {
+                    std::string coverPath = string_format("cache/%i.png", cacheIndex);
+                    /* Perform async cover extraction */
+                    operations->push_back(AsyncFFMpegOperation(
+                        [](OperationArgs_T& args) {
+                            std::string coverPath = std::any_cast<std::string>(args[0]);
+                            TextureUnion* tu = std::any_cast<TextureUnion*>(args[1]);
+                            PixelBuffer coverBuffer = PixelBuffer(coverPath);
+                            tu->audioCacheCover = coverPath;
+                            tu->pboGpuTexture = coverBuffer.BuildGPUTexture();
+                            tu->coverResolution = {
+                                coverBuffer.width, coverBuffer.height
+                            };
+                        }, {coverPath, tu}, string_format("ffmpeg -y -i %s %s", originalAudioPath.c_str(), coverPath.c_str()), 
+                            string_format("%s %s '%s'", ICON_FA_IMAGE, ELECTRON_GET_LOCALIZATION("GATHERING_COVER"), tu->path.c_str())
+                    ));
+                } else {
+                    PixelBuffer wavTex = PixelBuffer("misc/wav.png");
+                    tu->audioCacheCover = "misc/wav.png";
+                    tu->pboGpuTexture = wavTex.BuildGPUTexture();
                     tu->coverResolution = {
-                        coverBuffer.width, coverBuffer.height
+                        wavTex.width, wavTex.height
                     };
-                }, {coverPath, tu}, {"ffmpeg", "-i", originalAudioPath, coverPath}
-            ));
-        } else {
-            PixelBuffer wavTex = PixelBuffer("misc/wav.png");
-            tu->audioCacheCover = "misc/wav.png";
-            tu->pboGpuTexture = wavTex.BuildGPUTexture();
-            tu->coverResolution = {
-                wavTex.width, wavTex.height
-            };
-        }
+                }
+                if (!hasEnding(tu->path, ".wav")) {
+                    std::string formattedCachePath = string_format("cache/%i.wav", Cache::GetCacheIndex());
+                    operations->push_back(AsyncFFMpegOperation(
+                        nullptr, {},
+                        string_format("ffmpeg -y -i %s %s", tu->path.c_str(), formattedCachePath.c_str()),
+                        string_format("%s %s '%s'", ICON_FA_FILE_IMPORT, ELECTRON_GET_LOCALIZATION("GENERIC_IMPORTING"), tu->path.c_str())
+                    ));
+                    tu->path = formattedCachePath;
+                }
+                tu->as = metadata;
+                tu->ready = true;
+            }, {tu, &operations, originalAudioPath, Cache::GetCacheIndex()}, string_format("ffprobe %s &> .ffprobe_data", tu->path.c_str()),
+                string_format("%s %s '%s'", ICON_FA_INFO, ELECTRON_GET_LOCALIZATION("FFPROBE_GATHERING"), tu->path.c_str())
+        ));
     }
+    
+    // Quickly update editor, so cache index will always be fresh
+    Servers::AsyncWriterRequest({
+        {"action", "write"},
+        {"path", "config.json"},
+        {"content", Shared::configMap.dump()}
+    });
     return loadInfo.returnMessage;
 }
 

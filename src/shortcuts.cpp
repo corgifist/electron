@@ -2,7 +2,7 @@
 
 namespace Electron {
 void Shortcuts::Ctrl_W_R() {
-    Shared::app->ExecuteSignal(ElectronSignal_SpawnRenderPreview);
+    Shared::app->ExecuteSignal(Signal::_SpawnRenderPreview);
 }
 
 void Shortcuts::Ctrl_P_O(ProjectMap projectMap) {
@@ -14,18 +14,22 @@ void Shortcuts::Ctrl_P_O(ProjectMap projectMap) {
     Shared::assets->LoadFromProject(projectMap.propertiesMap);
 }
 
-void Shortcuts::Ctrl_P_E() { throw ElectronSignal_CloseEditor; }
+void Shortcuts::Ctrl_P_E() { throw Signal::_CloseEditor; }
 
 void Shortcuts::Ctrl_W_L() {
-    Shared::app->ExecuteSignal(ElectronSignal_SpawnLayerProperties);
+    Shared::app->ExecuteSignal(Signal::_SpawnLayerProperties);
 }
 
 void Shortcuts::Ctrl_W_A() {
-   Shared::app->ExecuteSignal(ElectronSignal_SpawnAssetManager);
+   Shared::app->ExecuteSignal(Signal::_SpawnAssetManager);
 }
 
 void Shortcuts::Ctrl_W_T() {
-    Shared::app->ExecuteSignal(ElectronSignal_SpawnTimeline);
+    Shared::app->ExecuteSignal(Signal::_SpawnTimeline);
+}
+
+void Shortcuts::Ctrl_W_E() {
+    Shared::app->ExecuteSignal(Signal::_SpawnAssetExaminer);
 }
 
 void Shortcuts::Ctrl_E_C() {

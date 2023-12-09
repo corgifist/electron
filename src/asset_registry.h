@@ -27,16 +27,19 @@ namespace Electron {
         std::string path;
         std::string strType;
         std::string audioCacheCover;
+        std::string ffprobeData;
         GLuint pboGpuTexture;
         GLuint previousPboGpuTexture;
         bool invalid;
         float previewScale;
         glm::vec2 coverResolution;
         int id;
+        bool ready;
 
         TextureUnion() {
             this->previewScale = 1.0f;
             this->invalid = false;
+            this->ready = true;
         }
         ~TextureUnion() {
         }

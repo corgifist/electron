@@ -3,7 +3,7 @@
 
 namespace Electron {
 
-    // Library registry that helps to provide safe dynamic library management
+    // Library registry that provides safe dynamic library management
     class Libraries {
     public:
         static std::unordered_map<std::string, internalDylib> registry;

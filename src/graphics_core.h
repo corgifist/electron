@@ -59,6 +59,7 @@ namespace Electron {
         ResizableGPUTexture() {}
 
         void CheckForResize(RenderBuffer* rbo);
+        void Destroy();
     };
 
     // RenderBuffer that adapts to preview buffer size changes
@@ -69,6 +70,7 @@ namespace Electron {
         ResizableRenderBuffer() {}
 
         void CheckForResize(RenderBuffer* rbo);
+        void Destroy();
     };
 
     typedef int(*Electron_CacheIndexT)();
@@ -77,8 +79,6 @@ namespace Electron {
     struct GraphicsCore {
         RenderBuffer renderBuffer;
         PreviewOutputBufferType outputBufferType;
-        GLuint previousRenderBufferTexture;
-        GLuint renderBufferTexture;
         std::vector<RenderLayer> layers;
         bool isPlaying;
 
@@ -102,9 +102,7 @@ namespace Electron {
         void RequestTextureCollectionCleaning(GLuint color, GLuint uv, GLuint depth, int width, int height);
         std::vector<float> RequestRenderWithinRegion();
         void ResizeRenderBuffer(int width, int height);
-        void CleanPreviewGPUTexture();
-        void BuildPreviewGPUTexture();
-        GLuint GetPreviewBufferByOutputType();
+        GLuint GetPreviewGPUTexture();
 
         static GLuint CompileComputeShader(std::string path);
         static void UseShader(GLuint shader);

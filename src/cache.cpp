@@ -5,6 +5,7 @@ namespace Electron {
 
     int Cache::GetCacheIndex() {
         cacheIndex += 2;
+        
         return cacheIndex;
     }
 }

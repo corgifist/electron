@@ -33,6 +33,8 @@ target_impls = [
     layer_properties_impl,
     asset_manager_impl,
     dockspace_impl,
+    timeline_impl,
+    asset_examiner_impl,
     async_writer,
     audio_server
 ]

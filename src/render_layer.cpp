@@ -1,7 +1,7 @@
 #include "render_layer.h"
 
 namespace Electron {
-    Electron::RenderLayer::RenderLayer(std::string layerLibrary) {
+    RenderLayer::RenderLayer(std::string layerLibrary) {
     this->visible = true;
     this->layerLibrary = layerLibrary;
     Libraries::LoadLibrary("layers", layerLibrary);
@@ -21,14 +21,21 @@ namespace Electron {
     this->id = seedrand();
 }
 
-Electron::RenderLayer::~RenderLayer() {
+RenderLayer::~RenderLayer() {
 }
 
-void Electron::RenderLayer::FetchImplementation() {
+void RenderLayer::Destroy() {
+    destructionProcedure(this);
+}
+
+void RenderLayer::FetchImplementation() {
 
     this->layerProcedure =
         Libraries::GetFunction<void(RenderLayer*)>(
                 layerLibrary, "LayerRender");
+    this->destructionProcedure = 
+        Libraries::GetFunction<void(RenderLayer*)>(
+                layerLibrary, "LayerDestroy");
     this->propertiesProcedure =
         Libraries::GetFunction<void(RenderLayer *)>(
             layerLibrary, "LayerPropertiesRender");
@@ -46,14 +53,14 @@ void Electron::RenderLayer::FetchImplementation() {
         throw std::runtime_error("bad layer procedure!");
 }
 
-void Electron::RenderLayer::Render() {
+void RenderLayer::Render() {
     if (!visible) return;
     if (std::clamp((int)Shared::graphics->renderFrame, beginFrame, endFrame) ==
         (int)Shared::graphics->renderFrame)
         layerProcedure(this);
 }
 
-void Electron::RenderLayer::SortKeyframes(json_t &keyframes) {
+void RenderLayer::SortKeyframes(json_t &keyframes) {
     for (int step = 0; step < keyframes.size() - 1; ++step) {
         for (int i = 1; i < keyframes.size() - step - 1; ++i) {
             if (keyframes.at(i).at(0) > keyframes.at(i + 1).at(0)) {
@@ -81,9 +88,9 @@ void Electron::RenderLayer::SortKeyframes(json_t &keyframes) {
     }
 }
 
-void Electron::RenderLayer::RenderProperties() { propertiesProcedure(this); }
+void RenderLayer::RenderProperties() { propertiesProcedure(this); }
 
-void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type,
+void RenderLayer::RenderProperty(GeneralizedPropertyType type,
                                            json_t &property,
                                            std::string propertyName) {
     ImVec2 windowSize = ImGui::GetWindowSize();
@@ -234,7 +241,7 @@ void Electron::RenderLayer::RenderProperty(GeneralizedPropertyType type,
     }
 }
 
-void Electron::RenderLayer::RenderTextureProperty(json_t &property,
+void RenderLayer::RenderTextureProperty(json_t &property,
                                                   std::string label) {
     if (ImGui::CollapsingHeader(label.c_str())) {
         ImGui::Spacing();
@@ -249,13 +256,28 @@ void Electron::RenderLayer::RenderTextureProperty(json_t &property,
         std::string assetIcon = ICON_FA_QUESTION;
         if (textureAsset != nullptr)
             assetIcon = textureAsset->GetIcon();
-        std::string assetName = "No asset";
+        std::string assetName = "No Asset";
         if (textureAsset != nullptr) {
             assetName = textureAsset->name;
         }
-
-        ImGui::Text("Asset: ");
-        ImGui::SameLine();
+        if (textureAsset != nullptr) {
+            RenderBuffer *pbo = &Shared::graphics->renderBuffer;
+            glm::vec2 textureDimensions = textureAsset->GetDimensions();
+            ImVec2 imageCenterRect = FitRectInRect(ImVec2(150, 150), ImVec2(textureDimensions.x, textureDimensions.y));
+            ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - imageCenterRect.x / 2.0f);
+            ImGui::Image((ImTextureID) ((uint64_t) textureAsset->pboGpuTexture), imageCenterRect);
+            ImGui::Text("%s", string_format("%s Resolution: %ix%i", ICON_FA_EXPAND, (int) textureDimensions.x, (int) textureDimensions.y).c_str());
+        }
+        if (textureAsset == nullptr) {
+            ImGui::Text("%s", ("No Asset with ID '" + textureID + "' Found").c_str());
+        } else if (!textureAsset->IsTextureCompatible()) {
+            ImGui::Text("%s", 
+                ("Asset with ID '" + textureID + "' is not Texture-Compatible")
+                    .c_str());
+        } else {
+            ImGui::Text("Asset: ");
+            ImGui::SameLine();
+        }
         if (ImGui::Selectable(
                 string_format("%s %s", assetIcon.c_str(), assetName.c_str())
                     .c_str())) {
@@ -276,24 +298,6 @@ void Electron::RenderLayer::RenderTextureProperty(json_t &property,
                 Shared::selectedRenderLayer = textureAsset->id;
             }
             ImGui::EndPopup();
-        }
-        ImGui::Spacing();
-        if (textureAsset == nullptr) {
-            ImGui::Text("%s", ("No asset with ID '" + textureID + "' found").c_str());
-        } else if (!textureAsset->IsTextureCompatible()) {
-            ImGui::Text("%s", 
-                ("Asset with ID '" + textureID + "' is not texture-compatible")
-                    .c_str());
-        } else {
-            RenderBuffer *pbo = &Shared::graphics->renderBuffer;
-            glm::vec2 textureDimensions = textureAsset->GetDimensions();
-            ImGui::Text("%s", ("Asset name: " + textureAsset->name).c_str());
-            ImGui::Text("%s", ("Asset type: " + textureAsset->strType).c_str());
-            ImGui::Text("%s", ("SDF-Type asset size" + std::string(": ") +
-                         std::to_string((textureDimensions.y / pbo->height)) +
-                         "x" +
-                         std::to_string((textureDimensions.x / pbo->width)))
-                            .c_str());
         }
 
         if (ImGui::BeginPopup(
@@ -330,7 +334,7 @@ void Electron::RenderLayer::RenderTextureProperty(json_t &property,
     }
 }
 
-Electron::json_t Electron::RenderLayer::InterpolateProperty(json_t keyframes) {
+json_t RenderLayer::InterpolateProperty(json_t keyframes) {
     int targetKeyframeIndex = -1;
     int keyframesLength = keyframes.size();
     int renderViewTime = Shared::graphics->renderFrame - beginFrame;
@@ -398,7 +402,7 @@ Electron::json_t Electron::RenderLayer::InterpolateProperty(json_t keyframes) {
     return interpolatedValue;
 }
 
-Electron::json_t Electron::RenderLayer::ExtractExactValue(json_t property) {
+json_t RenderLayer::ExtractExactValue(json_t property) {
     std::vector<json_t> acc{};
     for (int i = 1; i < property.size(); i++) {
         acc.push_back(property.at(i));

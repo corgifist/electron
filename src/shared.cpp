@@ -28,4 +28,9 @@ namespace Electron {
     GLuint Shared::basic_compute = -1;
     GLuint Shared::compositor_compute = -1;
     GLuint Shared::tex_transfer_compute = -1;
+
+    GLuint Shared::shadowTex = 0;
+
+    int Shared::assetSelected = -128;
+    std::string Shared::importErrorMessage = "";
 }

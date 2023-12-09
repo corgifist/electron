@@ -28,7 +28,7 @@ extern "C" {
                         ImGui::EndMenu();
                         ImGui::EndMenuBar();
                         UI::End();
-                        throw ElectronSignal_ReloadSystem;
+                        throw Signal::_ReloadSystem;
                     }
                     if (ImGui::MenuItem(CSTR(ICON_FA_XMARK + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURAITON_MENU_BAR_PROJECT_MENU_EXIT"))), "Ctrl+P+E")) {
                         Shortcuts::Ctrl_P_E();
@@ -46,16 +46,19 @@ extern "C" {
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu(CSTR(std::string(ICON_FA_TOOLBOX + std::string(" ") + ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_MENU_BAR_WINDOW_MENU"))))) {
-                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_WINDOW_TITLE"), "Ctrl+W+R", false, UICounters::RenderPreviewCounter != 1)) {
+                    if (ImGui::MenuItem(string_format("%s %s", ICON_FA_IMAGE, ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_WINDOW_TITLE")).c_str(), "Ctrl+W+R", false, UICounters::RenderPreviewCounter != 1)) {
                         Shortcuts::Ctrl_W_R();
                     }
-                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_TITLE"), "Ctrl+W+L", false, UICounters::LayerPropertiesCounter != 1)) {
+                    if (ImGui::MenuItem(string_format("%s %s", ICON_FA_LIST, ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_TITLE")).c_str(), "Ctrl+W+L", false, UICounters::LayerPropertiesCounter != 1)) {
                         Shortcuts::Ctrl_W_L();
                     }
-                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_TITLE"), "Ctrl+W+A", false, UICounters::AssetManagerCounter != 1)) {
+                    if (ImGui::MenuItem(string_format("%s %s", ICON_FA_FOLDER, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_TITLE")).c_str(), "Ctrl+W+A", false, UICounters::AssetManagerCounter != 1)) {
                         Shortcuts::Ctrl_W_A();
                     }
-                    if (ImGui::MenuItem(ELECTRON_GET_LOCALIZATION("TIMELINE_TITLE"), "Ctrl+W+T", false, UICounters::TimelineCounter != 1)) {
+                    if (ImGui::MenuItem(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_ASSET_EXAMINER")).c_str(), "Ctrl+W+E", false, UICounters::AssetExaminerCounter != 1)) {
+                        Shortcuts::Ctrl_W_E();
+                    }
+                    if (ImGui::MenuItem(string_format("%s %s", ICON_FA_TIMELINE, ELECTRON_GET_LOCALIZATION("TIMELINE_TITLE")).c_str(), "Ctrl+W+T", false, UICounters::TimelineCounter != 1)) {
                         Shortcuts::Ctrl_W_T();
                     }
                     ImGui::EndMenu();
@@ -64,7 +67,7 @@ extern "C" {
             }
     }
 
-    ELECTRON_EXPORT void DockspaceRender(AppInstance* instance) {
+    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
           {
             ImGui::SetCurrentContext(instance->context);
             ImGuiViewport* viewport = ImGui::GetWindowViewport();
@@ -88,7 +91,7 @@ extern "C" {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-            UI::Begin(label, ElectronSignal_None, host_window_flags);
+            UI::Begin(label, Signal::_None, host_window_flags);
             ImGui::PopStyleVar(3);
             bool openModal = false;
             static bool modalActive = true;

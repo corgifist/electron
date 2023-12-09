@@ -32,5 +32,9 @@ namespace Electron {
         static AssetRegistry* assets;
 
         static GLuint basic_compute, compositor_compute, tex_transfer_compute;
+        static GLuint shadowTex;
+
+        static int assetSelected;
+        static std::string importErrorMessage;
     };
 }

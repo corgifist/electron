@@ -5,10 +5,10 @@
 using namespace Electron;
 
 extern "C" {
-    ELECTRON_EXPORT void LayerPropertiesRender(AppInstance* instance) {
+    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
         ImGui::SetCurrentContext(instance->context);
         ImGui::SetNextWindowSize({512, 512}, ImGuiCond_Once);
-        UI::Begin(CSTR(std::string(ICON_FA_LIST " ") + ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_TITLE") + std::string("##") + std::to_string(UICounters::LayerPropertiesCounter)), ElectronSignal_CloseWindow, ImGuiWindowFlags_NoScrollbar);
+        UI::Begin(CSTR(std::string(ICON_FA_LIST " ") + ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_TITLE") + std::string("##") + std::to_string(UICounters::LayerPropertiesCounter)), Signal::_CloseWindow, ImGuiWindowFlags_NoScrollbar);
             ImVec2 windowSize = ImGui::GetContentRegionAvail();
             if (!instance->projectOpened) {
                 std::string projectWarningString = ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_NO_PROJECT");

@@ -24,7 +24,8 @@ namespace Electron {
         json_t properties; // Properties of the layer (keyframes, values) that can be saved to JSON
         json_t internalData; // JSON data that cannot be saved to file
         json_t previewProperties; // No usage data
-        Electron_LayerImplF layerProcedure; //
+        Electron_LayerImplF layerProcedure;
+        Electron_LayerImplF destructionProcedure;
         Electron_PropertyRenderImplF initializationProcedure;
         Electron_PropertyRenderImplF propertiesProcedure;
         Electron_PropertyRenderImplF sortingProcedure;
@@ -55,5 +56,7 @@ namespace Electron {
         void SortKeyframes(json_t& keyframes);
         json_t InterpolateProperty(json_t property);
         json_t ExtractExactValue(json_t property);
+
+        void Destroy();
     };
 }

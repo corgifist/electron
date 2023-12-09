@@ -6,57 +6,30 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+unsigned int ShadowRenderer::texture = 0;
+
 namespace Electron {
 
     ImFont* AppInstance::largeFont = nullptr;
+    ImFont* AppInstance::mediumFont = nullptr;
+
+    int UICounters::ProjectConfigurationCounter = 0;
+    int UICounters::RenderPreviewCounter = 0;
+    int UICounters::LayerPropertiesCounter = 0;
+    int UICounters::AssetManagerCounter = 0;
+    int UICounters::TimelineCounter = 0;
+    int UICounters::AssetExaminerCounter;
 
 namespace UI {
-void RenderDropShadow(ImTextureID tex_id, float size, ImU8 opacity) {
-    ImVec2 p = ImGui::GetWindowPos();
-    ImVec2 s = ImGui::GetWindowSize();
-    ImVec2 m = {p.x + s.x, p.y + s.y};
-    float uv0 = 0.0f;      // left/top region
-    float uv1 = 0.333333f; // leftward/upper region
-    float uv2 = 0.666666f; // rightward/lower region
-    float uv3 = 1.0f;      // right/bottom region
-    ImU32 col = (opacity << 24) | 0xFFFFFF;
-    ImDrawList *dl = ImGui::GetWindowDrawList();
-    dl->PushClipRectFullScreen();
-    dl->AddImage(tex_id, {p.x - size, p.y - size}, {p.x, p.y}, {uv0, uv0},
-                 {uv1, uv1}, col);
-    dl->AddImage(tex_id, {p.x, p.y - size}, {m.x, p.y}, {uv1, uv0}, {uv2, uv1},
-                 col);
-    dl->AddImage(tex_id, {m.x, p.y - size}, {m.x + size, p.y}, {uv2, uv0},
-                 {uv3, uv1}, col);
-    dl->AddImage(tex_id, {p.x - size, p.y}, {p.x, m.y}, {uv0, uv1}, {uv1, uv2},
-                 col);
-    dl->AddImage(tex_id, {m.x, p.y}, {m.x + size, m.y}, {uv2, uv1}, {uv3, uv2},
-                 col);
-    dl->AddImage(tex_id, {p.x - size, m.y}, {p.x, m.y + size}, {uv0, uv2},
-                 {uv1, uv3}, col);
-    dl->AddImage(tex_id, {p.x, m.y}, {m.x, m.y + size}, {uv1, uv2}, {uv2, uv3},
-                 col);
-    dl->AddImage(tex_id, {m.x, m.y}, {m.x + size, m.y + size}, {uv2, uv2},
-                 {uv3, uv3}, col);
-    dl->PopClipRect();
-}
-
-void DropShadow() {
-    RenderDropShadow((ImTextureID)(uint64_t) AppInstance::shadowTex, 24.0f,
-                         100);
-}
-
-void Begin(const char *name, ElectronSignal signal,
+void Begin(const char *name, Signal signal,
            ImGuiWindowFlags flags) {
-    if (signal == ElectronSignal_None) {
+    if (signal == Signal::_None) {
         ImGui::Begin(name, nullptr, flags);
-        DropShadow();
     } else {
         bool pOpen = true;
         ImGui::Begin(name, &pOpen, flags);
-        DropShadow();
         if (!pOpen) {
-            if (signal == ElectronSignal_CloseWindow) {
+            if (signal == Signal::_CloseWindow) {
                 ImGui::End();
             }
             throw signal;
@@ -65,14 +38,13 @@ void Begin(const char *name, ElectronSignal signal,
 }
 
 void End() { ImGui::End(); }
-} // namespace UI
+}
 
 static void electronGlfwError(int id, const char *description) {
     print("GLFW_ERROR_ID: " << id);
     print("GLFW_ERROR: " << description);
 }
 
-GLuint AppInstance::shadowTex = 0;
 AppInstance::AppInstance() {
     this->showBadConfigMessage = false;
     this->ffmpegAvailable = false;
@@ -138,6 +110,12 @@ AppInstance::AppInstance() {
     glfwSwapInterval(1);
 
     gladLoadGLES2(glfwGetProcAddress);
+    
+    if (!glfwRawMouseMotionSupported()) {
+        throw std::runtime_error("raw mouse motion is not supported!");
+    } else {
+        glfwSetInputMode(displayHandle, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    }
 
     this->renderer = std::string((const char*) glGetString(GL_RENDERER));
     this->vendor = std::string((const char*) glGetString(GL_VENDOR));
@@ -199,6 +177,14 @@ AppInstance::AppInstance() {
     icons_config.GlyphMinAdvanceX = fontSize * 2.0f / 3.0f;
     io.Fonts->AddFontFromFileTTF("misc/fa.ttf", fontSize * 2.0f * 2.0f / 3.0f,
                                  &icons_config, icons_ranges);
+    this->mediumFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+        ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size,
+        fontSize * 1.3f, NULL, io.Fonts->GetGlyphRangesCyrillic());
+    icons_config.MergeMode = true;
+    icons_config.PixelSnapH = true;
+    icons_config.GlyphMinAdvanceX = fontSize * 2.0f / 3.0f;
+    io.Fonts->AddFontFromFileTTF("misc/fa.ttf", fontSize * 1.3f * 2.0f / 3.0f,
+                                    &icons_config, icons_ranges);
 
     ImGui_ImplGlfw_InitForOpenGL(this->displayHandle, true);
     ImGui_ImplOpenGL3_Init();
@@ -215,13 +201,11 @@ AppInstance::AppInstance() {
     this->graphics.FetchAllLayers();
 
     // graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
-    AppInstance::shadowTex = PixelBuffer("misc/shadow.png").BuildGPUTexture();
+    Shared::shadowTex = PixelBuffer("misc/shadow.png").BuildGPUTexture();
+    ShadowRenderer::texture = Shared::shadowTex;
 }
 
 AppInstance::~AppInstance() {
-    for (auto ui : this->content) {
-        delete ui;
-    }
     this->content.clear();
 }
 
@@ -360,58 +344,91 @@ void AppInstance::Run() {
             }
         }
 
-        std::vector<ElectronUI *> uiCopy = this->content;
         static bool warningOpen = true;
         std::string operationsPopupTag = string_format("%s##ffmpegActive", ELECTRON_GET_LOCALIZATION("FFMPEG_OPERATIONS_ARE_IN_PROGRESS"));
-        AsyncFFMpegOperation* pOperation = nullptr;
         if (!ffmpegAvailable) goto no_ffmpeg;
-        // Execute competition procedures of AsyncFFMpegOperations
-        for (auto& op : assets.operations) {
-            if (op.Completed() && !op.procCompleted && op.proc != nullptr) {
-                op.proc(op.args);
-                op.procCompleted = true;
+        
+        /*
+        if (assets.operations.size() != 0) {
+            print("DUMP_OPERATIONS");
+            for (auto& op : assets.operations) {
+                DUMP_VAR(op.cmd);
+                DUMP_VAR(op.info);
             }
         }
-        // Show modal dialogs while performing AsyncFFMpegOperations
-        if (assets.operations.size() > 0) {
+        */
+
+        /* Execute completition procedures of AsyncFFMpegOperations */ {
+            std::vector<int> deleteTargets{};
             for (auto& op : assets.operations) {
-                if (!op.Completed()) {
-                    pOperation = &op;
-                    goto ffmpeg_active_operations;
+                if (op.Completed() && !op.procCompleted && op.proc != nullptr) {
+                    op.proc(op.args);
+                    op.procCompleted = true;
+                    deleteTargets.push_back(op.id);
+                }
+            }
+            for (auto& target : deleteTargets) {
+                for (auto& op : assets.operations) {
+                    if (op.id == target) {
+                        assets.operations.erase(assets.operations.begin() + target);
+                        break;
+                    }
                 }
             }
         }
-        // Render UI
-        for (auto &window : uiCopy) {
-            bool exitEditor = false;
-            try {
-                window->Render(this);
-            } catch (ElectronSignal signal) {
-                ExecuteSignal(signal, windowIndex, destroyWindowTarget,
-                              exitEditor);
-                if (exitEditor)
-                    goto editor_end;
+        /* Render UI */ {
+            std::vector<UIActivity> uiCopy = this->content;
+            for (auto &window : uiCopy) {
+                bool exitEditor = false;
+                try {
+                    window.Render(this);
+                } catch (Signal signal) {
+                    ExecuteSignal(signal, windowIndex, destroyWindowTarget,
+                                  exitEditor);
+                    if (exitEditor)
+                        goto editor_end;
+                }
+                windowIndex++;
             }
-            windowIndex++;
-        }
-        for (auto &layer : graphics.layers) {
-            layer.sortingProcedure(&layer);
-        }
-        if (destroyWindowTarget != -1) {
-            delete this->content[destroyWindowTarget];
-            this->content.erase(content.begin() + destroyWindowTarget);
-        }
-        goto render_success;
-        no_ffmpeg:
-        RenderCriticalError(ELECTRON_GET_LOCALIZATION("FFMPEG_IS_NOT_AVAILABLE"), &warningOpen);
-        if (!warningOpen) exit(1);
-        goto render_success;
+            for (auto &layer : graphics.layers) {
+                layer.sortingProcedure(&layer);
+            }
+            if (destroyWindowTarget != -1) {
+                *this->content[destroyWindowTarget].counter = 0;
+                this->content.erase(content.begin() + destroyWindowTarget);
+            }
 
-        ffmpeg_active_operations:
-        ImGui::OpenPopup(operationsPopupTag.c_str());
-        if (ImGui::BeginPopupModal(operationsPopupTag.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize)) {
-            ImGui::Text("%s", pOperation->Cmd().c_str());
-            ImGui::EndPopup();
+            if (assets.operations.size() != 0) {
+                AsyncFFMpegOperation* operation = nullptr;
+                for (auto& op : assets.operations) {
+                    if (!op.Completed() && !op.procCompleted) operation = &op;
+                }
+                if (operation != nullptr) {
+                    ImGui::Begin("##operation_notification", nullptr, ImGuiWindowFlags_NoTitleBar 
+                                                                    | ImGuiWindowFlags_NoResize 
+                                                                    | ImGuiWindowFlags_NoScrollbar 
+                                                                    | ImGuiWindowFlags_AlwaysAutoResize);
+                        ImVec2 displaySize = GetNativeWindowSize();
+                        ImVec2 windowSize = ImGui::GetWindowSize();
+
+                        ImGui::SetWindowPos({
+                           displaySize.x - windowSize.x - 30,
+                            displaySize.y - windowSize.y - 30
+                        });
+
+                        ImGui::PushFont(mediumFont);
+                            std::string info = operation->info;
+                            ImGui::Text("%s", info.c_str());
+                        ImGui::PopFont();
+                    ImGui::End();
+                }
+            }
+        }
+        goto render_success;
+        no_ffmpeg: {
+            RenderCriticalError(ELECTRON_GET_LOCALIZATION("FFMPEG_IS_NOT_AVAILABLE"), &warningOpen);
+            if (!warningOpen) exit(1);
+            goto render_success;
         }
 
 
@@ -445,6 +462,7 @@ void AppInstance::Run() {
                         texUnion.coverResolution.x, texUnion.coverResolution.y
                     };
                 }
+                assetDescription["FFProbeData"] = texUnion.ffprobeData;
                 assetRegistry.push_back(assetDescription);
             }
             Shared::project.propertiesMap["AssetRegistry"] = assetRegistry;
@@ -470,40 +488,52 @@ void AppInstance::Terminate() {
     });
 }
 
-void AppInstance::ExecuteSignal(ElectronSignal signal,
+void AppInstance::ExecuteSignal(Signal signal,
                                           int windowIndex,
                                           int &destroyWindowTarget,
                                           bool &exitEditor) {
     switch (signal) {
-    case ElectronSignal_CloseEditor: {
+    case Signal::_CloseEditor: {
         exitEditor = true;
         break;
     }
-    case ElectronSignal_CloseWindow: {
+    case Signal::_CloseWindow: {
         destroyWindowTarget = windowIndex;
         break;
     }
-    case ElectronSignal_SpawnRenderPreview: {
-        AddUIContent(new RenderPreview());
+    case Signal::_SpawnRenderPreview: {
+        AddUIContent(UIActivity("render_preview_impl", &UICounters::RenderPreviewCounter));
         break;
     }
-    case ElectronSignal_SpawnLayerProperties: {
-        AddUIContent(new LayerProperties());
+    case Signal::_SpawnLayerProperties: {
+        AddUIContent(UIActivity("layer_properties_impl", &UICounters::LayerPropertiesCounter));
         break;
     }
-    case ElectronSignal_SpawnAssetManager: {
-        AddUIContent(new AssetManager());
+    case Signal::_SpawnAssetManager: {
+        AddUIContent(UIActivity("asset_manager_impl", &UICounters::AssetManagerCounter));
         break;
     }
-    case ElectronSignal_SpawnTimeline: {
-        AddUIContent(new Timeline());
+    case Signal::_SpawnTimeline: {
+        AddUIContent(UIActivity("timeline_impl", &UICounters::TimelineCounter));
         break;
     }
-    case ElectronSignal_A: {
+    case Signal::_SpawnDockspace: {
+        AddUIContent(UIActivity("dockspace_impl", nullptr));
+        break;
+    }
+    case Signal::_SpawnProjectConfiguration: {
+        AddUIContent(UIActivity("project_configuration_impl", &UICounters::ProjectConfigurationCounter));
+        break;
+    }
+    case Signal::_SpawnAssetExaminer: {
+        AddUIContent(UIActivity("asset_examiner_impl", &UICounters::AssetExaminerCounter));
+        break;
+    }
+    case Signal::_A: {
         print("Signal A");
         break;
     }
-    case ElectronSignal_B: {
+    case Signal::_B: {
         print("Signal B");
         break;
     }
@@ -514,7 +544,7 @@ void AppInstance::ExecuteSignal(ElectronSignal signal,
     }
 }
 
-void AppInstance::ExecuteSignal(ElectronSignal signal) {
+void AppInstance::ExecuteSignal(Signal signal) {
     bool boolRef = false;
     int intRef = 0;
     ExecuteSignal(signal, 0, intRef, boolRef);

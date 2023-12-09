@@ -38,7 +38,7 @@ extern "C" {
         ImGui::GetWindowDrawList()->AddRectFilled(bounds.UL, bounds.BR, ImGui::ColorConvertFloat4ToU32(color));
     }
 
-    ELECTRON_EXPORT void RenderPreviewRender(AppInstance* instance) {
+    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
         ImGui::SetCurrentContext(instance->context);
         static ResolutionVariant resolutionVariants[9];
         static bool firstSetup = true;
@@ -58,7 +58,7 @@ extern "C" {
         ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
         static DragStructure imagePreviewDrag{};
         static ImVec2 imageOffset{0, 0};
-        UI::Begin((std::string(ICON_FA_IMAGE " ") + ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::RenderPreviewCounter)).c_str(), ElectronSignal_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
+        UI::Begin((std::string(ICON_FA_IMAGE " ") + ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::RenderPreviewCounter)).c_str(), Signal::_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
             ImVec2 windowSize = ImGui::GetWindowSize();
             if (!instance->projectOpened) {
                 std::string projectRequiredString = ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_PROJECT_REQUIRED_WARNING");
@@ -78,6 +78,7 @@ extern "C" {
             static bool looping = JSON_AS_TYPE(Shared::project.propertiesMap["LoopPlayback"], bool);
             static int selectedResolutionVariant = JSON_AS_TYPE(Shared::project.propertiesMap["PreviewResolution"], int);
             static float previewScale = JSON_AS_TYPE(Shared::project.propertiesMap["RenderPreviewScale"], float);
+            static float defaultPreviewScale = 0.7f;
             if (ImGui::Shortcut(ImGuiKey_ModCtrl | ImGuiKey_KeypadAdd)) {
                 previewScale += 0.05f;
             }
@@ -86,7 +87,7 @@ extern "C" {
             }
 
             if (ImGui::Shortcut(ImGuiKey_ModCtrl | ImGuiKey_R)) {
-                previewScale = 1;
+                previewScale = defaultPreviewScale;
             }
 
             instance->graphics.isPlaying = playing;
@@ -110,7 +111,7 @@ extern "C" {
                 firstSetup = false;
             }
             
-            GLuint previewTexture = instance->graphics.GetPreviewBufferByOutputType();
+            GLuint previewTexture = instance->graphics.GetPreviewGPUTexture();
             Shared::project.propertiesMap["LoopPlayback"] = looping;
             Shared::project.propertiesMap["TimelineValue"] = instance->graphics.renderFrame;
             Shared::project.propertiesMap["PreviewResolution"] = selectedResolutionVariant;

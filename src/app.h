@@ -28,16 +28,14 @@ namespace Electron {
     class Shortcuts;
 
     namespace UI {
-        void DropShadow();
-        void Begin(const char* name, Electron::ElectronSignal signal, ImGuiWindowFlags flags);
+        void Begin(const char* name, Signal signal, ImGuiWindowFlags flags);
         void End();
     };
 
     // Initializes OpenGL and renders UI
-    class AppInstance {
-    public:
+    struct AppInstance {
         GLFWwindow* displayHandle; // GLFW window handle
-        std::vector<ElectronUI*> content; // Array of windows
+        std::vector<UIActivity> content; // Array of windows
 
         GraphicsCore graphics; // Graphics core of Electron
 
@@ -53,8 +51,8 @@ namespace Electron {
 
 
         float fontSize; // Used in FontAtlas manipulations
-        static GLuint shadowTex; // Shadow texture for window dropshadows
         static ImFont* largeFont;
+        static ImFont* mediumFont;
         
         AppInstance();
         ~AppInstance();
@@ -62,8 +60,8 @@ namespace Electron {
         void Run();
         void Terminate();
 
-        void ExecuteSignal(ElectronSignal signal, int windowIndex, int& destroyWindowTarget, bool& exitEditor);
-        void ExecuteSignal(ElectronSignal signal);
+        void ExecuteSignal(Signal signal, int windowIndex, int& destroyWindowTarget, bool& exitEditor);
+        void ExecuteSignal(Signal signal);
 
         void RestoreBadConfig();
 
@@ -76,7 +74,7 @@ namespace Electron {
 
         int GetCacheIndex();
 
-        void AddUIContent(ElectronUI* ui) {
+        void AddUIContent(UIActivity ui) {
             this->content.push_back(ui);
         }
 
