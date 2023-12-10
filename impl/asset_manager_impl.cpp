@@ -40,13 +40,13 @@ extern "C" {
             bool p = false;
 
             ImGui::BeginChild("searchBarChild", ImVec2(windowSize.x, endCursorY - beginCursorY), false, 0);
-            if (Shared::assetSelected >= instance->assets.assets.size()) Shared::assetSelected = -1;
+            if (Shared::assetSelected >= Shared::assets->assets.size()) Shared::assetSelected = -1;
                 if (Shared::assetSelected == -1) {
                     std::string noAssetSelectedMsg = ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_NO_ASSET_SELECTED");
                     ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize(CSTR(noAssetSelectedMsg)).x / 2.0f);
                     ImGui::Text("%s", CSTR(noAssetSelectedMsg));
                 } else {
-                    TextureUnion& asset = instance->assets.assets[Shared::assetSelected];
+                    TextureUnion& asset = Shared::assets->assets[Shared::assetSelected];
                     ImVec2 acceptedPreviewResolution = {ImGui::GetContentRegionAvail().x * 0.35f, 128};
                     GLuint gpuPreview = -1;
                     glm::vec2 assetResolution = {0, 0};
@@ -76,16 +76,14 @@ extern "C" {
                             ImGui::SetClipboardText(CSTR(hexId));
                         }
                         glm::vec2 naturalAssetReoslution = asset.GetDimensions();
-                        if (asset.type == TextureUnionType::Texture) {
-                            ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_TEXTURE_RESOLUTION"), (int) naturalAssetReoslution.x, (int) naturalAssetReoslution.y)));
-                        } else if (asset.type == TextureUnionType::Audio) {
-                            ImGui::Text("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION("HOVER_TO_GET_PROBE_DATA"));
-                            if (ImGui::IsItemHovered()) {
-                                if (ImGui::GetIO().MouseClicked[ImGuiMouseButton_Left]) {
-                                    ImGui::SetClipboardText(std::get<AudioMetadata>(asset.as).probe.c_str());
-                                }
-                                ImGui::SetTooltip("%s", std::get<AudioMetadata>(asset.as).probe.c_str());
+                        ImGui::Text("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION("HOVER_TO_GET_PROBE_DATA"));
+                        if (ImGui::IsItemHovered()) {
+                            std::string probeData = asset.type == TextureUnionType::Texture ? asset.ffprobeData 
+                                                                                    : std::get<AudioMetadata>(asset.as).probe;
+                            if (ImGui::GetIO().MouseClicked[ImGuiMouseButton_Left]) {
+                                ImGui::SetClipboardText(probeData.c_str());
                             }
+                            ImGui::SetTooltip("%s", probeData.c_str());
                         }
                         ImGui::EndTable();
                 }
@@ -108,7 +106,7 @@ extern "C" {
                 ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_PATH"));
                 ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_SIZE"));
                 ImGui::TableHeadersRow();
-                for (auto& asset : instance->assets.assets) {
+                for (auto& asset : Shared::assets->assets) {
                     ImGui::TableNextRow();
                     if (searchFilter != "" && (asset.name.find(searchFilter) == std::string::npos || hexToInt(trim_copy(searchFilter)) != asset.id)) 
                         continue;
@@ -166,16 +164,16 @@ extern "C" {
         
         if (ImGuiFileDialog::Instance()->Display("ImportAssetDlg")) {
             if (ImGuiFileDialog::Instance()->IsOk()) {
-                Shared::importErrorMessage = instance->assets.ImportAsset(ImGuiFileDialog::Instance()->GetFilePathName());
+                Shared::importErrorMessage = Shared::assets->ImportAsset(ImGuiFileDialog::Instance()->GetFilePathName());
             }
             ImGuiFileDialog::Instance()->Close();
         }
 
         if (ImGuiFileDialog::Instance()->Display("BrowseAssetPath")) {
             if (ImGuiFileDialog::Instance()->IsOk()) {
-                AssetRegistry& reg = instance->assets;
-                reg.assets[targetAssetBrowsePath].path = ImGuiFileDialog::Instance()->GetFilePathName();
-                reg.assets[targetAssetBrowsePath].RebuildAssetData();
+                AssetRegistry* reg = Shared::assets;
+                reg->assets[targetAssetBrowsePath].path = ImGuiFileDialog::Instance()->GetFilePathName();
+                reg->assets[targetAssetBrowsePath].RebuildAssetData();
             }
 
             ImGuiFileDialog::Instance()->Close();
@@ -197,7 +195,7 @@ extern "C" {
         }
 
         if (assetDeletionIndex != -1) {
-            auto& assets = instance->assets.assets;
+            auto& assets = Shared::assets->assets;
             TextureUnionType type = assets.at(assetDeletionIndex).type;
             if (type == TextureUnionType::Texture || type == TextureUnionType::Audio) {
                 PixelBuffer::DestroyGPUTexture(assets.at(assetDeletionIndex).pboGpuTexture);

@@ -36,11 +36,11 @@ extern "C" {
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu(CSTR(ICON_FA_LAYER_GROUP + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))))) {
-                    auto registry = instance->graphics.GetImplementationsRegistry();
+                    auto registry = Shared::graphics->GetImplementationsRegistry();
                     for (auto& key : registry) {
                         Libraries::LoadLibrary("layers", key);
                         if (ImGui::MenuItem(string_format("%s %s (%s)", ICON_FA_PLUS, Libraries::GetVariable<std::string>(key, "LayerName").c_str(), key.c_str()).c_str())) {
-                            instance->graphics.AddRenderLayer(key);
+                            Shared::graphics->AddRenderLayer(key);
                         }
                     }
                     ImGui::EndMenu();
@@ -110,7 +110,7 @@ extern "C" {
                 ImGui::Text(ELECTRON_GET_LOCALIZATION("PROJECT_INVALIDATION_WARNING"));
                 ImGui::Spacing();
                 if (instance->ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
-                    instance->shortcuts.Ctrl_E_C();
+                    Shortcuts::Ctrl_E_C();
                     modalActive = false;
                 };
                 ImGui::EndPopup();

@@ -42,7 +42,7 @@ extern "C" {
         ImGui::SetCurrentContext(instance->context);
         static ResolutionVariant resolutionVariants[9];
         static bool firstSetup = true;
-        static GLuint channel_manipulator = instance->graphics.CompileComputeShader("preview_channel_manipulator.compute");
+        static GLuint channel_manipulator = Shared::graphics->CompileComputeShader("preview_channel_manipulator.compute");
 
 
         static int internalFrameIndex = 0;
@@ -74,7 +74,6 @@ extern "C" {
 
             bool resizeLerpEnabled = JSON_AS_TYPE(Shared::configMap["ResizeInterpolation"], bool);
 
-            static bool playing = false;
             static bool looping = JSON_AS_TYPE(Shared::project.propertiesMap["LoopPlayback"], bool);
             static int selectedResolutionVariant = JSON_AS_TYPE(Shared::project.propertiesMap["PreviewResolution"], int);
             static float previewScale = JSON_AS_TYPE(Shared::project.propertiesMap["RenderPreviewScale"], float);
@@ -90,41 +89,43 @@ extern "C" {
                 previewScale = defaultPreviewScale;
             }
 
-            instance->graphics.isPlaying = playing;
-            if (playing) {
-                if ((int) instance->graphics.renderFrame >= instance->graphics.renderLength) {
+            if (Shared::graphics->isPlaying) {
+                if ((int) Shared::graphics->renderFrame >= Shared::graphics->renderLength) {
                     if (looping) {
-                        instance->graphics.renderFrame = 0.0f;
-                    } else playing = false;
+                        Shared::graphics->renderFrame = 0.0f;
+                    } else Shared::graphics->isPlaying = false;
                 } else {
-                    if (instance->graphics.renderFrame < instance->graphics.renderLength) {
-                        float intFrame = 1.0f / (60.0 / instance->graphics.renderFramerate);
-                        instance->graphics.renderFrame += intFrame;
+                    if (Shared::graphics->renderFrame < Shared::graphics->renderLength) {
+                        float intFrame = 1.0f / (60.0 / Shared::graphics->renderFramerate);
+                        Shared::graphics->renderFrame += intFrame;
                     }
                 }
             }
 
-            RenderBuffer* rbo = &instance->graphics.renderBuffer;
+            RenderBuffer* rbo = &Shared::graphics->renderBuffer;
             if (firstSetup) {
                 RebuildPreviewResolutions(resolutionVariants, {(float) rbo->width, (float) rbo->height});
-                instance->graphics.renderFrame = JSON_AS_TYPE(Shared::project.propertiesMap["TimelineValue"], int);
+                Shared::graphics->isPlaying = JSON_AS_TYPE(Shared::project.propertiesMap["Playing"], bool);
+                Shared::graphics->renderFrame = JSON_AS_TYPE(Shared::project.propertiesMap["TimelineValue"], int);
                 firstSetup = false;
             }
+
+            Shared::project.propertiesMap["Playing"] = Shared::graphics->isPlaying;
             
-            GLuint previewTexture = instance->graphics.GetPreviewGPUTexture();
+            GLuint previewTexture = Shared::graphics->GetPreviewGPUTexture();
             Shared::project.propertiesMap["LoopPlayback"] = looping;
-            Shared::project.propertiesMap["TimelineValue"] = instance->graphics.renderFrame;
+            Shared::project.propertiesMap["TimelineValue"] = Shared::graphics->renderFrame;
             Shared::project.propertiesMap["PreviewResolution"] = selectedResolutionVariant;
             Shared::project.propertiesMap["RenderPreviewScale"] = previewScale;
 
             float windowAspectRatio = windowSize.x / windowSize.y;
             windowAspectRatio = glm::clamp(windowAspectRatio, 0.0f, 1.0f);
             ImVec2 previewTextureSize = FitRectInRect(windowSize, {(float) resolutionVariants[0].width, (float) resolutionVariants[0].height}) * previewScale;
-            instance->graphics.renderFramerate = JSON_AS_TYPE(Shared::project.propertiesMap["Framerate"], int);
+            Shared::graphics->renderFramerate = JSON_AS_TYPE(Shared::project.propertiesMap["Framerate"], int);
             
             std::vector<float> renderTimes{};
-            instance->graphics.RequestRenderBufferCleaningWithinRegion();
-            renderTimes = instance->graphics.RequestRenderWithinRegion();
+            Shared::graphics->RequestRenderBufferCleaningWithinRegion();
+            renderTimes = Shared::graphics->RequestRenderWithinRegion();
 
             static float propertiesHeight = 50;
             static ImVec2 previousWindowPos = ImGui::GetWindowPos();
@@ -150,17 +151,17 @@ extern "C" {
                     imageOffset.y = 0;
                 }
 
-                instance->graphics.UseShader(channel_manipulator);
-                instance->graphics.BindGPUTexture(previewTexture, 0, GL_READ_ONLY);
-                instance->graphics.BindGPUTexture(previewTexture, 1, GL_WRITE_ONLY);
+                Shared::graphics->UseShader(channel_manipulator);
+                Shared::graphics->BindGPUTexture(previewTexture, 0, GL_READ_ONLY);
+                Shared::graphics->BindGPUTexture(previewTexture, 1, GL_WRITE_ONLY);
                 glm::vec4 factor{};
                 if (selectedChannel == 0) factor = {1, 0, 0, 1};
                 if (selectedChannel == 1) factor = {0, 1, 0, 1};
                 if (selectedChannel == 2) factor = {0, 0, 1, 1};
                 if (selectedChannel == 3) factor = {1, 1, 1, 1};
-                instance->graphics.ShaderSetUniform(channel_manipulator, "factor", factor);
-                instance->graphics.DispatchComputeShader(rbo->width, rbo->height, 1);
-                instance->graphics.ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
+                Shared::graphics->ShaderSetUniform(channel_manipulator, "factor", factor);
+                Shared::graphics->DispatchComputeShader(rbo->width, rbo->height, 1);
+                Shared::graphics->ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
 
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - previewTextureSize.x / 2.0f, windowSize.y / 2.0f - previewTextureSize.y / 2.0f} + imageOffset);
@@ -175,6 +176,14 @@ extern "C" {
 
                 if (ImGui::BeginTable("propertiesTable", 4)) {
                     ImGui::TableNextColumn();
+                    if (ImGui::Button(string_format("%s %s", Shared::graphics->isPlaying ? ICON_FA_PAUSE : ICON_FA_PLAY, 
+                            ELECTRON_GET_LOCALIZATION(Shared::graphics->isPlaying ? "RENDER_PREVIEW_PAUSE" 
+                                                                                : "RENDER_PREVIEW_PLAY")).c_str())) {
+                        Shared::graphics->isPlaying = !Shared::graphics->isPlaying;
+                    }
+                    ImGui::SameLine();
+                    ImGui::Text("%s", ICON_FA_EXPAND);
+                    ImGui::SameLine();
                     if (ImGui::BeginCombo("##previewResolutions", resolutionVariants[selectedResolutionVariant].repr.c_str())) {
                         for (int n = 0; n < 9; n++) {
                             bool resolutionSelected = (n == selectedResolutionVariant);
@@ -200,6 +209,8 @@ extern "C" {
                         PreviewOutputBufferType_Depth
                     };
                     static int selectedOutputBufferType = 0;
+                    ImGui::Text("%s", ICON_FA_IMAGES);
+                    ImGui::SameLine();
                     if (ImGui::BeginCombo("##previewTextureType", CSTR(outputBufferTypes[selectedOutputBufferType]))) {
                         for (int i = 0; i < 3; i++) {
                             bool bufferTypeSelected = i == selectedOutputBufferType;
@@ -212,7 +223,7 @@ extern "C" {
                     if (ImGui::IsItemHovered()) {
                         ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_OUTPUT_BUFFER_TYPE"));
                     }
-                    instance->graphics.outputBufferType = rawBufferTypes[selectedOutputBufferType];
+                    Shared::graphics->outputBufferType = rawBufferTypes[selectedOutputBufferType];
                     ImGui::TableNextColumn();
                     static std::string channelTypes[] = {
                         ELECTRON_GET_LOCALIZATION("GENERIC_R"),
@@ -220,7 +231,8 @@ extern "C" {
                         ELECTRON_GET_LOCALIZATION("GENERIC_B"),
                         ELECTRON_GET_LOCALIZATION("GENERIC_RGB")
                     };
-
+                    ImGui::Text("%s", ICON_FA_DROPLET);
+                    ImGui::SameLine();
                     if (ImGui::BeginCombo("##channelType", CSTR(channelTypes[selectedChannel]))) {
                         for (int i = 0; i < 4; i++) {
                             bool channelSelected = i == selectedChannel;
@@ -235,15 +247,17 @@ extern "C" {
                     }
 
                     ImGui::TableNextColumn();
+                    ImGui::Text("%s", ICON_FA_STOPWATCH);
+                    ImGui::SameLine();
                     static std::vector<float> plottingRenderAverages(90);
                     static int plottingCounter = 0;
                     float renderAverage = 0;
-                    for (int i = 0; i < instance->graphics.layers.size(); i++) {
-                        RenderLayer& layer = instance->graphics.layers[i];
+                    for (int i = 0; i < Shared::graphics->layers.size(); i++) {
+                        RenderLayer& layer = Shared::graphics->layers[i];
                         float renderTime = renderTimes[i];
                         renderAverage += renderTime;
                     }
-                    renderAverage = renderAverage / instance->graphics.layers.size();
+                    renderAverage = renderAverage / Shared::graphics->layers.size();
                     if (plottingCounter == plottingRenderAverages.size()) 
                         plottingCounter = 0;
                     plottingRenderAverages[plottingCounter++] = renderAverage;
@@ -257,12 +271,12 @@ extern "C" {
         UI::End();
         std::vector<int> projectResolution = JSON_AS_TYPE(Shared::project.propertiesMap["ProjectResolution"], std::vector<int>);
         if ((resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1]) && !beginInterpolation) {
-            instance->graphics.ResizeRenderBuffer(projectResolution[0], projectResolution[1]);
+            Shared::graphics->ResizeRenderBuffer(projectResolution[0], projectResolution[1]);
 
             RebuildPreviewResolutions(resolutionVariants, {(float) projectResolution[0], (float) projectResolution[1]});
 
             ResolutionVariant selectedVariant = resolutionVariants[selectedResolutionVariant];
-            instance->graphics.ResizeRenderBuffer(selectedVariant.width, selectedVariant.height);
+            Shared::graphics->ResizeRenderBuffer(selectedVariant.width, selectedVariant.height);
         }
         internalFrameIndex++;
     }

@@ -28,13 +28,13 @@ extern "C" {
             bool layerExists = false;
             if (instance->projectOpened) {
                 try {
-                    instance->graphics.GetLayerByID(Shared::selectedRenderLayer);
+                    Shared::graphics->GetLayerByID(Shared::selectedRenderLayer);
                     layerExists = true;
                 } catch (const std::runtime_error& err) {
                     layerExists = false;
                 }
             }
-            if (Shared::selectedRenderLayer == -1 || instance->graphics.layers.size() == 0 || !layerExists) {
+            if (Shared::selectedRenderLayer == -1 || Shared::graphics->layers.size() == 0 || !layerExists) {
                 std::string noLayerWarning = ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_NO_LAYER_SELECTED");
                 ImVec2 warningSize = ImGui::CalcTextSize(CSTR(noLayerWarning));
                 ImGui::SetCursorPos({windowSize.x / 2.0f - warningSize.x / 2.0f, windowSize.y / 2.0f - warningSize.y / 2.0f});
@@ -44,7 +44,7 @@ extern "C" {
             }
 
             static float titleChildHeight = 100;
-            RenderLayer* targetLayer = instance->graphics.GetLayerByID(Shared::selectedRenderLayer);
+            RenderLayer* targetLayer = Shared::graphics->GetLayerByID(Shared::selectedRenderLayer);
             ImGui::BeginChild("layerPropsTitleChild", ImVec2(ImGui::GetWindowSize().x, titleChildHeight), false, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
             float beginCursor = ImGui::GetCursorPos().y;
             ImGui::PushFont(instance->largeFont);

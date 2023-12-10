@@ -49,8 +49,8 @@ AppInstance::AppInstance() {
     this->showBadConfigMessage = false;
     this->ffmpegAvailable = false;
     Shared::app = this;
-    Shared::graphics = &graphics;
-    Shared::assets = &assets;
+    Shared::graphics = new GraphicsCore();
+    Shared::assets = new AssetRegistry();
     if (system("ffmpeg -h > /dev/null") == 0 && system("ffprobe -h > /dev/null") == 0) {
         ffmpegAvailable = true;
     }
@@ -193,12 +193,12 @@ AppInstance::AppInstance() {
     Shared::localizationMap = json_t::parse(std::fstream("localization_en.json"));
     this->projectOpened = false;
 
-    this->graphics.PrecompileEssentialShaders();
+    Shared::graphics->PrecompileEssentialShaders();
     Servers::InitializeCurl();
 
-    this->graphics.ResizeRenderBuffer(128, 128);
+    Shared::graphics->ResizeRenderBuffer(128, 128);
 
-    this->graphics.FetchAllLayers();
+    Shared::graphics->FetchAllLayers();
 
     // graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
     Shared::shadowTex = PixelBuffer("misc/shadow.png").BuildGPUTexture();
@@ -274,15 +274,15 @@ void AppInstance::Run() {
         Shared::configMap["CacheIndex"] = Cache::cacheIndex;
 
         int renderLengthCandidate = 0;
-        for (auto &layer : graphics.layers) {
+        for (auto &layer : Shared::graphics->layers) {
             renderLengthCandidate =
                 glm::max(renderLengthCandidate, layer.endFrame);
 
             layer.beginFrame = glm::clamp(layer.beginFrame, 0, layer.endFrame);
         }
-        graphics.renderLength = renderLengthCandidate;
-        graphics.renderFrame = glm::clamp((float)graphics.renderFrame, 0.0f,
-                                          (float)graphics.renderLength);
+        Shared::graphics->renderLength = renderLengthCandidate;
+        Shared::graphics->renderFrame = glm::clamp((float)Shared::graphics->renderFrame, 0.0f,
+                                          (float)Shared::graphics->renderLength);
 
         PixelBuffer::filtering =
             Shared::configMap["TextureFiltering"] == "linear" ? GL_LINEAR : GL_NEAREST;
@@ -360,7 +360,7 @@ void AppInstance::Run() {
 
         /* Execute completition procedures of AsyncFFMpegOperations */ {
             std::vector<int> deleteTargets{};
-            for (auto& op : assets.operations) {
+            for (auto& op : Shared::assets->operations) {
                 if (op.Completed() && !op.procCompleted && op.proc != nullptr) {
                     op.proc(op.args);
                     op.procCompleted = true;
@@ -368,9 +368,9 @@ void AppInstance::Run() {
                 }
             }
             for (auto& target : deleteTargets) {
-                for (auto& op : assets.operations) {
+                for (auto& op : Shared::assets->operations) {
                     if (op.id == target) {
-                        assets.operations.erase(assets.operations.begin() + target);
+                        Shared::assets->operations.erase(Shared::assets->operations.begin() + target);
                         break;
                     }
                 }
@@ -390,7 +390,7 @@ void AppInstance::Run() {
                 }
                 windowIndex++;
             }
-            for (auto &layer : graphics.layers) {
+            for (auto &layer : Shared::graphics->layers) {
                 layer.sortingProcedure(&layer);
             }
             if (destroyWindowTarget != -1) {
@@ -398,9 +398,9 @@ void AppInstance::Run() {
                 this->content.erase(content.begin() + destroyWindowTarget);
             }
 
-            if (assets.operations.size() != 0) {
+            if (Shared::assets->operations.size() != 0) {
                 AsyncFFMpegOperation* operation = nullptr;
-                for (auto& op : assets.operations) {
+                for (auto& op : Shared::assets->operations) {
                     if (!op.Completed() && !op.procCompleted) operation = &op;
                 }
                 if (operation != nullptr) {
@@ -447,7 +447,7 @@ void AppInstance::Run() {
 
         if (projectOpened) {
             json_t assetRegistry = {};
-            auto &_assets = this->assets.assets;
+            auto &_assets = Shared::assets->assets;
             for (int i = 0; i < _assets.size(); i++) {
                 json_t assetDescription = {};
                 TextureUnion texUnion = _assets[i];

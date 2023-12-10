@@ -266,7 +266,7 @@ void RenderLayer::RenderTextureProperty(json_t &property,
             ImVec2 imageCenterRect = FitRectInRect(ImVec2(150, 150), ImVec2(textureDimensions.x, textureDimensions.y));
             ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - imageCenterRect.x / 2.0f);
             ImGui::Image((ImTextureID) ((uint64_t) textureAsset->pboGpuTexture), imageCenterRect);
-            ImGui::Text("%s %s", ICON_FA_INFO, textureAsset->ffprobeData);
+            ImGui::Text("%s %s", ICON_FA_INFO, textureAsset->ffprobeData.c_str());
         }
         if (textureAsset == nullptr) {
             ImGui::Text("%s", ("No Asset with ID '" + textureID + "' Found").c_str());

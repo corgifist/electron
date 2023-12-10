@@ -34,7 +34,7 @@ extern "C" {
                 ImVec2 wp = ImGui::GetWindowPos();
                 ImGui::BeginChild("previewExamineChild", ImVec2(ws.x, ws.y - 60), false);
                 windowSize = ImGui::GetWindowSize();
-                TextureUnion& asset = instance->assets.assets[Shared::assetSelected];
+                TextureUnion& asset = Shared::assets->assets[Shared::assetSelected];
                 switch (asset.type) {
                     case TextureUnionType::Audio:
                     case TextureUnionType::Texture: {

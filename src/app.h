@@ -36,13 +36,8 @@ namespace Electron {
     struct AppInstance {
         GLFWwindow* displayHandle; // GLFW window handle
         std::vector<UIActivity> content; // Array of windows
-
-        GraphicsCore graphics; // Graphics core of Electron
-
         ImGuiContext* context; // Store main ImGui context for using in impl files
         std::string renderer, vendor, version; // GL Constants
-        AssetRegistry assets; // Library of assets
-        Shortcuts shortcuts; // Editor shortcuts implementation
         bool projectOpened; // True if any project is opened
         bool isNativeWindow; // Always true (if config.json is not manually edited)
         bool showBadConfigMessage;

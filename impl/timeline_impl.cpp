@@ -66,7 +66,7 @@ static void TimelineRenderLayerPopup(AppInstance *instance, int i,
                                      int &layerDuplicationTarget,
                                      int &layerCopyTarget,
                                      int &layerDeleteionTarget) {
-    RenderLayer *layer = &instance->graphics.layers[i];
+    RenderLayer *layer = &Shared::graphics->layers[i];
     ImGui::PopStyleVar(2);
     if (ImGui::BeginPopup(string_format("TimelineLayerPopup%i", i).c_str())) {
         firePopupsFlag = true;
@@ -116,8 +116,8 @@ static void TimelienRenderDragNDropTarget(AppInstance *instance, int &i) {
                 ImGuiDragDropFlags_SourceNoDisableHover)) {
             int from = *((int *)payload->Data);
             int to = i;
-            std::swap(instance->graphics.layers[from],
-                      instance->graphics.layers[i]);
+            std::swap(Shared::graphics->layers[from],
+                      Shared::graphics->layers[i]);
         }
         ImGui::EndDragDropTarget();
     }
@@ -181,9 +181,9 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
     static DragStructure timelineDrag{};
     static std::vector<float> layersPropertiesOffset{};
-    if (layersPropertiesOffset.size() != instance->graphics.layers.size()) {
+    if (layersPropertiesOffset.size() != Shared::graphics->layers.size()) {
         layersPropertiesOffset =
-            std::vector<float>(instance->graphics.layers.size());
+            std::vector<float>(Shared::graphics->layers.size());
     }
 
     static float legendWidth =
@@ -222,8 +222,8 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     float propertiesStep =
         glm::floor(22 * JSON_AS_TYPE(Shared::configMap["UIScaling"], float));
     float propertiesCoordAcc = 0;
-    for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
-        RenderLayer *layer = &instance->graphics.layers[i];
+    for (int i = Shared::graphics->layers.size() - 1; i >= 0; i--) {
+        RenderLayer *layer = &Shared::graphics->layers[i];
         if (keyframeInfos.find(layer->id) == keyframeInfos.end()) {
             keyframeInfos[layer->id] = std::vector<KeyframeHolderInfo>(
                 layer->previewProperties.size());
@@ -262,7 +262,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
             json_t previewTargets = layer->previewProperties;
             float layerViewTime =
-                instance->graphics.renderFrame - layer->beginFrame;
+                Shared::graphics->renderFrame - layer->beginFrame;
             for (int i = 0; i < previewTargets.size(); i++) {
                 json_t &propertyMap = layer->properties[previewTargets.at(i)];
                 GeneralizedPropertyType propertyType =
@@ -466,13 +466,13 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     DrawRect(ticksBackground, style.Colors[ImGuiCol_WindowBg] * 0.5f);
     int desiredTicksCount = pixelsPerFrame * 2;
     float tickStep =
-        (float)instance->graphics.renderFramerate / (float)desiredTicksCount;
+        (float)Shared::graphics->renderFramerate / (float)desiredTicksCount;
     float tickPositionStep = tickStep * pixelsPerFrame;
     float tickPositionAccumulator = 0;
     float tickAccumulator = 0;
-    while (tickAccumulator <= instance->graphics.renderLength) {
+    while (tickAccumulator <= Shared::graphics->renderLength) {
         bool majorTick = remainder(tickAccumulator,
-                                   instance->graphics.renderFramerate) == 0.0f;
+                                   Shared::graphics->renderFramerate) == 0.0f;
         float tickHeight = majorTick ? 0 : 2.0f;
         RectBounds tickBounds = RectBounds(
             ImVec2(tickPositionAccumulator, 0 + ImGui::GetScrollY()),
@@ -495,7 +495,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             canvasPos + stamp.position +
                 ImVec2(legendSize.x - ImGui::GetScrollX(), 0),
             ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, 1)),
-            formatToTimestamp(stamp.frame, instance->graphics.renderFramerate)
+            formatToTimestamp(stamp.frame, Shared::graphics->renderFramerate)
                 .c_str());
     }
     PopClipRect();
@@ -503,17 +503,17 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     float layerOffsetY = ticksBackgroundHeight;
     float layerSizeY =
         22 * JSON_AS_TYPE(Shared::configMap["UIScaling"], float);
-    if (universalLayerDrags.size() != instance->graphics.layers.size()) {
+    if (universalLayerDrags.size() != Shared::graphics->layers.size()) {
         universalLayerDrags =
-            std::vector<DragStructure>(instance->graphics.layers.size());
+            std::vector<DragStructure>(Shared::graphics->layers.size());
     }
-    if (forwardLayerDrags.size() != instance->graphics.layers.size()) {
+    if (forwardLayerDrags.size() != Shared::graphics->layers.size()) {
         forwardLayerDrags =
-            std::vector<DragStructure>(instance->graphics.layers.size());
+            std::vector<DragStructure>(Shared::graphics->layers.size());
     }
-    if (backwardLayerDrags.size() != instance->graphics.layers.size()) {
+    if (backwardLayerDrags.size() != Shared::graphics->layers.size()) {
         backwardLayerDrags =
-            std::vector<DragStructure>(instance->graphics.layers.size());
+            std::vector<DragStructure>(Shared::graphics->layers.size());
     }
     RectBounds innerTicksZone =
         RectBounds(ImVec2(0 + ImGui::GetScrollX(),
@@ -533,7 +533,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     }
     for (auto &layerPair : keyframeInfos) {
         RenderLayer *keyframesOwner =
-            instance->graphics.GetLayerByID(layerPair.first);
+            Shared::graphics->GetLayerByID(layerPair.first);
         PushClipRect(RectBounds(
             ImVec2(keyframesOwner->beginFrame * pixelsPerFrame, 0),
             ImVec2((keyframesOwner->endFrame - keyframesOwner->beginFrame) *
@@ -674,7 +674,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         DrawRect(separatorBounds, ImVec4(0, 0, 0, 1));
     }
     float dragAccepterOffset = ticksBackgroundHeight;
-    for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
+    for (int i = Shared::graphics->layers.size() - 1; i >= 0; i--) {
         ImGui::SetCursorPos({0 + ImGui::GetScrollX(), dragAccepterOffset});
         ImGui::Dummy({ImGui::GetWindowSize().x, layerSizeY});
         if (ImGui::GetIO().KeyCtrl) {
@@ -692,8 +692,8 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         DecreasePixelsPerFrame();
     }
     static std::vector<int> multipleDragSelectedLayers{};
-    for (int i = instance->graphics.layers.size() - 1; i >= 0; i--) {
-        RenderLayer *layer = &instance->graphics.layers[i];
+    for (int i = Shared::graphics->layers.size() - 1; i >= 0; i--) {
+        RenderLayer *layer = &Shared::graphics->layers[i];
         DragStructure &universalDrag = universalLayerDrags[i];
         DragStructure &forwardDrag = forwardLayerDrags[i];
         DragStructure &backwardDrag = backwardLayerDrags[i];
@@ -825,7 +825,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                 universalDragDistance = ImGui::GetIO().MouseDelta.x;
                 int frameAddition = universalDragDistance / pixelsPerFrame;
                 for (auto& selectedLayer : multipleDragSelectedLayers) {
-                    RenderLayer* l = &instance->graphics.layers[selectedLayer];
+                    RenderLayer* l = &Shared::graphics->layers[selectedLayer];
                     l->beginFrame += frameAddition;
                     l->endFrame += frameAddition;
                 }
@@ -842,7 +842,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
     ImGui::SetCursorPos({0, 0});
     RectBounds timelineBounds =
-        RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderFrame,
+        RectBounds(ImVec2(pixelsPerFrame * Shared::graphics->renderFrame,
                           0 + ImGui::GetScrollY()),
                    ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
     DrawRect(timelineBounds, ImVec4(0.871, 0.204, 0.204, 1));
@@ -870,20 +870,20 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     float timelineDragDist;
     if (timelineDrag.GetDragDistance(timelineDragDist) && !anyLayerDragged &&
         !anyKeyframesDragged && !blockTimelineDrag) {
-        instance->graphics.renderFrame =
+        Shared::graphics->renderFrame =
             (int)((windowMouseCoords.x) / pixelsPerFrame);
     } else
         timelineDrag.Deactivate();
 
     RectBounds endTimelineBounds =
-        RectBounds(ImVec2(pixelsPerFrame * instance->graphics.renderLength,
+        RectBounds(ImVec2(pixelsPerFrame * Shared::graphics->renderLength,
                           0 + ImGui::GetScrollY()),
                    ImVec2(TTIMELINE_RULLER_WIDTH, canvasSize.y));
     DrawRect(endTimelineBounds, ImVec4(1, 1, 0, 1));
     PopClipRect();
 
-    if (instance->graphics.isPlaying) {
-        ImGui::SetScrollX(pixelsPerFrame * instance->graphics.renderFrame -
+    if (Shared::graphics->isPlaying) {
+        ImGui::SetScrollX(pixelsPerFrame * Shared::graphics->renderFrame -
                           ((canvasSize.x - legendSize.x) * 0.4f));
     }
 
@@ -915,43 +915,43 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-    if (ImGui::IsKeyPressed(ImGuiKey_Space) && ImGui::GetIO().KeyCtrl) {
-        Shared::graphics->isPlaying = true;
+    if (ImGui::Shortcut(ImGuiKey_Space | ImGuiMod_Ctrl)) {
+        Shared::graphics->isPlaying = !Shared::graphics->isPlaying;
     }
 
     if (ImGui::Shortcut(ImGuiKey_C | ImGuiMod_Ctrl)) {
         copyContainer =
-            *instance->graphics.GetLayerByID(Shared::selectedRenderLayer);
+            *Shared::graphics->GetLayerByID(Shared::selectedRenderLayer);
         print("Copied layer with ID " << copyContainer.id);
     }
 
     if (ImGui::Shortcut(ImGuiKey_V | ImGuiMod_Ctrl) &&
         copyContainer.initialized) {
         layerCopyTarget =
-            instance->graphics.GetLayerIndexByID(Shared::selectedRenderLayer);
+            Shared::graphics->GetLayerIndexByID(Shared::selectedRenderLayer);
     }
 
     if (ImGui::Shortcut(ImGuiKey_D | ImGuiMod_Ctrl)) {
         layerDuplicationTarget =
-            instance->graphics.GetLayerIndexByID(Shared::selectedRenderLayer);
+            Shared::graphics->GetLayerIndexByID(Shared::selectedRenderLayer);
     }
 
     if (ImGui::Shortcut(ImGuiKey_Delete) && Shared::selectedRenderLayer > 0 &&
          multipleDragSelectedLayers.empty()) {
         layerDeleteionTarget =
-            instance->graphics.GetLayerIndexByID(Shared::selectedRenderLayer);
+            Shared::graphics->GetLayerIndexByID(Shared::selectedRenderLayer);
         Shared::selectedRenderLayer = -1;
     }
 
     if (ImGui::Shortcut(ImGuiKey_Delete) && Shared::selectedRenderLayer > 0 && !multipleDragSelectedLayers.empty()) {
         std::vector<int> layerIndices{};
         for (auto& index : multipleDragSelectedLayers) {
-            layerIndices.push_back(instance->graphics.layers[index].id);
+            layerIndices.push_back(Shared::graphics->layers[index].id);
         }
         for (auto& layerIndex : layerIndices) {
-            auto& layers = instance->graphics.layers;
-            layers[instance->graphics.GetLayerIndexByID(layerIndex)].Destroy();
-            layers.erase(layers.begin() + instance->graphics.GetLayerIndexByID(layerIndex));
+            auto& layers = Shared::graphics->layers;
+            layers[Shared::graphics->GetLayerIndexByID(layerIndex)].Destroy();
+            layers.erase(layers.begin() + Shared::graphics->GetLayerIndexByID(layerIndex));
         }
         Shared::selectedRenderLayer = -1;
     }  
@@ -986,20 +986,20 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     ImGui::End();
     ImGui::PopStyleVar(2);
     if (layerDeleteionTarget != -1) {
-        auto &layers = instance->graphics.layers;
+        auto &layers = Shared::graphics->layers;
         layers[layerDeleteionTarget].Destroy();
         layers.erase(layers.begin() + layerDeleteionTarget);
     }
 
     if (layerDuplicationTarget != -1) {
-        auto &layers = instance->graphics.layers;
+        auto &layers = Shared::graphics->layers;
         RenderLayer layer = layers[layerDuplicationTarget];
         layer.id = seedrand();
         layers.insert(layers.begin() + layerDuplicationTarget, layer);
     }
 
     if (layerCopyTarget != -1 && copyContainer.initialized) {
-        auto &layers = instance->graphics.layers;
+        auto &layers = Shared::graphics->layers;
         RenderLayer layer = copyContainer;
         layer.FetchImplementation();
         layer.id = seedrand();

@@ -148,7 +148,7 @@ extern "C" {
                 ProjectMap project{};
                 project.path = ImGuiFileDialog::Instance()->GetFilePathName();
                 project.propertiesMap = json_t::parse(std::fstream(std::string(project.path) + "/project.json"));
-                instance->shortcuts.Ctrl_P_O(project);
+                Shortcuts::Ctrl_P_O(project);
             }
 
             ImGuiFileDialog::Instance()->Close();
