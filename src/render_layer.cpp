@@ -36,6 +36,14 @@ void RenderLayer::FetchImplementation() {
     this->destructionProcedure = 
         Libraries::GetFunction<void(RenderLayer*)>(
                 layerLibrary, "LayerDestroy");
+    this->onPlaybackChangeProcedure = 
+        Libraries::GetFunction<void(RenderLayer*)>(
+            layerLibrary, "LayerOnPlaybackChange"
+        );
+    this->onTimelineSeek = 
+        Libraries::GetFunction<void(RenderLayer*)>(
+            layerLibrary, "LayerOnTimelineSeek"
+        );
     this->propertiesProcedure =
         Libraries::GetFunction<void(RenderLayer *)>(
             layerLibrary, "LayerPropertiesRender");
@@ -241,8 +249,8 @@ void RenderLayer::RenderProperty(GeneralizedPropertyType type,
     }
 }
 
-void RenderLayer::RenderTextureProperty(json_t &property,
-                                                  std::string label) {
+void RenderLayer::RenderAssetProperty(json_t &property,
+                                                  std::string label, TextureUnionType type) {
     if (ImGui::CollapsingHeader(label.c_str())) {
         ImGui::Spacing();
         std::string textureID = JSON_AS_TYPE(property, std::string);
@@ -268,12 +276,18 @@ void RenderLayer::RenderTextureProperty(json_t &property,
             ImGui::Image((ImTextureID) ((uint64_t) textureAsset->pboGpuTexture), imageCenterRect);
             ImGui::Text("%s %s", ICON_FA_INFO, textureAsset->ffprobeData.c_str());
         }
+        bool selectedAssetCompatible = false;
+        if (type == TextureUnionType::Texture && textureAsset != nullptr) {
+            selectedAssetCompatible = textureAsset->IsTextureCompatible();
+        } else if (type == TextureUnionType::Audio && textureAsset != nullptr) {
+            selectedAssetCompatible = (textureAsset->type == TextureUnionType::Audio);
+        }
         if (textureAsset == nullptr) {
             ImGui::Text("%s", ("No Asset with ID '" + textureID + "' Found").c_str());
-        } else if (!textureAsset->IsTextureCompatible()) {
-            ImGui::Text("%s", 
-                ("Asset with ID '" + textureID + "' is not Texture-Compatible")
-                    .c_str());
+        } else if (!selectedAssetCompatible) {
+            ImGui::Text("%s %s", 
+                ("Asset with ID '" + textureID + "' is not compatible to")
+                    .c_str(), AssetRegistry::StringFromTextureUnionType(type).c_str());
         } else {
             ImGui::Text("Asset: ");
             ImGui::SameLine();
@@ -314,7 +328,13 @@ void RenderLayer::RenderTextureProperty(json_t &property,
                 if (searchFilter != "" &&
                     asset.name.find(searchFilter) == std::string::npos)
                     continue;
-                if (!asset.IsTextureCompatible()) continue;
+                bool isCompatible = false;
+                if (type == TextureUnionType::Texture) {
+                    isCompatible = asset.IsTextureCompatible();
+                } else if (type == TextureUnionType::Audio) {
+                    isCompatible = (asset.type == TextureUnionType::Audio);
+                }
+                if (!isCompatible) continue;
                 if (ImGui::Selectable(
                         string_format("%s %s", icon.c_str(), asset.name.c_str())
                             .c_str())) {

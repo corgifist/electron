@@ -302,4 +302,17 @@ void GraphicsCore::CallCompositor(ResizableGPUTexture color,
                           renderBuffer.height, 1);
     ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
 }
+
+void GraphicsCore::FireTimelineSeek() {
+    for (auto& layer : layers) {
+        layer.onTimelineSeek(&layer);
+    }
+}
+
+void GraphicsCore::FirePlaybackChange() {
+    for (auto& layer : layers) {
+        layer.onPlaybackChangeProcedure(&layer);
+    }
+}
+
 }

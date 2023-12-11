@@ -11,7 +11,6 @@ namespace Electron {
 
     // Holds ffprobe's result
     struct AudioMetadata {
-        std::string probe;
         int audioLength;
 
         AudioMetadata() {}

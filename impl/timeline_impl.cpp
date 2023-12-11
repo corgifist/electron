@@ -163,6 +163,12 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         ImGui::PopStyleVar(2);
         return;
     }
+    static bool prfSetup = false;
+    if (!prfSetup) {
+        pixelsPerFrame = JSON_AS_TYPE(Shared::project.propertiesMap["TimelineZoom"], float);
+        prfSetup = true;
+    }
+    Shared::project.propertiesMap["TimelineZoom"] = pixelsPerFrame;
     bool isWindowFocused = ImGui::IsWindowFocused();
     ImVec2 canvasSize = ImGui::GetContentRegionAvail();
     ImVec2 canvasPos = ImGui::GetCursorScreenPos();
@@ -794,7 +800,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         }
 
         RectBounds layerFullheightBounds =
-            RectBounds(ImVec2(0, 0), ImGui::GetWindowSize());
+            RectBounds(ImVec2(0 + ImGui::GetScrollX(), 0), ImGui::GetWindowSize());
         if ((((universalDrag.GetDragDistance(universalDragDistance) &&
               universalDragDistance != 0 && !timelineDrag.isActive) ||
              (MouseHoveringBounds(layerFullheightBounds) &&
@@ -813,6 +819,12 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             layer->endFrame = glm::max(layer->endFrame, 0);
             timelineDrag.Deactivate();
             ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            if (windowMouseCoords.x > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
+                ImGui::SetScrollX(ImGui::GetScrollX() + 1);
+            }
+            if (windowMouseCoords.x < ImGui::GetWindowSize().x / 10) {
+                ImGui::SetScrollX(ImGui::GetScrollX() - 1);
+            }
         } else if (!selected)
             universalDrag.Deactivate();
 
@@ -872,6 +884,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         !anyKeyframesDragged && !blockTimelineDrag) {
         Shared::graphics->renderFrame =
             (int)((windowMouseCoords.x) / pixelsPerFrame);
+        Shared::graphics->FireTimelineSeek();
     } else
         timelineDrag.Deactivate();
 
@@ -917,6 +930,8 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
     if (ImGui::Shortcut(ImGuiKey_Space | ImGuiMod_Ctrl)) {
         Shared::graphics->isPlaying = !Shared::graphics->isPlaying;
+        // Trigger LayerOnPlaybackChange
+        Shared::graphics->FirePlaybackChange();
     }
 
     if (ImGui::Shortcut(ImGuiKey_C | ImGuiMod_Ctrl)) {

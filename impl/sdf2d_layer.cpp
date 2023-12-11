@@ -137,7 +137,7 @@ extern "C" {
         layer->RenderProperty(GeneralizedPropertyType::Float, angle, "Angle");
 
         json_t& textureID = layer->properties["TextureID"];
-        layer->RenderTextureProperty(textureID, "Texturing");
+        layer->RenderAssetProperty(textureID, "Texturing", TextureUnionType::Texture);
     }
 
     ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {
@@ -157,5 +157,11 @@ extern "C" {
     ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {
         ResizableRenderBuffer rbo = std::any_cast<ResizableRenderBuffer>(layer->anyData[0]);
         rbo.Destroy();
+    }
+
+    ELECTRON_EXPORT void LayerOnPlaybackChange(RenderLayer* layer) {
+    }
+
+    ELECTRON_EXPORT void LayerOnTimelineSeek(RenderLayer* layer) {
     }
 }

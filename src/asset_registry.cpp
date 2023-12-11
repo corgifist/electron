@@ -103,8 +103,8 @@ void AssetRegistry::LoadFromProject(json_t project) {
         }
         if (assetUnion.result.type == TextureUnionType::Audio) {
             AudioMetadata metadata = std::get<AudioMetadata>(assetUnion.result.as);
-            metadata.probe = JSON_AS_TYPE(assetDescription["AudioProbeData"], std::string);
-            std::vector<std::string> probeLines = split_string(metadata.probe, "\n");
+            assetUnion.result.ffprobeData = JSON_AS_TYPE(assetDescription["FFProbeData"], std::string);
+            std::vector<std::string> probeLines = split_string(assetUnion.result.ffprobeData, "\n");
 
             for (auto& line : probeLines) {
                 line = trim_copy(line);
@@ -225,8 +225,8 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                 int cacheIndex = std::any_cast<int>(args[3]);
                 std::string ffprobe = filterFFProbe(read_file(".ffprobe_data"));
                 AudioMetadata metadata{};
-                metadata.probe = ffprobe;
-                std::vector<std::string> probeLines = split_string(metadata.probe, "\n");
+                tu->ffprobeData = ffprobe;
+                std::vector<std::string> probeLines = split_string(tu->ffprobeData, "\n");
                 for (auto& line : probeLines) {
                     line = trim_copy(line);
                     if (hasBegining(line, "Duration: ")) {
@@ -236,7 +236,7 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                     }
                 }
                 tu->as = metadata;
-                if (metadata.probe.find("attached pic") != std::string::npos) {
+                if (tu->ffprobeData.find("attached pic") != std::string::npos) {
                     std::string coverPath = string_format("cache/%i.png", cacheIndex);
                     /* Perform async cover extraction */
                     operations->push_back(AsyncFFMpegOperation(

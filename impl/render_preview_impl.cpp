@@ -93,6 +93,7 @@ extern "C" {
                 if ((int) Shared::graphics->renderFrame >= Shared::graphics->renderLength) {
                     if (looping) {
                         Shared::graphics->renderFrame = 0.0f;
+                        Shared::graphics->FireTimelineSeek();
                     } else Shared::graphics->isPlaying = false;
                 } else {
                     if (Shared::graphics->renderFrame < Shared::graphics->renderLength) {
@@ -180,6 +181,7 @@ extern "C" {
                             ELECTRON_GET_LOCALIZATION(Shared::graphics->isPlaying ? "RENDER_PREVIEW_PAUSE" 
                                                                                 : "RENDER_PREVIEW_PLAY")).c_str())) {
                         Shared::graphics->isPlaying = !Shared::graphics->isPlaying;
+                        Shared::graphics->FirePlaybackChange();
                     }
                     ImGui::SameLine();
                     ImGui::Text("%s", ICON_FA_EXPAND);

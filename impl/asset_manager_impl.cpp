@@ -78,8 +78,7 @@ extern "C" {
                         glm::vec2 naturalAssetReoslution = asset.GetDimensions();
                         ImGui::Text("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION("HOVER_TO_GET_PROBE_DATA"));
                         if (ImGui::IsItemHovered()) {
-                            std::string probeData = asset.type == TextureUnionType::Texture ? asset.ffprobeData 
-                                                                                    : std::get<AudioMetadata>(asset.as).probe;
+                            std::string probeData = asset.ffprobeData;
                             if (ImGui::GetIO().MouseClicked[ImGuiMouseButton_Left]) {
                                 ImGui::SetClipboardText(probeData.c_str());
                             }

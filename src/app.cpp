@@ -457,7 +457,6 @@ void AppInstance::Run() {
                 assetDescription["ID"] = texUnion.id;
                 assetDescription["AudioCoverPath"] = texUnion.audioCacheCover;
                 if (texUnion.type == TextureUnionType::Audio) {
-                    assetDescription["AudioProbeData"] = std::get<AudioMetadata>(texUnion.as).probe;
                     assetDescription["AudioCoverResolution"] = {
                         texUnion.coverResolution.x, texUnion.coverResolution.y
                     };

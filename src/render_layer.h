@@ -26,6 +26,8 @@ namespace Electron {
         json_t previewProperties; // No usage data
         Electron_LayerImplF layerProcedure;
         Electron_LayerImplF destructionProcedure;
+        Electron_LayerImplF onPlaybackChangeProcedure;
+        Electron_LayerImplF onTimelineSeek;
         Electron_PropertyRenderImplF initializationProcedure;
         Electron_PropertyRenderImplF propertiesProcedure;
         Electron_PropertyRenderImplF sortingProcedure;
@@ -50,7 +52,7 @@ namespace Electron {
 
         void Render();
         void RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName);
-        void RenderTextureProperty(json_t& property, std::string label);
+        void RenderAssetProperty(json_t& property, std::string label, TextureUnionType type);
         void RenderProperties();
 
         void SortKeyframes(json_t& keyframes);

@@ -117,6 +117,9 @@ namespace Electron {
         static void ShaderSetUniform(GLuint program, std::string name, int x);
         static void ShaderSetUniform(GLuint program, std::string name, glm::vec4 vec);
 
+        void FireTimelineSeek();
+        void FirePlaybackChange();
+
         void CallCompositor(ResizableGPUTexture color, ResizableGPUTexture uv, ResizableGPUTexture depth);
     };
 }

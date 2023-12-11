@@ -40,7 +40,8 @@ target_impls = [
 ]
 
 target_layers = [
-    sdf2d_layer
+    sdf2d_layer,
+    audio_layer
 ]
 
 scenario build_imgui {
