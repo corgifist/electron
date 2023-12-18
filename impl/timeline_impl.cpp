@@ -781,8 +781,13 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
         if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && forwardDrag.isActive && 
             !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
-            layer->endFrame =
-                (windowMouseCoords.x) / pixelsPerFrame;
+            layer->endFrame += forwardDragDistance / pixelsPerFrame;
+            if (windowMouseCoords.x > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
+                ImGui::SetScrollX(ImGui::GetScrollX() + 1);
+            }
+            if (windowMouseCoords.x < ImGui::GetWindowSize().x / 10) {
+                ImGui::SetScrollX(ImGui::GetScrollX() - 1);
+            }
         } else
             forwardDrag.Deactivate();
 
@@ -790,8 +795,13 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
         if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && backwardDrag.isActive &&
             !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
-            layer->beginFrame =
-                (windowMouseCoords.x + ImGui::GetScrollX()) / pixelsPerFrame;
+            layer->beginFrame += backwardDragDistance / pixelsPerFrame;
+            if (windowMouseCoords.x > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
+                ImGui::SetScrollX(ImGui::GetScrollX() + 1);
+            }
+            if (windowMouseCoords.x < ImGui::GetWindowSize().x / 10) {
+                ImGui::SetScrollX(ImGui::GetScrollX() - 1);
+            }
         } else
             backwardDrag.Deactivate();
 

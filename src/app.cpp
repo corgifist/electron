@@ -407,7 +407,8 @@ void AppInstance::Run() {
                     ImGui::Begin("##operation_notification", nullptr, ImGuiWindowFlags_NoTitleBar 
                                                                     | ImGuiWindowFlags_NoResize 
                                                                     | ImGuiWindowFlags_NoScrollbar 
-                                                                    | ImGuiWindowFlags_AlwaysAutoResize);
+                                                                    | ImGuiWindowFlags_AlwaysAutoResize
+                                                                    | ImGuiWindowFlags_NoFocusOnAppearing);
                         ImVec2 displaySize = GetNativeWindowSize();
                         ImVec2 windowSize = ImGui::GetWindowSize();
 

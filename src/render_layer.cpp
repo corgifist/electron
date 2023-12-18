@@ -100,9 +100,9 @@ void RenderLayer::RenderProperties() { propertiesProcedure(this); }
 
 void RenderLayer::RenderProperty(GeneralizedPropertyType type,
                                            json_t &property,
-                                           std::string propertyName) {
+                                           std::string propertyName, ImVec2 floatBoundaries) {
     ImVec2 windowSize = ImGui::GetWindowSize();
-    float inputFieldDivider = 8;
+    float inputFieldDivider = 11;
     if (ImGui::CollapsingHeader(propertyName.c_str())) {
         if (ImGui::Button((std::string(ICON_FA_PLUS) +
                            std::string(" Add keyframe") + "##" + propertyName)
@@ -175,23 +175,23 @@ void RenderLayer::RenderProperty(GeneralizedPropertyType type,
                 ImGui::PopItemWidth();
                 ImGui::SameLine();
                 if (type == GeneralizedPropertyType::Vec2)
-                    ImGui::InputFloat2((std::string("Keyframe ") +
-                                        std::to_string(i - 1) + "##" +
-                                        propertyName + std::to_string(i))
-                                           .c_str(),
-                                       fProperty, "%0.3f", 0);
+                    ImGui::InputFloat2((std::string(ICON_FA_STOPWATCH) +
+                                       std::to_string(i - 1) + "##" + propertyName +
+                                       std::to_string(i))
+                                          .c_str(),
+                                       fProperty, "%.3f", 0);
                 else if (type == GeneralizedPropertyType::Color3)
-                    ImGui::ColorEdit3((std::string("Keyframe ") +
-                                       std::to_string(i - 1) + "##" +
-                                       propertyName + std::to_string(i))
+                    ImGui::ColorEdit3((std::string(ICON_FA_STOPWATCH) +
+                                       std::to_string(i - 1) + "##" + propertyName +
+                                       std::to_string(i))
                                           .c_str(),
                                       fProperty, 0);
                 else
-                    ImGui::InputFloat3((std::string("Keyframe ") +
-                                        std::to_string(i - 1) + "##" +
-                                        propertyName + std::to_string(i))
-                                           .c_str(),
-                                       fProperty, "%0.3f", 0);
+                    ImGui::InputFloat3((std::string(ICON_FA_STOPWATCH) +
+                                       std::to_string(i - 1) + "##" + propertyName +
+                                       std::to_string(i))
+                                          .c_str(),
+                                       fProperty, "%.3f", 0);
 
                 property.at(i).at(0) = fKey;
                 property.at(i).at(1) = fProperty[0];
@@ -226,17 +226,27 @@ void RenderLayer::RenderProperty(GeneralizedPropertyType type,
                 ImGui::SameLine();
 
                 ImGui::PushItemWidth(windowSize.x / inputFieldDivider);
-                ImGui::InputFloat(
+                    ImGui::InputFloat(
                     ("##" + propertyName + std::to_string(i) + "0").c_str(),
-                    &fKey, 0.0f, 0.0f, "%0.0f",
+                    &fKey, 0.0f, 0.0f, "%0.1f",
                     ImGuiInputTextFlags_EnterReturnsTrue);
                 ImGui::PopItemWidth();
                 ImGui::SameLine();
-                ImGui::InputFloat((std::string("Keyframe ") +
-                                   std::to_string(i - 1) + "##" + propertyName +
-                                   std::to_string(i))
-                                      .c_str(),
-                                  &fValue, 0, 0, "%0.2f", 0);
+                if (floatBoundaries.x + floatBoundaries.y == 0.0f) {
+                    ImGui::InputFloat((std::string(ICON_FA_STOPWATCH) +
+                                       std::to_string(i - 1) + "##" + propertyName +
+                                       std::to_string(i))
+                                          .c_str(),
+                                      &fValue, 0, 0, "%.2f", 0);
+                } else {
+                    ImGui::SliderFloat(
+                        (std::string(ICON_FA_STOPWATCH) +
+                                       std::to_string(i - 1) + "##" + propertyName +
+                                       std::to_string(i))
+                                          .c_str(),
+                        &fValue, floatBoundaries.x, floatBoundaries.y, "%.2f"
+                    );
+                }
 
                 property.at(i).at(0) = fKey;
                 property.at(i).at(1) = fValue;

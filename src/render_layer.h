@@ -51,7 +51,7 @@ namespace Electron {
         void FetchImplementation();
 
         void Render();
-        void RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName);
+        void RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName, ImVec2 floatBoundaries = {0.0f, 0.0f});
         void RenderAssetProperty(json_t& property, std::string label, TextureUnionType type);
         void RenderProperties();
 

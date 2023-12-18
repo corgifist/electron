@@ -8,7 +8,7 @@ extern "C" {
     ELECTRON_EXPORT void UIRender(AppInstance* instance) {
         ImGui::SetCurrentContext(instance->context);
         ImGui::SetNextWindowSize({512, 512}, ImGuiCond_Once);
-        UI::Begin(CSTR(std::string(ICON_FA_LIST " ") + ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_TITLE") + std::string("##") + std::to_string(UICounters::LayerPropertiesCounter)), Signal::_CloseWindow, ImGuiWindowFlags_NoScrollbar);
+        UI::Begin(CSTR(std::string(ICON_FA_LIST " ") + ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_TITLE") + std::string("##") + std::to_string(UICounters::LayerPropertiesCounter)), Signal::_CloseWindow, ImGuiWindowFlags_NoScrollWithMouse);
             ImVec2 windowSize = ImGui::GetContentRegionAvail();
             if (!instance->projectOpened) {
                 std::string projectWarningString = ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_NO_PROJECT");
@@ -70,7 +70,7 @@ extern "C" {
             titleChildHeight = ImGui::GetCursorPos().y - beginCursor;
             ImGui::EndChild();
             ImGui::Separator();
-            ImGui::BeginChild("layerPropertiesChild", ImVec2(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+            ImGui::BeginChild("layerPropertiesChild", ImVec2(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y - ImGui::GetCursorPosY()), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
             targetLayer->RenderProperties();
             ImGui::EndChild();
         UI::End();

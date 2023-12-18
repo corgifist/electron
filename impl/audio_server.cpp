@@ -14,9 +14,8 @@ extern "C" {
     void Dummy() {}
 
     ELECTRON_EXPORT void ServerStart(int port, int pid) {
-        crow::SimpleApp app;
-        app.loglevel(crow::LogLevel::Warning);
-        globalApp = &app;
+        globalApp = new crow::SimpleApp();
+        globalApp->loglevel(crow::LogLevel::Warning);
         globalInstance = new SoLoud::Soloud();
         globalInstance->init();
         DUMP_VAR(globalInstance->getBackendString());
@@ -29,7 +28,7 @@ extern "C" {
             exit(0);
         }, pid);
 
-        CROW_ROUTE(app, "/request")
+        CROW_ROUTE((*globalApp), "/request")
             .methods("POST"_method)([](const crow::request& req) {
                 auto body = crow::json::load(req.body);
                 if (!body) {
@@ -42,7 +41,8 @@ extern "C" {
                     running = false;
                 }
                 if (action == "load_sample") {
-                    if (cache.find(body["path"].s()) != cache.end()) goto cache_exists;
+                    DUMP_VAR(std::string(body["path"].s()));
+                    if (cache.find(body["path"].s()) != cache.end() && body.count("override") == 0) goto cache_exists;
                     cache[body["path"].s()] = SoLoud::Wav();
                     cache[body["path"].s()].load(std::string(body["path"].s()).c_str());
                     cache_exists:
@@ -64,7 +64,7 @@ extern "C" {
             });
 
         running = true;
-        app.port(port)
+        globalApp->port(port)
             .bindaddr("0.0.0.0")
             .timeout(5)
             .concurrency(2)
