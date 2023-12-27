@@ -22,7 +22,7 @@ dump_compilation_process = False
 def cat(a, b):
     return a + b
 
-def object_compile(source, arch):
+def object_compile(source, arch, args=[], library_path="."):
     machine_bit = f'-m{arch}'
     if type(source) == str:
         return object_compile([source], arch)
@@ -50,7 +50,7 @@ def object_compile(source, arch):
                 extension = file.split(".")[-1]
                 std_cxx_override_exists = 'std_cxx' in var_env
                 std_c_override_exists = 'std_c' in var_env
-                compile_command = f"{'g++' if extension == 'cpp' else 'gcc'} -L. {'-I' + include_path if include_path != None else ''} -c {file} {machine_bit} -o {output_file} {' '.join(compile_definitions)} {('-std=c++' + var_env['std_cxx'] if std_cxx_override_exists else '') if extension == 'cpp' else ''} {('-std=c' + var_env['std_c'] if std_c_override_exists else '') if extension == 'c' else ''}{' ' + ' '.join(compile_options) if len(compile_options) != 0 else ''}"
+                compile_command = f"{'g++' if extension == 'cpp' else 'gcc'} -L {library_path} {'-I' + include_path if include_path != None else ''} -c {file} {machine_bit} -o {output_file} {' '.join(compile_definitions)} {('-std=c++' + var_env['std_cxx'] if std_cxx_override_exists else '') if extension == 'cpp' else ''} {('-std=c' + var_env['std_c'] if std_c_override_exists else '') if extension == 'c' else ''}{' ' + ' '.join(compile_options) if len(compile_options) != 0 else ''} {' '.join(args)}"
                 info(compile_command)
                 info(f"[{progress}/{len(source)}] compiling {file} ({output_file})")
                 compilation_process = subprocess.run(list(filter(lambda x: x != '', compile_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)
@@ -91,7 +91,7 @@ def eq(a, b):
 def _not(x):
     return not x
 
-def link_executable(objects, out, link_libraries=[], shared='null'):
+def link_executable(objects, out, link_libraries=[], shared='null', basename='implib', library_path='.'):
     if shared == 'shared':
         shared = True
     else:
@@ -100,7 +100,10 @@ def link_executable(objects, out, link_libraries=[], shared='null'):
     transformed_libraries = list()
     for lib in link_libraries:
         transformed_libraries.append("-l" + lib)
-    link_command = f"g++ -L. {'-shared' if shared else ''} -o {out} {str_objects}{' ' if len(link_libraries) != 0 else ''}{' '.join(transformed_libraries)} {' '.join(link_options)}"
+    out_implib = ""
+    if get_platform() == "windows" and shared:
+        out_implib = f"-Wl,--export-all-symbols,--out-implib,lib{basename}.a"
+    link_command = f"g++ -L {library_path} {'-shared' if shared else ''} -o {out} {str_objects}{' ' if len(link_libraries) != 0 else ''}{' '.join(transformed_libraries)} {' '.join(link_options)} {out_implib}"
     info(" ".join(list(filter(lambda x: x != '', link_command.split(" ")))))
     info(f"linking {'executable' if not shared else 'shared library'} {out}")
     link_process = subprocess.run(list(filter(lambda x: x != '', link_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)
