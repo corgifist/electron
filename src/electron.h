@@ -53,6 +53,7 @@ typedef std::vector<std::string> DylibRegistry;
 
 #define DUMP_VAR(var) print(#var << " = " << (var))
 
+#define SERVER_ERROR_CONST "-xfahgbso"
 
 namespace Electron {
 

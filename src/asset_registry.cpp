@@ -109,8 +109,9 @@ void AssetRegistry::LoadFromProject(json_t project) {
             for (auto& line : probeLines) {
                 line = trim_copy(line);
                 if (hasBegining(line, "Duration: ")) {
-                    int hours, minutes, seconds;
-                    sscanf(line.c_str(), "Duration: %i:%i:%i.%*c", &hours, &minutes, &seconds);
+                    int hours, minutes;
+                    float seconds;
+                    sscanf(line.c_str(), "Duration: %i:%i:%f%*c", &hours, &minutes, &seconds);
                     metadata.audioLength = seconds + (minutes * 60) + (hours * 3600);
                 }
             }
@@ -204,7 +205,9 @@ std::string AssetRegistry::ImportAsset(std::string path) {
         operations.push_back(AsyncFFMpegOperation(
             [](OperationArgs_T& args) {
                 TextureUnion* tu = std::any_cast<TextureUnion*>(args[0]);
+                tu->ready = false;
                 tu->ffprobeData = filterFFProbe(read_file(".ffprobe_data"));
+                tu->ready = true;
             }, {tu}, string_format("ffprobe %s &> .ffprobe_data", tu->path.c_str()),
                 string_format("%s %s '%s'", ICON_FA_INFO, ELECTRON_GET_LOCALIZATION("FFPROBE_GATHERING"), tu->path.c_str())
         ));
@@ -230,9 +233,10 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                 for (auto& line : probeLines) {
                     line = trim_copy(line);
                     if (hasBegining(line, "Duration: ")) {
-                        int hours, minutes, seconds;
-                        sscanf(line.c_str(), "Duration: %i:%i:%i.%*c", &hours, &minutes, &seconds);
-                        metadata.audioLength = seconds + (minutes * 60) + (hours * 3600);
+                        int hours, minutes;
+                        float seconds;
+                        sscanf(line.c_str(), "Duration: %i:%i:%f%*c", &hours, &minutes, &seconds);
+                        metadata.audioLength = seconds + (minutes * 60.0f) + (hours * 3600.0f);
                     }
                 }
                 tu->as = metadata;
@@ -249,7 +253,7 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                             tu->coverResolution = {
                                 coverBuffer.width, coverBuffer.height
                             };
-                        }, {coverPath, tu}, string_format("ffmpeg -y -i %s %s", originalAudioPath.c_str(), coverPath.c_str()), 
+                        }, {coverPath, tu}, string_format("ffmpeg -y -i %s %s &>/dev/null", originalAudioPath.c_str(), coverPath.c_str()), 
                             string_format("%s %s '%s'", ICON_FA_IMAGE, ELECTRON_GET_LOCALIZATION("GATHERING_COVER"), tu->path.c_str())
                     ));
                 } else {
@@ -264,7 +268,7 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                     std::string formattedCachePath = string_format("cache/%i.wav", Cache::GetCacheIndex());
                     operations->push_back(AsyncFFMpegOperation(
                         nullptr, {},
-                        string_format("ffmpeg -y -i %s %s", tu->path.c_str(), formattedCachePath.c_str()),
+                        string_format("ffmpeg -y -i %s %s &>/dev/null", tu->path.c_str(), formattedCachePath.c_str()),
                         string_format("%s %s '%s'", ICON_FA_FILE_IMPORT, ELECTRON_GET_LOCALIZATION("GENERIC_IMPORTING"), tu->path.c_str())
                     ));
                     tu->path = formattedCachePath;
@@ -279,7 +283,7 @@ std::string AssetRegistry::ImportAsset(std::string path) {
     // Quickly update editor, so cache index will always be fresh
     Servers::AsyncWriterRequest({
         {"action", "write"},
-        {"path", "config.json"},
+        {"path", "misc/config.json"},
         {"content", Shared::configMap.dump()}
     });
     return loadInfo.returnMessage;

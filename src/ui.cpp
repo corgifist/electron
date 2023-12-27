@@ -9,6 +9,7 @@ namespace Electron {
         this->libraryName = libraryName;
         if (counter == nullptr) counter = &placeholder;
         *counter = 1;
+        Libraries::LoadLibrary("libs", libraryName);
         this->impl = Libraries::GetFunction<void(AppInstance*)>(libraryName, "UIRender");
     }
 

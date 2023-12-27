@@ -2,6 +2,7 @@
 #include "electron.h"
 #include "libraries.h"
 #include "app.h"
+#include "build_number.h"
 #include <chrono>
 #include <thread>
 
@@ -26,24 +27,19 @@ int main(int argc, char *argv[]) {
             }
         }
         print("starting " << serverType << " server at port " << std::to_string(port));
+        Libraries::LoadLibrary("libs", serverType);
         Libraries::GetFunction<void(int, int)>(serverType, "ServerStart")(port, pid);
         exit(0);
     }
+    print("electron " + std::to_string(BUILD_NUMBER) + " is starting soon...");
 
     if (!std::filesystem::exists("cache/")) {
         print("cache folder not found, so creating one");
         std::filesystem::create_directories("cache/");
     }
 
-    std::ofstream tempStream("electron.log");
-    tempStream << "[ELECTRON LOG BEGIN]";
     start_server("async_writer", 4040);
     start_server("audio_server", 4045);
-    print("waiting for servers to startup");
-    while (Servers::AsyncWriterRequest({{"action", "alive"}}).alive) {}
-    print("async writer server is running");
-    while (Servers::AudioServerRequest({{"action", "alive"}}).alive) {}
-    print("audio server is running");
 
     /* std::ios_base::sync_with_stdio(false);
     std::cin.tie(0);

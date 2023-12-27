@@ -1,11 +1,12 @@
 #include "render_layer.h"
 
 namespace Electron {
-    RenderLayer::RenderLayer(std::string layerLibrary) {
+RenderLayer::RenderLayer(std::string layerLibrary) {
     this->visible = true;
     this->layerLibrary = layerLibrary;
-    Libraries::LoadLibrary("layers", layerLibrary);
-    print("Loading dylib " + layerLibrary);
+    this->properties = {};
+    this->previousProperties = {};
+    // print("Loading dylib " + layerLibrary);
 
     this->beginFrame = Shared::graphics->renderFrame;
     this->endFrame =
@@ -15,7 +16,8 @@ namespace Electron {
     this->FetchImplementation();
 
     initializationProcedure(this);
-    initialized = true;
+    this->initialized = true;
+    this->previousProperties = properties;
 
     this->layerUsername = layerPublicName + " Layer";
     this->id = seedrand();
@@ -30,33 +32,21 @@ void RenderLayer::Destroy() {
 
 void RenderLayer::FetchImplementation() {
 
-    this->layerProcedure =
-        Libraries::GetFunction<void(RenderLayer*)>(
-                layerLibrary, "LayerRender");
-    this->destructionProcedure = 
-        Libraries::GetFunction<void(RenderLayer*)>(
-                layerLibrary, "LayerDestroy");
-    this->onPlaybackChangeProcedure = 
-        Libraries::GetFunction<void(RenderLayer*)>(
-            layerLibrary, "LayerOnPlaybackChange"
-        );
-    this->onTimelineSeek = 
-        Libraries::GetFunction<void(RenderLayer*)>(
-            layerLibrary, "LayerOnTimelineSeek"
-        );
-    this->propertiesProcedure =
-        Libraries::GetFunction<void(RenderLayer *)>(
-            layerLibrary, "LayerPropertiesRender");
-    this->initializationProcedure =
-        Libraries::GetFunction<void(RenderLayer *)>(layerLibrary, "LayerInitialize");
-    this->sortingProcedure =
-        Libraries::GetFunction<void(RenderLayer *)>(layerLibrary, "LayerSortKeyframes");
+    this->layerProcedure = TryGetLayerImplF("LayerRender");
+    this->destructionProcedure = TryGetLayerImplF("LayerDestroy");
+    this->onPlaybackChangeProcedure = TryGetLayerImplF("LayerOnPlaybackChange");
+    this->onTimelineSeek = TryGetLayerImplF("LayerOnTimelineSeek");
+    this->propertiesProcedure = TryGetLayerImplF("LayerPropertiesRender");
+    this->initializationProcedure = TryGetLayerImplF("LayerInitialize");
+    this->sortingProcedure = TryGetLayerImplF("LayerSortKeyframes");
+    this->onPropertiesChange = TryGetLayerImplF("LayerOnPropertiesChange");
     this->layerPublicName =
         Libraries::GetVariable<std::string>(layerLibrary, "LayerName");
     this->layerColor =
         Libraries::GetVariable<glm::vec4>(layerLibrary, "LayerTimelineColor");
     this->previewProperties =
         Libraries::GetVariable<json_t>(layerLibrary, "LayerPreviewProperties");
+
     if (!layerProcedure)
         throw std::runtime_error("bad layer procedure!");
 }
@@ -96,7 +86,9 @@ void RenderLayer::SortKeyframes(json_t &keyframes) {
     }
 }
 
-void RenderLayer::RenderProperties() { propertiesProcedure(this); }
+void RenderLayer::RenderProperties() { 
+    propertiesProcedure(this); 
+}
 
 void RenderLayer::RenderProperty(GeneralizedPropertyType type,
                                            json_t &property,
@@ -439,4 +431,14 @@ json_t RenderLayer::ExtractExactValue(json_t property) {
     }
     return acc;
 }
+
+Electron_LayerImplF RenderLayer::TryGetLayerImplF(std::string key) {
+    try {
+        return Libraries::GetFunction<void(RenderLayer*)>(layerLibrary, key);
+    } catch (internalDylib::symbol_error err) {
+        return LayerImplPlaceholder;
+    }
+}
+
+void LayerImplPlaceholder(RenderLayer* layer) {}
 }

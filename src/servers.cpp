@@ -24,6 +24,9 @@ namespace Electron {
         curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, servers_write_data);
         curl_easy_setopt(hnd, CURLOPT_WRITEDATA, &response);
         ret = curl_easy_perform(hnd);
+        if (response == SERVER_ERROR_CONST) {
+            throw std::runtime_error("uncaught exception occured while performing server request");
+        }
         return ServerResponse(ret == CURLE_OK, response);
     }
 

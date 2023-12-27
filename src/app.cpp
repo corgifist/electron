@@ -51,12 +51,12 @@ AppInstance::AppInstance() {
     Shared::app = this;
     Shared::graphics = new GraphicsCore();
     Shared::assets = new AssetRegistry();
-    if (system("ffmpeg -h > /dev/null") == 0 && system("ffprobe -h > /dev/null") == 0) {
+    if (system("ffmpeg -h &>/dev/null") == 0 && system("ffprobe -h &>/dev/null") == 0) {
         ffmpegAvailable = true;
     }
     try {
         Shared::configMap = json_t::parse(
-            std::fstream("config.json")); // config needs to be initialized ASAP
+            std::fstream("misc/config.json")); // config needs to be initialized ASAP
     } catch (json_t::parse_error &ex) {
         RestoreBadConfig();
     }
@@ -190,7 +190,7 @@ AppInstance::AppInstance() {
     ImGui_ImplOpenGL3_Init();
     DUMP_VAR(io.BackendRendererName);
 
-    Shared::localizationMap = json_t::parse(std::fstream("localization_en.json"));
+    Shared::localizationMap = json_t::parse(std::fstream("misc/localization_en.json"));
     this->projectOpened = false;
 
     Shared::graphics->PrecompileEssentialShaders();
@@ -249,12 +249,9 @@ void AppInstance::Run() {
             Shared::project.SaveProject();
         }
 
-        // std::ofstream configStream("config.json");
-        // configStream << configMap.dump();
-
         Servers::AsyncWriterRequest({
             {"action", "write"},
-            {"path", "config.json"},
+            {"path", "misc/config.json"},
             {"content", Shared::configMap.dump()}
         });
 
@@ -335,7 +332,7 @@ void AppInstance::Run() {
                 ImGui::SetWindowPos({GetNativeWindowSize().x / 2.0f - ImGui::GetWindowSize().x / 2.0f, GetNativeWindowSize().y / 2.0f - ImGui::GetWindowSize().y / 2.0f});
                 ImGui::Text("%s:", ELECTRON_GET_LOCALIZATION("SOME_ASSETS_ARE_CORRUPTED"));
                 for (auto& asset : Shared::assets->faultyAssets) {
-                    ImGui::BulletText("%s %s | %s", TextureUnion::GetIconByType(asset.type), asset.name.c_str(), asset.path.c_str());
+                    ImGui::BulletText("%s %s | %s", TextureUnion::GetIconByType(asset.type).c_str(), asset.name.c_str(), asset.path.c_str());
                 }
                 if (ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
                     Shared::assets->faultyAssets.clear();
@@ -374,6 +371,11 @@ void AppInstance::Run() {
                         break;
                     }
                 }
+            }
+        }
+        /* Fill previousProperties field */ {
+            for (auto& layer : Shared::graphics->layers) {
+                layer.previousProperties = layer.properties;
             }
         }
         /* Render UI */ {
@@ -422,6 +424,13 @@ void AppInstance::Run() {
                             ImGui::Text("%s", info.c_str());
                         ImGui::PopFont();
                     ImGui::End();
+                }
+            }
+        }
+        /* Trigger LayerOnPropertiesChange Event */ {
+            for (auto& layer : Shared::graphics->layers) {
+                if (layer.previousProperties != layer.properties) {
+                    layer.onPropertiesChange(&layer);
                 }
             }
         }

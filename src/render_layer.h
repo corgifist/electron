@@ -6,11 +6,11 @@
 #include "asset_registry.h"
 #include "ImGui/imgui.h"
 
+
 namespace Electron {
     
     class RenderLayer;
     typedef void (*Electron_LayerImplF)(RenderLayer*);
-    typedef void (*Electron_PropertyRenderImplF)(RenderLayer*);
 
     enum class GeneralizedPropertyType {
         Vec3, Vec2, Float, Color3
@@ -21,6 +21,7 @@ namespace Electron {
     public:
         int beginFrame, endFrame, frameOffset; // Timing data
         std::string layerLibrary; // Name of implementation library (e.g. libsdf2d.so)
+        json_t previousProperties; // Storing previous properties for LayerOnPropertiesChange event
         json_t properties; // Properties of the layer (keyframes, values) that can be saved to JSON
         json_t internalData; // JSON data that cannot be saved to file
         json_t previewProperties; // No usage data
@@ -28,9 +29,10 @@ namespace Electron {
         Electron_LayerImplF destructionProcedure;
         Electron_LayerImplF onPlaybackChangeProcedure;
         Electron_LayerImplF onTimelineSeek;
-        Electron_PropertyRenderImplF initializationProcedure;
-        Electron_PropertyRenderImplF propertiesProcedure;
-        Electron_PropertyRenderImplF sortingProcedure;
+        Electron_LayerImplF onPropertiesChange;
+        Electron_LayerImplF initializationProcedure;
+        Electron_LayerImplF propertiesProcedure;
+        Electron_LayerImplF sortingProcedure;
         bool initialized;
         std::string layerPublicName;
         float renderTime;
@@ -59,6 +61,10 @@ namespace Electron {
         json_t InterpolateProperty(json_t property);
         json_t ExtractExactValue(json_t property);
 
+        Electron_LayerImplF TryGetLayerImplF(std::string key);
+
         void Destroy();
     };
+
+    void LayerImplPlaceholder(Electron::RenderLayer* layer);
 }
