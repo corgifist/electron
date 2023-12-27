@@ -34,7 +34,7 @@ extern "C" {
                 ImVec2 wp = ImGui::GetWindowPos();
                 ImGui::BeginChild("previewExamineChild", ImVec2(ws.x, ws.y - 60), false);
                 windowSize = ImGui::GetWindowSize();
-                TextureUnion& asset = Shared::assets->assets[Shared::assetSelected];
+                TextureUnion& asset = Shared::assets->assets.at(Shared::assetSelected);
                 switch (asset.type) {
                     case TextureUnionType::Audio:
                     case TextureUnionType::Texture: {
@@ -84,7 +84,9 @@ extern "C" {
                     static int previousAssetID = -1;
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%s", CSTR(string_format("%s %s", asset.GetIcon().c_str(), asset.name.c_str())));
+                    std::string assetIcon = asset.GetIcon();
+                    std::string assetName = asset.name;
+                    ImGui::Text("%s %s", assetIcon.c_str(), assetName.c_str());
                     ImGui::TableSetColumnIndex(1);
                     static float audioPlaybackProgress = 0;
                     static float audioPlaybackLength = 0;
@@ -123,7 +125,7 @@ extern "C" {
                         }
                         case TextureUnionType::Audio: {
                             audioPlaybackProgress = glm::clamp(audioPlaybackProgress, 0.0f, audioPlaybackLength);
-                            if (audioPlaybackProgress == audioPlaybackLength) audioPlaybackPlaying = false;
+                            if (audioPlaybackProgress >= audioPlaybackLength) audioPlaybackPlaying = false;
                             if (audioPlaybackPlaying) audioPlaybackProgress += 1.0f / 60.0f;
                             if (ImGui::Button(audioPlaybackPlaying ? ICON_FA_SQUARE : ICON_FA_PLAY)) {
                                 audioPlaybackPlaying = !audioPlaybackPlaying;
@@ -140,7 +142,7 @@ extern "C" {
                                 Servers::AudioServerRequest({
                                     {"action", "seek_sample"},
                                     {"handle", audioHandle},
-                                    {"seek", audioPlaybackProgress}
+                                    {"seek", (double) audioPlaybackProgress}
                                 });
                             }
                             break;

@@ -1,4 +1,4 @@
-#include "crow.h"
+#include "crow_all.h"
 #include "editor_core.h"
 
 using namespace Electron;
@@ -11,6 +11,7 @@ extern "C" {
         crow::SimpleApp app;
         app.loglevel(crow::LogLevel::Warning);
         globalApp = &app;
+        running = true;
         auto thread = std::thread([](int pid) {
             while (true) {
                 if (!process_is_alive(pid)) break;
@@ -43,7 +44,6 @@ extern "C" {
                 return crow::response(result.dump());
             });
 
-        running = true;
         app.port(port)
             .bindaddr("0.0.0.0")
             .concurrency(2)

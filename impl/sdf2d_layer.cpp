@@ -158,10 +158,4 @@ extern "C" {
         ResizableRenderBuffer rbo = std::any_cast<ResizableRenderBuffer>(layer->anyData[0]);
         rbo.Destroy();
     }
-
-    ELECTRON_EXPORT void LayerOnPlaybackChange(RenderLayer* layer) {
-    }
-
-    ELECTRON_EXPORT void LayerOnTimelineSeek(RenderLayer* layer) {
-    }
 }

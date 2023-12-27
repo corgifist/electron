@@ -251,7 +251,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         ImGui::SameLine();
         if (ImGui::CollapsingHeader(
                 (layer->layerUsername + "##" + std::to_string(i)).c_str())) {
-            ImGui::Spacing();
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4);
             if (ImGui::IsItemHovered() &&
                 ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
                 anyPopupsOpen = true;
@@ -290,17 +290,40 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                 ImGui::SetCursorPosX(8.0f);
                 int propertySize = 1;
                 float beginWidgetY = ImGui::GetCursorPosY();
-                holderInfo.yCoord = ImGui::GetCursorPosY();
+                holderInfo.yCoord = ImGui::GetCursorPosY() - 3;
+                bool addKeyframe = (ImGui::Button((ICON_FA_PLUS + std::string("##") + JSON_AS_TYPE(previewTargets.at(i), std::string) + std::to_string(i)).c_str()));
+                ImGui::SameLine();
                 switch (propertyType) {
                 case GeneralizedPropertyType::Float: {
                     float x = JSON_AS_TYPE(
                         layer->InterpolateProperty(propertyMap).at(0), float);
-                    if (ImGui::InputFloat(
+                    bool isSlider = false;
+                    ImVec2 sliderBounds = {0, 0};
+                    if (layer->internalData.find("TimelineSliders") != layer->internalData.end()) {
+                        json_t& timelineSliders = layer->internalData["TimelineSliders"];
+                        for (int i = 0; i < timelineSliders.size(); i++) {
+                            if (JSON_AS_TYPE(timelineSliders.at(i).at(0), std::string) == JSON_AS_TYPE(previewTargets.at(i), std::string)) {
+                                isSlider = true;
+                                sliderBounds = ImVec2(JSON_AS_TYPE(timelineSliders.at(i).at(1), float), JSON_AS_TYPE(timelineSliders.at(i).at(2), float));
+                            }
+                        }
+                    }
+                    bool formInput = false;
+                    if (!isSlider) {
+                        formInput = ImGui::InputFloat(
                             (JSON_AS_TYPE(previewTargets.at(i), std::string) +
                              "##" + std::to_string(i))
                                 .c_str(),
-                            &x, 0, 0, "%.3f",
-                            ImGuiInputTextFlags_EnterReturnsTrue)) {
+                            &x, 0, 0, "%.2f",
+                            ImGuiInputTextFlags_EnterReturnsTrue);
+                    } else {
+                        formInput = ImGui::SliderFloat(
+                            (JSON_AS_TYPE(previewTargets.at(i), std::string) +
+                             "##" + std::to_string(i)).c_str(),
+                             &x, sliderBounds.x, sliderBounds.y, "%.2f"
+                        );
+                    }
+                    if (formInput) {
                         if (!keyframeAlreadyExists && customKeyframesExist) {
                             propertyMap.push_back({(int)layerViewTime, x});
                         } else {
@@ -318,7 +341,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                             (JSON_AS_TYPE(previewTargets.at(i), std::string) +
                              "##" + std::to_string(i))
                                 .c_str(),
-                            raw.data(), "%.3f",
+                            raw.data(), "%.2f",
                             ImGuiInputTextFlags_EnterReturnsTrue)) {
                         if (!keyframeAlreadyExists && customKeyframesExist) {
                             propertyMap.push_back(
@@ -391,6 +414,11 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                         propertyMap.push_back(xKeyframe);
                     }
                     ImGui::EndPopup();
+                }
+                if (addKeyframe) {
+                    json_t xKeyframe = propertyMap.at(keyframeIndex);
+                    xKeyframe.at(0) = (int)layerViewTime;
+                    propertyMap.push_back(xKeyframe);
                 }
                 if (i + 1 != previewTargets.size())
                     propertiesSeparatorsY.push_back(ImGui::GetCursorPosY());

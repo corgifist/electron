@@ -94,6 +94,7 @@ extern "C" {
                     if (looping) {
                         Shared::graphics->renderFrame = 0.0f;
                         Shared::graphics->FireTimelineSeek();
+                        Shared::graphics->FirePlaybackChange();
                     } else Shared::graphics->isPlaying = false;
                 } else {
                     if (Shared::graphics->renderFrame < Shared::graphics->renderLength) {

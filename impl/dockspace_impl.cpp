@@ -107,7 +107,7 @@ extern "C" {
             ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags, nullptr);
 
             if (ImGui::BeginPopupModal(ELECTRON_GET_LOCALIZATION("ARE_YOU_SURE"), &modalActive, ImGuiWindowFlags_AlwaysAutoResize)) {
-                ImGui::Text(ELECTRON_GET_LOCALIZATION("PROJECT_INVALIDATION_WARNING"));
+                ImGui::Text("%s", ELECTRON_GET_LOCALIZATION("PROJECT_INVALIDATION_WARNING"));
                 ImGui::Spacing();
                 if (instance->ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
                     Shortcuts::Ctrl_E_C();

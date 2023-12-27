@@ -1,2 +1,2 @@
-LD_LIBRARY_PATH=. python HashBuild/hash_build.py
-LD_LIBRARY_PATH=. ./electron
+python HashBuild/hash_build.py
+LIBDECOR_PLUGIN_DIR=libs/libdecor/ LD_LIBRARY_PATH=libs ./electron

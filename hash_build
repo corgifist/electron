@@ -54,12 +54,13 @@ scenario build_imgui {
         $build_arch
     )
     if eq(get_platform(), windows) {
-        deps = [opengl32, GLESv2, glfw3]
+        deps = [opengl32, glfw3]
     } else {
-        deps = []
+        deps = [glfw]
     }
 
-    link_executable($imgui_objects, cat($dylib_id, cat("imgui", $dylib_prefix)), $deps, shared, imgui)
+    link_executable($imgui_objects, cat($dylib_id, cat("imgui", $dylib_prefix)), $deps, shared, imgui, "libs")
+    move_shared_libs()
 }
 
 scenario build_core {
@@ -72,7 +73,7 @@ scenario build_core {
     compilation_targets = filter_list_from_string($compilation_targets, "electron.cpp")
     objects = object_compile(
         $compilation_targets,
-        $build_arch
+        $build_arch, [], "libs"
     )
 
     deps = list()
@@ -82,7 +83,7 @@ scenario build_core {
         ]
     } else {
         deps = [
-            glfw, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, GLESv2, EGL, imgui, boost_filesystem
+            glfw, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, imgui, boost_filesystem, "decor-0"
             
         ]
     }
@@ -93,15 +94,17 @@ scenario build_core {
     } else {
         object_add_link_options("rdynamic")
     }
-    link_executable($objects, cat($dylib_id, cat($base_exec_name, $dylib_prefix)), $deps, shared, electron)
+    link_executable($objects, cat($dylib_id, cat($base_exec_name, $dylib_prefix)), $deps, shared, electron, "libs")
+    move_shared_libs()
 }
 
 scenario build_starter {
     starter_targets = ["src/electron.cpp"]
-    starter_objects = object_compile($starter_targets, $build_arch)
+    starter_objects = object_compile($starter_targets, $build_arch, [], "libs")
     link_executable($starter_objects, "electron", 
-        [electron, imgui]
+        [electron, imgui, glfw, "decor-0"], null, electron, "libs"
     )
+    move_shared_libs()
 }
 
 scenario build_impl {
@@ -109,7 +112,7 @@ scenario build_impl {
 
     shared_library_name = cat($dylib_id, cat($impl_target_file, $dylib_prefix))
     object_set_include_path("src/")
-    impl_objects = object_compile(cat(cat("impl/", $impl_target_file), ".cpp"), $build_arch)
+    impl_objects = object_compile(cat(cat("impl/", $impl_target_file), ".cpp"), $build_arch, [], "libs")
 
     impl_deps = list()
     if eq(get_platform(), windows) {
@@ -122,14 +125,15 @@ scenario build_impl {
         ]
     }
     if eq($impl_target_file, audio_server) {
-        impl_deps = cat($impl_deps, [soloud, SDL2])
+        impl_deps = cat($impl_deps, [openal, OALWrapper])
     }
-    link_executable($impl_objects, $shared_library_name, $impl_deps, shared)
+    link_executable($impl_objects, $shared_library_name, $impl_deps, shared, "implib", "libs")
+    move_shared_libs()
 }
 
 scenario build_layer {
     call_scenario(build_impl)
-    mv(cat($dylib_id, cat($impl_target_file, $dylib_prefix)), cat("layers/", cat($dylib_id, cat($impl_target_file, $dylib_prefix))))
+    mv(cat("libs/", cat($dylib_id, cat($impl_target_file, $dylib_prefix))), cat("layers/", cat($dylib_id, cat($impl_target_file, $dylib_prefix))))
 }
 
 scenario clean {
@@ -157,18 +161,22 @@ scenario build {
     if path_exists($target_exec) {
         rm($target_exec)
     }
+    if not(path_exists("layers/")) {
+        mkdir("layers")
+    }
+    if not(path_exists("libs/")) {
+        mkdir("libs")
+    }
+    move_shared_libs()
     write_build_number()
     call_scenario(build_imgui)
     call_scenario(build_core)
     call_scenario(build_starter)
 
-    if not(path_exists("layers/")) {
-        mkdir("layers")
-    }
-
     object_add_compile_definition(ELECTRON_IMPLEMENTATION_MODE)
     for_each($target_impls, impl_target_file, execute_build_impl)
     for_each($target_layers, impl_target_file, execute_build_layer)
+    move_shared_libs()
 }
 
 scenario execute_build_impl {

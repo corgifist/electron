@@ -23,6 +23,9 @@ extern "C" {
         owner->properties["AudioID"] = "";
         owner->properties["OverrideAudioPath"] = "";
         owner->internalData["FFMpegOperationID"] = -1;
+        owner->internalData["TimelineSliders"] = {
+            {"Volume", 0.0f, 100.0f}
+        };
     }
 
     std::string FFMpegAudioFilter(int beginFrame, int endFrame, int beginVolume, int endVolume) {
@@ -34,15 +37,17 @@ extern "C" {
 
     void ReloadAudioHandle(RenderLayer* layer, TextureUnion* asset) {
         if (asset == nullptr) return;
-        Servers::AudioServerRequest({
-            {"action", "stop_sample"},
-            {"handle", std::any_cast<int>(layer->anyData[0])}
-        });
+        if (std::any_cast<int>(layer->anyData[0]) != -1) {
+            Servers::AudioServerRequest({
+                {"action", "stop_sample"},
+                {"handle", std::any_cast<int>(layer->anyData[0])}
+            });
+        }
         std::string audioPath = asset->path;
         if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
             audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
         }
-        DUMP_VAR(audioPath);
+        double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame) / 60.0;
         Servers::AudioServerRequest({
                 {"action", "load_sample"},
                 {"override", true},
@@ -55,14 +60,14 @@ extern "C" {
             }).ResponseToJSON()["handle"], int
         );
         Servers::AudioServerRequest({
-            {"action", "pause_sample"},
-            {"handle", std::any_cast<int>(layer->anyData[0])},
-            {"pause", !Shared::graphics->isPlaying}
-        });
-        Servers::AudioServerRequest({
             {"action", "seek_sample"},
             {"handle", std::any_cast<int>(layer->anyData[0])},
-            {"seek", (Shared::graphics->renderFrame - layer->beginFrame) / 60}
+            {"seek", elapsedTime}
+        });
+        Servers::AudioServerRequest({
+            {"action", "pause_sample"},
+            {"handle", std::any_cast<int>(layer->anyData[0])},
+            {"pause", !(Shared::graphics->isPlaying && std::clamp((int) Shared::graphics->renderFrame, layer->beginFrame, layer->endFrame) == Shared::graphics->renderFrame)}
         });
     }
 
@@ -101,7 +106,7 @@ extern "C" {
             complexFilter += filters[i] + (i + 1 == filters.size() ? "" : ",");
         }
         std::string cmd = string_format(
-            "ffmpeg -y -i %s -af \"%s\" %s",
+            "ffmpeg -y -i %s -af \"%s\" %s &> /dev/null",
             asset->path.c_str(), complexFilter.c_str(), audioPath.c_str()
         );
         auto& operations = Shared::assets->operations;
@@ -161,7 +166,6 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
-        json_t previousProperties = layer->properties;
         json_t previousAudioID = layer->properties["AudioID"];
         json_t& audioID = layer->properties["AudioID"];
         layer->RenderAssetProperty(audioID, string_format("%s %s", ICON_FA_FILE_AUDIO, "Audio"), TextureUnionType::Audio);
@@ -196,37 +200,43 @@ extern "C" {
             }
             ImGui::PopItemWidth();
         }
-        if (previousProperties != layer->properties) {
-            AudioLayerProcessAsset(layer, asset);
-        }
     }
 
     ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {
-
+        json_t& volume = layer->properties["Volume"];
+        layer->SortKeyframes(volume);
     }
 
     ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {
 
     }
 
+    ELECTRON_EXPORT void LayerOnPropertiesChange(RenderLayer* layer) {
+        TextureUnion* asset = nullptr;
+        std::string audioSID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
+        auto& assets = Shared::assets->assets;
+        for (int i = 0; i < assets.size(); i++) {
+            if (intToHex(assets.at(i).id) == audioSID) {
+                if (assets.at(i).type == TextureUnionType::Audio)
+                    asset = &assets.at(i);
+            }
+        }
+        AudioLayerProcessAsset(layer, asset);
+    }
+
     ELECTRON_EXPORT void LayerOnPlaybackChange(RenderLayer* layer) {
         layer->anyData[1] = Shared::graphics->isPlaying; // playing
         if (std::any_cast<int>(layer->anyData[0]) != -1) {
-            Servers::AudioServerRequest({
-                {"action", "pause_sample"},
-                {"handle", std::any_cast<int>(layer->anyData[0])},
-                {"pause", !Shared::graphics->isPlaying}
-            });
-            std::string audioID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
             TextureUnion* asset = nullptr;
+            std::string audioSID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
             auto& assets = Shared::assets->assets;
             for (int i = 0; i < assets.size(); i++) {
-                if (intToHex(assets.at(i).id) == audioID) {
+                if (intToHex(assets.at(i).id) == audioSID) {
                     if (assets.at(i).type == TextureUnionType::Audio)
                         asset = &assets.at(i);
                 }
             }
-            if (Shared::graphics->isPlaying) ReloadAudioHandle(layer, asset);
+            ReloadAudioHandle(layer, asset);
         }
     }
 
@@ -235,7 +245,7 @@ extern "C" {
             Servers::AudioServerRequest({
                 {"action", "seek_sample"},
                 {"handle", std::any_cast<int>(layer->anyData[0])},
-                {"seek", ((float) (Shared::graphics->renderFrame - layer->beginFrame)) / 60.0f}
+                {"seek", ((double) (Shared::graphics->renderFrame - layer->beginFrame)) / 60.0f}
             });
         }
     }
