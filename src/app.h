@@ -5,9 +5,8 @@
 
 #include "ImGui/imgui.h"
 #define IMGUI_IMPL_OPENGL_ES3
-#include "ImGui/imgui_impl_glfw.h"
+#include "ImGui/imgui_impl_sdl2.h"
 #include "ImGui/imgui_impl_opengl3.h"
-#include "ImGui/im_scoped.h"
 #include "ImGui/imgui_internal.h"
 
 #include "editor_core.h"
@@ -34,7 +33,9 @@ namespace Electron {
 
     // Initializes OpenGL and renders UI
     struct AppInstance {
-        GLFWwindow* displayHandle; // GLFW window handle
+        SDL_Window* displayHandle; // SDL window handle
+        SDL_GLContext glc; // GL Context
+        void* rdr; // Renderer
         std::vector<UIActivity> content; // Array of windows
         ImGuiContext* context; // Store main ImGui context for using in impl files
         std::string renderer, vendor, version; // GL Constants
@@ -74,5 +75,6 @@ namespace Electron {
         }
 
         bool ButtonCenteredOnLine(const char* label, float alignment = 0.5f);
+        double GetTime();
     };
 }

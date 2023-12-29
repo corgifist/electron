@@ -33,4 +33,6 @@ namespace Electron {
 
     int Shared::assetSelected = -128;
     std::string Shared::importErrorMessage = "";
+
+    float Shared::deltaTime = 0.0f;
 }

@@ -6,7 +6,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-unsigned int ShadowRenderer::texture = 0;
 
 namespace Electron {
 
@@ -51,7 +50,7 @@ AppInstance::AppInstance() {
     Shared::app = this;
     Shared::graphics = new GraphicsCore();
     Shared::assets = new AssetRegistry();
-    if (system("ffmpeg -h &>/dev/null") == 0 && system("ffprobe -h &>/dev/null") == 0) {
+    if (system("ffmpeg &> /dev/null") == 0 && system("ffprobe &> /dev/null") == 0) {
         ffmpegAvailable = true;
     }
     try {
@@ -63,59 +62,43 @@ AppInstance::AppInstance() {
 
     Cache::cacheIndex = JSON_AS_TYPE(Shared::configMap["CacheIndex"], int);
 
-    #ifdef __linux__
-        std::string sessionType = getEnvVar("XDG_SESSION_TYPE");
-        if (JSON_AS_TYPE(Shared::configMap["PreferX11"], bool) == true) {
-            sessionType = "x11";
-        }
-        if (sessionType == "wayland") {
-            glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_WAYLAND);
-            print("(linux-only) using wayland platform");
-        } else {
-            glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
-            print("(linux-only) fallback to x11 platform");
-        }
-    #endif
-    glfwSetErrorCallback(electronGlfwError);
-    if (!glfwInit()) {
-        throw std::runtime_error("cannot initialize glfw!");
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        throw std::runtime_error("cannot initialize SDL2!");
     }
-    int major, minor, rev;
-    glfwGetVersion(&major, &minor, &rev);
-    print("GLFW version: " << major << "." << minor << " " << rev);
+    SDL_version ver;
+    SDL_GetVersion(&ver);
+    print("GLFW version: " << ver.major << "." << ver.minor << " " << ver.patch);
 
     float uiScaling = JSON_AS_TYPE(Shared::configMap["UIScaling"], float);
     this->isNativeWindow = (Shared::configMap["ViewportMethod"] == "native-window");
 
-    glfwDefaultWindowHints();
-    glfwWindowHint(GLFW_RESIZABLE, isNativeWindow);
-    glfwWindowHint(GLFW_VISIBLE, isNativeWindow);
-
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-    glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-
     std::vector<int> maybeSize = {
         JSON_AS_TYPE(Shared::configMap["LastWindowSize"].at(0), int),
         JSON_AS_TYPE(Shared::configMap["LastWindowSize"].at(1), int)};
-    this->displayHandle = glfwCreateWindow(isNativeWindow ? maybeSize[0] : 8,
-                                           isNativeWindow ? maybeSize[1] : 8,
-                                           "Electron", nullptr, nullptr);
+    
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+    this->displayHandle = SDL_CreateWindow(
+        "Electron", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        maybeSize[0], maybeSize[1], SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE
+    );
+
+    SDL_GL_SetSwapInterval(1);
+
     if (this->displayHandle == nullptr) {
         throw std::runtime_error("cannot instantiate window!");
     }
+    SDL_SetWindowMinimumSize(this->displayHandle, 640, 480);
 
-    glfwMakeContextCurrent(this->displayHandle);
-    glfwSwapInterval(1);
+    this->glc = SDL_GL_CreateContext(this->displayHandle);
+    this->rdr = SDL_CreateRenderer(this->displayHandle, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_PRESENTVSYNC);
 
-    gladLoadGLES2(glfwGetProcAddress);
-    
-    if (!glfwRawMouseMotionSupported()) {
-        throw std::runtime_error("raw mouse motion is not supported!");
-    } else {
-        glfwSetInputMode(displayHandle, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-    }
+    gladLoadGLES2((GLADloadfunc) SDL_GL_GetProcAddress);
 
     this->renderer = std::string((const char*) glGetString(GL_RENDERER));
     this->vendor = std::string((const char*) glGetString(GL_VENDOR));
@@ -186,7 +169,7 @@ AppInstance::AppInstance() {
     io.Fonts->AddFontFromFileTTF("misc/fa.ttf", fontSize * 1.3f * 2.0f / 3.0f,
                                     &icons_config, icons_ranges);
 
-    ImGui_ImplGlfw_InitForOpenGL(this->displayHandle, true);
+    ImGui_ImplSDL2_InitForOpenGL(this->displayHandle, &this->glc);
     ImGui_ImplOpenGL3_Init();
     DUMP_VAR(io.BackendRendererName);
 
@@ -202,7 +185,6 @@ AppInstance::AppInstance() {
 
     // graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
     Shared::shadowTex = PixelBuffer("misc/shadow.png").BuildGPUTexture();
-    ShadowRenderer::texture = Shared::shadowTex;
 }
 
 AppInstance::~AppInstance() {
@@ -226,8 +208,23 @@ void AppInstance::RenderCriticalError(std::string text, bool* p_open) {
 }
 
 void AppInstance::Run() {
-    while (!glfwWindowShouldClose(this->displayHandle)) {
-        this->running = true;
+    this->running = true;
+    SDL_Event event;
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+            switch (event.type) {
+                case SDL_QUIT: {
+                    running = false;
+                    break;
+                }
+                case SDL_WINDOWEVENT: {
+                    glViewport(0, 0, event.window.data1, event.window.data2);
+                    break;
+                }
+            }
+        }
+        double firstTime = GetTime();
         this->context = ImGui::GetCurrentContext();   
         static bool audioServerDead = false;
         if (!Servers::AudioServerRequest({
@@ -262,7 +259,7 @@ void AppInstance::Run() {
             }
         }
         int width, height;
-        glfwGetWindowSize(displayHandle, &width, &height);
+        SDL_GetWindowSize(this->displayHandle, &width, &height);
         Shared::configMap["LastWindowSize"] = {width, height};
 
         if (projectOpened) {
@@ -287,19 +284,11 @@ void AppInstance::Run() {
             Shared::project.propertiesMap["LastSelectedLayer"] = Shared::selectedRenderLayer;
         }
 
-        if (isNativeWindow) {
-            int displayWidth, displayHeight;
-            glfwGetWindowSize(this->displayHandle, &displayWidth,
-                              &displayHeight);
-            glViewport(0, 0, displayWidth, displayHeight);
-        }
-
-        glfwPollEvents();
         glClearColor(0, 0, 0, 1);
         glClear(GL_COLOR_BUFFER_BIT);
 
         ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
         int windowIndex = 0;
@@ -452,8 +441,7 @@ void AppInstance::Run() {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
         }
-        glfwMakeContextCurrent(this->displayHandle);
-        glfwSwapBuffers(this->displayHandle);
+        SDL_GL_SwapWindow(this->displayHandle);
 
         if (projectOpened) {
             json_t assetRegistry = {};
@@ -476,6 +464,11 @@ void AppInstance::Run() {
             }
             Shared::project.propertiesMap["AssetRegistry"] = assetRegistry;
         }
+
+        double secondTime = GetTime();
+        Shared::deltaTime = secondTime - firstTime;
+        float fps = 1.0 / Shared::deltaTime;
+        SDL_SetWindowTitle(this->displayHandle, string_format("Electron [%0.1f FPS]", fps).c_str());
     }
 editor_end:
 
@@ -483,11 +476,10 @@ editor_end:
 }
 
 void AppInstance::Terminate() {
-    this->running = false;
 
     Servers::DestroyCurl();
     ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
     Servers::AsyncWriterRequest({
         {"action", "kill"}
@@ -495,6 +487,10 @@ void AppInstance::Terminate() {
     Servers::AudioServerRequest({
         {"action", "kill"}
     });
+
+    SDL_GL_DeleteContext(glc);
+    SDL_DestroyWindow(this->displayHandle);
+    SDL_Quit();
 }
 
 void AppInstance::ExecuteSignal(Signal signal,
@@ -573,13 +569,13 @@ void AppInstance::RestoreBadConfig() {
 
 ImVec2 AppInstance::GetNativeWindowSize() {
     int width, height;
-    glfwGetWindowSize(this->displayHandle, &width, &height);
+    SDL_GetWindowSize(this->displayHandle, &width, &height);
     return ImVec2{(float) width, (float) height};
 }
 
 ImVec2 AppInstance::GetNativeWindowPos() {
     int x, y;
-    glfwGetWindowPos(this->displayHandle, &x, &y);
+    SDL_GetWindowPosition(this->displayHandle, &x, &y);
     return ImVec2{(float) x, (float) y};
 }
 
@@ -595,6 +591,10 @@ bool AppInstance::ButtonCenteredOnLine(const char *label,
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
 
     return ImGui::Button(label);
+}
+
+double AppInstance::GetTime() {
+    return (double) SDL_GetTicks64() / 1000.0;
 }
 
 void AppInstance::SetupImGuiStyle() {

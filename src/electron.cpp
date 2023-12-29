@@ -41,10 +41,6 @@ int main(int argc, char *argv[]) {
     start_server("async_writer", 4040);
     start_server("audio_server", 4045);
 
-    /* std::ios_base::sync_with_stdio(false);
-    std::cin.tie(0);
-    std::cout.rdbuf(tempStream.rdbuf()); */
-
     AppInstance instance;
     instance.ExecuteSignal(Signal::_SpawnDockspace);
     instance.ExecuteSignal(Signal::_SpawnProjectConfiguration);

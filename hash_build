@@ -54,9 +54,9 @@ scenario build_imgui {
         $build_arch
     )
     if eq(get_platform(), windows) {
-        deps = [opengl32, glfw3]
+        deps = [opengl32, SDL2]
     } else {
-        deps = [glfw]
+        deps = [SDL2]
     }
 
     link_executable($imgui_objects, cat($dylib_id, cat("imgui", $dylib_prefix)), $deps, shared, imgui, "libs")
@@ -79,12 +79,11 @@ scenario build_core {
     deps = list()
     if eq(get_platform(), windows) {
         deps = [
-            opengl32, glfw3, windowscodecs, ole32, shlwapi, pthread, dbgeng, backtrace, dbgeng, bfd, dbghelp, imgui, curl, kernel32, user32, gdi32, winspool, comdlg32, advapi32, shell32, oleaut32, uuid, comctl32, wsock32, ldap, odbc32, z, ssl, crypto, crypt32, nghttp2
+            opengl32, SDL1, windowscodecs, ole32, shlwapi, pthread, dbgeng, backtrace, dbgeng, bfd, dbghelp, imgui, curl, kernel32, user32, gdi32, winspool, comdlg32, advapi32, shell32, oleaut32, uuid, comctl32, wsock32, ldap, odbc32, z, ssl, crypto, crypt32, nghttp2
         ]
     } else {
         deps = [
-            glfw, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, imgui, boost_filesystem, "decor-0"
-            
+            SDL2, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, imgui, boost_filesystem, "decor-0"
         ]
     }
 
@@ -102,7 +101,7 @@ scenario build_starter {
     starter_targets = ["src/electron.cpp"]
     starter_objects = object_compile($starter_targets, $build_arch, [], "libs")
     link_executable($starter_objects, "electron", 
-        [electron, imgui, glfw, "decor-0"], null, electron, "libs"
+        [electron, imgui, SDL2, bfd], null, electron, "libs"
     )
     move_shared_libs()
 }
@@ -117,7 +116,7 @@ scenario build_impl {
     impl_deps = list()
     if eq(get_platform(), windows) {
         impl_deps = [
-            opengl32, glfw3, pthread, dbgeng, backtrace, bfd, dbghelp, imgui, electron
+            pthread, dbgeng, backtrace, bfd, dbghelp, imgui, electron
         ]
     } else {
         impl_deps = [

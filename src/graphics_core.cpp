@@ -146,9 +146,9 @@ std::vector<float> GraphicsCore::RequestRenderWithinRegion() {
     std::vector<float> renderTimes(layers.size());
     int layerIndex = 0;
     for (auto &layer : layers) {
-        float first = glfwGetTime();
+        float first = (float) SDL_GetTicks() / 1000.0;
         layer.Render();
-        renderTimes[layerIndex] = (glfwGetTime() - first);
+        renderTimes[layerIndex] = (((float) SDL_GetTicks() / 1000.0) - first);
         layerIndex++;
     }
     return renderTimes;

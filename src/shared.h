@@ -36,5 +36,7 @@ namespace Electron {
 
         static int assetSelected;
         static std::string importErrorMessage;
+
+        static float deltaTime;
     };
 }
