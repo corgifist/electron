@@ -224,7 +224,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     ImGui::BeginChild("projectlegend", legendSize, true,
                       ImGuiWindowFlags_NoScrollbar);
     ImGui::SetScrollY(legendScrollY);
-    DrawRect(fillerTicksBackground, style.Colors[ImGuiCol_WindowBg] * 0.7f);
+    DrawRect(fillerTicksBackground, style.Colors[ImGuiCol_WindowBg] * ImVec4{0.7f, 0.7f, 0.7f, 1.0f});
     float propertiesStep =
         glm::floor(22 * JSON_AS_TYPE(Shared::configMap["UIScaling"], float));
     float propertiesCoordAcc = 0;
@@ -497,7 +497,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     }
     PushClipRect(fullscreenTicksMask);
     std::vector<TimeStampTarget> stamps{};
-    DrawRect(ticksBackground, style.Colors[ImGuiCol_WindowBg] * 0.5f);
+    DrawRect(ticksBackground, style.Colors[ImGuiCol_WindowBg] * ImVec4{0.5f, 0.5f, 0.5f, 1.0f});
     int desiredTicksCount = pixelsPerFrame * 2;
     float tickStep =
         (float)Shared::graphics->renderFramerate / (float)desiredTicksCount;
@@ -511,7 +511,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         RectBounds tickBounds = RectBounds(
             ImVec2(tickPositionAccumulator, 0 + ImGui::GetScrollY()),
             ImVec2(TIMELINE_TICK_WIDTH, majorTick ? canvasSize.y : 6.0f));
-        DrawRect(tickBounds, style.Colors[ImGuiCol_Border] * 0.7f);
+        DrawRect(tickBounds, style.Colors[ImGuiCol_Border] * ImVec4{0.7f, 0.7f, 0.7f, 1.0f});
 
         if (majorTick) {
             TimeStampTarget stamp{};

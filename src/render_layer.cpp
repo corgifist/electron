@@ -295,7 +295,7 @@ void RenderLayer::RenderAssetProperty(json_t &property,
             ImGui::SameLine();
         }
         if (ImGui::Selectable(
-                string_format("%s %s", assetIcon.c_str(), assetName.c_str())
+                string_format("%s %s##%i", assetIcon.c_str(), assetName.c_str(), textureAsset == nullptr ? -1219487 : textureAsset->id)
                     .c_str())) {
             ImGui::OpenPopup(
                 string_format("SelectAssetPopup%s", label.c_str()).c_str());
@@ -338,7 +338,7 @@ void RenderLayer::RenderAssetProperty(json_t &property,
                 }
                 if (!isCompatible) continue;
                 if (ImGui::Selectable(
-                        string_format("%s %s", icon.c_str(), asset.name.c_str())
+                        string_format("%s %s##%i", icon.c_str(), asset.name.c_str(), asset.id)
                             .c_str())) {
                     textureID = intToHex(asset.id);
                 }

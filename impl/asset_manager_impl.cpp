@@ -61,7 +61,7 @@ extern "C" {
                     glm::vec2 reservedResolution = assetResolution;
                     float xAspect = assetResolution.x / acceptedPreviewResolution.x;
                     assetResolution = {acceptedPreviewResolution.x, asset.GetDimensions().y / xAspect};
-                    ImGui::BeginTable("infoTable", 2, ImGuiTableFlags_SizingFixedFit);
+                    if (ImGui::BeginTable("infoTable", 2, ImGuiTableFlags_SizingFixedFit)) {
                         ImGui::TableNextRow();
                         ImGui::TableSetColumnIndex(0);
                         ImGui::Image((ImTextureID)(uint64_t) gpuPreview, ImVec2{assetResolution.x, assetResolution.y});
@@ -85,6 +85,7 @@ extern "C" {
                             ImGui::SetTooltip("%s", probeData.c_str());
                         }
                         ImGui::EndTable();
+                    }
                 }
                 ImGui::Spacing(); ImGui::Spacing();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
@@ -115,7 +116,7 @@ extern "C" {
                     for (int column = 0; column < 3; column++) {
                         ImGui::TableSetColumnIndex(column);
                         if (column == 0) {
-                            if (ImGui::Selectable(CSTR(string_format("%s %s", CSTR(assetIcon), CSTR(asset.ready ? asset.name : ELECTRON_GET_LOCALIZATION("GENERIC_IMPORTING")))), p, ImGuiSelectableFlags_SpanAllColumns)) {
+                            if (ImGui::Selectable(CSTR(string_format("%s %s##%i", CSTR(assetIcon), CSTR(asset.ready ? asset.name : ELECTRON_GET_LOCALIZATION("GENERIC_IMPORTING")), asset.id)), p, ImGuiSelectableFlags_SpanAllColumns)) {
                                 if (asset.ready) Shared::assetSelected = assetIndex;
                             }
 

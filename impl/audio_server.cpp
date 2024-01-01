@@ -1,15 +1,64 @@
 #include "crow_all.h"
 #include "editor_core.h"
-#include "OALWrapper/OAL_Funcs.h"
-#include "OALWrapper/OAL_Sample.h"
+#include <AL/al.h>
+#include <AL/alc.h>
+#include "AudioFile.h"
 
 using namespace Electron;
 
 extern "C" {
+
+    struct AudioBundle {
+        AudioFile<float> data;
+        ALuint buffer;
+
+        AudioBundle() {}
+
+        void Destroy() {
+            alDeleteBuffers(1, &buffer);
+        }
+    };  
+
+    ALenum GetALFormat(int channels, int bitsPerSample) {
+        ALenum format;
+        if(channels == 1 && bitsPerSample == 8)
+            format = AL_FORMAT_MONO8;
+        else if(channels == 1 && bitsPerSample == 16)
+            format = AL_FORMAT_MONO16;
+        else if(channels == 2 && bitsPerSample == 8)
+            format = AL_FORMAT_STEREO8;
+        else if(channels == 2 && bitsPerSample == 16)
+            format = AL_FORMAT_STEREO16;
+        return format;
+    }
+
+    std::vector<std::string> ListALDevices() {
+        const ALCchar* devices = alcGetString(NULL, ALC_DEVICE_SPECIFIER);
+        const ALCchar *device = devices, *next = devices + 1;
+        size_t len = 0;
+        std::vector<std::string> result;
+
+        while (device && *device != '\0' && next && *next != '\0') {
+                result.push_back(device);
+                len = strlen(device);
+                device += (len + 1);
+                next += (len + 2);
+        }
+        return result;
+    }
+
     crow::SimpleApp* globalApp = nullptr;
     bool running = false;
-    std::unordered_map<std::string, cOAL_Sample*> wavRegistry{};
+    ALCdevice* alDevice = nullptr;
+    ALCcontext* alContext;
+    std::unordered_map<std::string, AudioBundle> wavRegistry;
+    std::vector<std::thread> threadRegistry;
 
+    void JoinThreads() {
+        for (auto& thread : threadRegistry) {
+            thread.join();
+        }
+    }
 
     ELECTRON_EXPORT void ServerStart(int port, int pid) {
         globalApp = new crow::SimpleApp();
@@ -24,15 +73,26 @@ extern "C" {
             exit(0);
         }, pid);
         
-        cOAL_Init_Params params;
-        if (!OAL_Init(params)) {
-            throw std::runtime_error("(audio-server) cannot initialize OpenAL");
+
+        auto devices = ListALDevices();
+        for (auto& device : devices) {
+            print("OpenAL Device: " << device);
         }
-        DUMP_VAR(OAL_Info_GetDeviceName());
+
+        alDevice = alcOpenDevice(nullptr);
+        if (!alDevice) 
+            throw std::runtime_error("(audio-server) cannot open audio device!");
+
+        alContext = alcCreateContext(alDevice, nullptr);
+        if (!alContext) 
+            throw std::runtime_error("(audio-server) cannot create audio context!");
+        if (!alcMakeContextCurrent(alContext)) 
+            throw std::runtime_error("(audio-server) cannot set current audio context!");
+
+        DUMP_VAR(alGetString(AL_VERSION));
 
         CROW_ROUTE((*globalApp), "/request")
             .methods("POST"_method)([](const crow::request& req) {
-                try {
                 auto body = crow::json::load(req.body);
                 if (!body) {
                     return crow::response(400);
@@ -40,34 +100,65 @@ extern "C" {
                 std::string action = body["action"].s();
                 crow::json::wvalue result = {};
                 if (action == "kill") {
-                    OAL_Close();
                     globalApp->stop();
                     running = false;
                 }
                 if (action == "load_sample") {
-                    if (wavRegistry.find(body["path"].s()) == wavRegistry.end() || body.count("override") != 0) {
-                        if (wavRegistry.find(body["path"].s()) != wavRegistry.end()) {
-                            OAL_Sample_Unload(wavRegistry[body["path"].s()]);
+                    std::string path = body["path"].s();
+                    if (wavRegistry.find(path) == wavRegistry.end() || body.count("override") != 0) {
+                        if (wavRegistry.find(path) != wavRegistry.end()) {
+                            wavRegistry[path].Destroy();
                         }
-                        wavRegistry[body["path"].s()] = OAL_Sample_Load(body["path"].s());
+                        threadRegistry.push_back(
+                            std::thread([](std::string path) {
+                                AudioBundle bundle;
+                                alGenBuffers(1, &bundle.buffer);
+                                std::vector<uint8_t> audioBytes;
+                                std::string audioFile = read_file(path);
+                                for (int i = 0; i < audioFile.size(); i++) {
+                                    audioBytes.push_back((uint8_t) audioFile[i]);
+                                }
+                                bundle.data.loadFromMemory(audioBytes);
+                                alBufferData(bundle.buffer, GetALFormat(bundle.data.getNumChannels(), bundle.data.getBitDepth()), 
+                                                    audioBytes.data(), audioBytes.size(), bundle.data.getSampleRate());
+                                wavRegistry[path] = bundle; 
+                            }, path)
+                        );
                     }
                 }
                 if (action == "play_sample") {
-                    result["handle"] = OAL_Sample_Play(OAL_FREE, wavRegistry[body["path"].s()], 1.0f, true, 1);
+                    ALuint source;
+                    AudioBundle& bundle = wavRegistry[body["path"].s()];
+                    alGenSources(1, &source);
+                    alSourcef(source, AL_PITCH, 1.0f);
+                    alSourcef(source, AL_GAIN, 1.0f);
+                    alSourcei(source, AL_LOOPING, AL_FALSE);
+                    alSourcei(source, AL_BUFFER, bundle.buffer);
+                    alSourcef(source, AL_SEC_OFFSET, 0.02f);
+                    result["handle"] = source;
                 }
                 if (action == "pause_sample") {
-                    OAL_Source_SetPaused(body["handle"].i(), body["pause"].b());
+                    bool playing = !body["pause"].b();
+
+                    ALenum state;
+                    alGetSourcei(body["handle"].i(), AL_SOURCE_STATE, &state);
+
+                    if (playing && state != AL_PLAYING) alSourcePlay(body["handle"].i());
+                    else if (!playing && state != AL_PAUSED) alSourcePause(body["handle"].i());
                 }
                 if (action == "stop_sample") {
-                    OAL_Source_Stop(body["handle"].i());
+                    int source = body["handle"].i();
+                    alSourceStop(body["handle"].i());
+                    alDeleteSources(1, (ALuint*) &source);
                 }
                 if (action == "seek_sample") {
-                    OAL_Source_SetElapsedTime(body["handle"].i(), std::max(body["seek"].d(), 0.0));
+                    float seek = std::max(body["seek"].d(), 0.02);
+                    alSourcef(body["handle"].i(), AL_SEC_OFFSET, seek);
+                }
+                if (action == "is_loaded") {
+                    result["loaded"] = (wavRegistry.find(body["path"].s()) != wavRegistry.end());
                 }
                 return crow::response(result.dump());
-                } catch (std::runtime_error err) {
-                    return crow::response(SERVER_ERROR_CONST);
-                }
         });
 
 
@@ -76,6 +167,7 @@ extern "C" {
             .timeout(5)
             .concurrency(2)
             .run();
+        JoinThreads();
         thread.join();
     }
 }

@@ -118,5 +118,6 @@
     "BACKGROUND_OPERATIONS": "FFMpeg is Active in Background",
     "GENERIC_IMPORTING": "Importing",
     "GATHERING_COVER": "Gathering Cover",
-    "FFPROBE_GATHERING": "Gathering FFProbe Data"
+    "FFPROBE_GATHERING": "Gathering FFProbe Data",
+    "IMPORTING_AUDIO": "Importing Audio"
 }

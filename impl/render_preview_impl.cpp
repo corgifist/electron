@@ -98,8 +98,7 @@ extern "C" {
                     } else Shared::graphics->isPlaying = false;
                 } else {
                     if (Shared::graphics->renderFrame < Shared::graphics->renderLength) {
-                        float intFrame = 1.0f / (60.0 / Shared::graphics->renderFramerate);
-                        Shared::graphics->renderFrame += intFrame;
+                        Shared::graphics->renderFrame += 60.0f * Shared::deltaTime;
                     }
                 }
             }

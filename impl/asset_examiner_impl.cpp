@@ -126,8 +126,14 @@ extern "C" {
                         case TextureUnionType::Audio: {
                             audioPlaybackProgress = glm::clamp(audioPlaybackProgress, 0.0f, audioPlaybackLength);
                             if (audioPlaybackProgress >= audioPlaybackLength) audioPlaybackPlaying = false;
-                            if (audioPlaybackPlaying) audioPlaybackProgress += 1.0f / 60.0f;
-                            if (ImGui::Button(audioPlaybackPlaying ? ICON_FA_SQUARE : ICON_FA_PLAY)) {
+                            if (audioPlaybackPlaying) audioPlaybackProgress += Shared::deltaTime;
+                            bool loaded = JSON_AS_TYPE(
+                                Servers::AudioServerRequest({
+                                    {"action", "is_loaded"},
+                                    {"path", asset.path}
+                                }).ResponseToJSON()["loaded"], bool
+                            );
+                            if (ImGui::Button(audioPlaybackPlaying ? ICON_FA_SQUARE : ICON_FA_PLAY) && loaded) {
                                 audioPlaybackPlaying = !audioPlaybackPlaying;
                             }
                             Servers::AudioServerRequest({
@@ -137,13 +143,16 @@ extern "C" {
                             });
 
                             ImGui::SameLine();
-                            ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, "%0.1f", 0);
-                            if (ImGui::IsItemEdited()) {
+                            if (loaded) ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, "%0.1f", 0);
+                            if (loaded && ImGui::IsItemEdited()) {
                                 Servers::AudioServerRequest({
                                     {"action", "seek_sample"},
                                     {"handle", audioHandle},
                                     {"seek", (double) audioPlaybackProgress}
                                 });
+                            }
+                            if (!loaded) {
+                                ImGui::Text("%s %s", ICON_FA_SPINNER, ELECTRON_GET_LOCALIZATION("IMPORTING_AUDIO"));
                             }
                             break;
                         }

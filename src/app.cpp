@@ -39,10 +39,6 @@ void Begin(const char *name, Signal signal,
 void End() { ImGui::End(); }
 }
 
-static void electronGlfwError(int id, const char *description) {
-    print("GLFW_ERROR_ID: " << id);
-    print("GLFW_ERROR: " << description);
-}
 
 AppInstance::AppInstance() {
     this->showBadConfigMessage = false;
@@ -67,7 +63,7 @@ AppInstance::AppInstance() {
     }
     SDL_version ver;
     SDL_GetVersion(&ver);
-    print("GLFW version: " << ver.major << "." << ver.minor << " " << ver.patch);
+    print("SDL version: " << std::to_string(ver.major) << "." << std::to_string(ver.minor) << " " << std::to_string(ver.patch));
 
     float uiScaling = JSON_AS_TYPE(Shared::configMap["UIScaling"], float);
     this->isNativeWindow = (Shared::configMap["ViewportMethod"] == "native-window");
@@ -82,6 +78,7 @@ AppInstance::AppInstance() {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
 
     this->displayHandle = SDL_CreateWindow(
         "Electron", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -96,6 +93,10 @@ AppInstance::AppInstance() {
     SDL_SetWindowMinimumSize(this->displayHandle, 640, 480);
 
     this->glc = SDL_GL_CreateContext(this->displayHandle);
+    if (glc == nullptr) {
+        throw std::runtime_error("cannot create gl context!");
+    }
+    SDL_GL_MakeCurrent(this->displayHandle, this->glc);
     this->rdr = SDL_CreateRenderer(this->displayHandle, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_PRESENTVSYNC);
 
     gladLoadGLES2((GLADloadfunc) SDL_GL_GetProcAddress);

@@ -119,6 +119,7 @@ void AssetRegistry::LoadFromProject(json_t project) {
         }
         assetUnion.result.name = internalName;
         assetUnion.result.id = id;
+        assetUnion.result.ready = true;
 
         assets.push_back(assetUnion.result);
 
