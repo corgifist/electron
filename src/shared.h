@@ -14,6 +14,7 @@ namespace Electron {
         void SaveProject();
     };
 
+    // Needed for Waveform optimization
     struct Wavefront {
         static int x, y, z;
     };
@@ -22,7 +23,7 @@ namespace Electron {
     class GraphicsCore;
     class AssetRegistry;
 
-    // Necessary variables that are not being 
+    // Important global variables
     struct Shared {
         static int selectedRenderLayer;
         static ProjectMap project;

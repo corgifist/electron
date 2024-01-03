@@ -113,11 +113,32 @@ extern "C" {
                     std::string assetIcon = asset.GetIcon();
                     if (!asset.ready) assetIcon = ICON_FA_SPINNER;
                     std::string reservedResourcePath = asset.path;
+                    bool audioLoaded = false;
+                    if (asset.type == TextureUnionType::Audio) {
+                        audioLoaded = JSON_AS_TYPE(
+                        Servers::AudioServerRequest({
+                            {"action", "is_loaded"},
+                            {"path", asset.path}
+                        }).ResponseToJSON()["loaded"], bool);
+                        if (!audioLoaded) assetIcon = ICON_FA_SPINNER;
+                        if (!audioLoaded) {
+                            Servers::AudioServerRequest({
+                                {"action", "load_sample"},
+                                {"path", asset.path}
+                            });
+                        }
+                    }
                     for (int column = 0; column < 3; column++) {
                         ImGui::TableSetColumnIndex(column);
                         if (column == 0) {
                             if (ImGui::Selectable(CSTR(string_format("%s %s##%i", CSTR(assetIcon), CSTR(asset.ready ? asset.name : ELECTRON_GET_LOCALIZATION("GENERIC_IMPORTING")), asset.id)), p, ImGuiSelectableFlags_SpanAllColumns)) {
-                                if (asset.ready) Shared::assetSelected = assetIndex;
+                                if (asset.ready) {
+                                    if (asset.type == TextureUnionType::Audio && audioLoaded)
+                                        Shared::assetSelected = assetIndex;
+                                    else if (asset.type != TextureUnionType::Audio) {
+                                        Shared::assetSelected = assetIndex;
+                                    }
+                                }
                             }
 
                             if (ImGui::IsItemHovered(0) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {

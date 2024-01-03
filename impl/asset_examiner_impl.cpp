@@ -92,26 +92,34 @@ extern "C" {
                     static float audioPlaybackLength = 0;
                     static bool audioPlaybackPlaying = false;
                     static int audioHandle = 0;
+                    static bool audioLoaded = false;
+                    static bool audioHandleInitialized = false;
+
                     if (previousAssetID != asset.id && asset.type == TextureUnionType::Audio) {
                         AudioMetadata audioMetadata = std::get<AudioMetadata>(asset.as);
                         audioPlaybackPlaying = false;
+                        audioHandleInitialized = false;
                         audioPlaybackLength = audioMetadata.audioLength;
                         audioPlaybackProgress = 0;
+                        audioLoaded = JSON_AS_TYPE(
+                        Servers::AudioServerRequest({
+                            {"action", "is_loaded"},
+                            {"path", asset.path}
+                        }).ResponseToJSON()["loaded"], bool);
+                    }
+                    if (!audioHandleInitialized && audioLoaded) {
                         if (audioHandle != 0) {
                             Servers::AudioServerRequest({
                                 {"action", "stop_sample"},
                                 {"handle", audioHandle}
                             });
                         }
-                        Servers::AudioServerRequest({
-                            {"action", "load_sample"},
-                            {"path", asset.path}
-                        });
                         ServerResponse audioResponse = Servers::AudioServerRequest({
                             {"action", "play_sample"},
                             {"path", asset.path}
                         });
                         audioHandle = JSON_AS_TYPE(audioResponse.ResponseToJSON()["handle"], int);
+                        audioHandleInitialized = true;
                         Servers::AudioServerRequest({
                             {"action", "pause_sample"},
                             {"handle", audioHandle},
@@ -124,16 +132,15 @@ extern "C" {
                             break;
                         }
                         case TextureUnionType::Audio: {
+                            audioLoaded = JSON_AS_TYPE(
+                            Servers::AudioServerRequest({
+                                {"action", "is_loaded"},
+                                {"path", asset.path}
+                            }).ResponseToJSON()["loaded"], bool);
                             audioPlaybackProgress = glm::clamp(audioPlaybackProgress, 0.0f, audioPlaybackLength);
                             if (audioPlaybackProgress >= audioPlaybackLength) audioPlaybackPlaying = false;
                             if (audioPlaybackPlaying) audioPlaybackProgress += Shared::deltaTime;
-                            bool loaded = JSON_AS_TYPE(
-                                Servers::AudioServerRequest({
-                                    {"action", "is_loaded"},
-                                    {"path", asset.path}
-                                }).ResponseToJSON()["loaded"], bool
-                            );
-                            if (ImGui::Button(audioPlaybackPlaying ? ICON_FA_SQUARE : ICON_FA_PLAY) && loaded) {
+                            if (audioLoaded && ImGui::Button(audioPlaybackPlaying ? ICON_FA_SQUARE : ICON_FA_PLAY)) {
                                 audioPlaybackPlaying = !audioPlaybackPlaying;
                             }
                             Servers::AudioServerRequest({
@@ -142,16 +149,16 @@ extern "C" {
                                 {"pause", !audioPlaybackPlaying}
                             });
 
-                            ImGui::SameLine();
-                            if (loaded) ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, "%0.1f", 0);
-                            if (loaded && ImGui::IsItemEdited()) {
+                            if (audioLoaded) ImGui::SameLine();
+                            if (audioLoaded) ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, "%0.1f", 0);
+                            if (audioLoaded && ImGui::IsItemEdited()) {
                                 Servers::AudioServerRequest({
                                     {"action", "seek_sample"},
                                     {"handle", audioHandle},
                                     {"seek", (double) audioPlaybackProgress}
                                 });
                             }
-                            if (!loaded) {
+                            if (!audioLoaded) {
                                 ImGui::Text("%s %s", ICON_FA_SPINNER, ELECTRON_GET_LOCALIZATION("IMPORTING_AUDIO"));
                             }
                             break;

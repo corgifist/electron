@@ -49,15 +49,20 @@ extern "C" {
 
     crow::SimpleApp* globalApp = nullptr;
     bool running = false;
+    int loadIndex = 0;
     ALCdevice* alDevice = nullptr;
     ALCcontext* alContext;
     std::unordered_map<std::string, AudioBundle> wavRegistry;
+    std::unordered_map<int, std::string> playRegistry;
+    std::vector<bool> loadInfo;
     std::vector<std::thread> threadRegistry;
+    std::set<std::string> loadedRegistry;
 
     void JoinThreads() {
         for (auto& thread : threadRegistry) {
             thread.join();
         }
+        threadRegistry.clear();
     }
 
     ELECTRON_EXPORT void ServerStart(int port, int pid) {
@@ -83,7 +88,11 @@ extern "C" {
         if (!alDevice) 
             throw std::runtime_error("(audio-server) cannot open audio device!");
 
-        alContext = alcCreateContext(alDevice, nullptr);
+        ALCint attrList[] = {
+            ALC_FREQUENCY, 44100,
+            0
+        };
+        alContext = alcCreateContext(alDevice, attrList);
         if (!alContext) 
             throw std::runtime_error("(audio-server) cannot create audio context!");
         if (!alcMakeContextCurrent(alContext)) 
@@ -100,17 +109,21 @@ extern "C" {
                 std::string action = body["action"].s();
                 crow::json::wvalue result = {};
                 if (action == "kill") {
+                    JoinThreads();
                     globalApp->stop();
                     running = false;
                 }
                 if (action == "load_sample") {
                     std::string path = body["path"].s();
-                    if (wavRegistry.find(path) == wavRegistry.end() || body.count("override") != 0) {
+                    if (loadedRegistry.find(path) == loadedRegistry.end() || body.count("override") != 0) {
+                        loadedRegistry.insert(path);
                         if (wavRegistry.find(path) != wavRegistry.end()) {
                             wavRegistry[path].Destroy();
                         }
+                        loadInfo.push_back(false);
+                        int infoIndex = loadInfo.size() - 1;
                         threadRegistry.push_back(
-                            std::thread([](std::string path) {
+                            std::thread([](std::string path, int infoIndex) {
                                 AudioBundle bundle;
                                 alGenBuffers(1, &bundle.buffer);
                                 std::vector<uint8_t> audioBytes;
@@ -121,20 +134,23 @@ extern "C" {
                                 bundle.data.loadFromMemory(audioBytes);
                                 alBufferData(bundle.buffer, GetALFormat(bundle.data.getNumChannels(), bundle.data.getBitDepth()), 
                                                     audioBytes.data(), audioBytes.size(), bundle.data.getSampleRate());
-                                wavRegistry[path] = bundle; 
-                            }, path)
+                                wavRegistry[path] = bundle;
+                                loadInfo[infoIndex] = true; 
+                            }, path, infoIndex)
                         );
+                        result["id"] = infoIndex;
                     }
                 }
                 if (action == "play_sample") {
                     ALuint source;
                     AudioBundle& bundle = wavRegistry[body["path"].s()];
+                    playRegistry[source] = body["path"].s();
                     alGenSources(1, &source);
                     alSourcef(source, AL_PITCH, 1.0f);
                     alSourcef(source, AL_GAIN, 1.0f);
                     alSourcei(source, AL_LOOPING, AL_FALSE);
                     alSourcei(source, AL_BUFFER, bundle.buffer);
-                    alSourcef(source, AL_SEC_OFFSET, 0.02f);
+                    alSourcef(source, AL_SEC_OFFSET, 0.05f);
                     result["handle"] = source;
                 }
                 if (action == "pause_sample") {
@@ -148,15 +164,19 @@ extern "C" {
                 }
                 if (action == "stop_sample") {
                     int source = body["handle"].i();
+                    playRegistry.erase(source);
                     alSourceStop(body["handle"].i());
                     alDeleteSources(1, (ALuint*) &source);
                 }
                 if (action == "seek_sample") {
-                    float seek = std::max(body["seek"].d(), 0.02);
+                    float seek = body["seek"].d();
                     alSourcef(body["handle"].i(), AL_SEC_OFFSET, seek);
                 }
                 if (action == "is_loaded") {
                     result["loaded"] = (wavRegistry.find(body["path"].s()) != wavRegistry.end());
+                }
+                if (action == "load_status") {
+                    result["status"] = loadInfo.at(body["id"].i());
                 }
                 return crow::response(result.dump());
         });
