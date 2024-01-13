@@ -14,7 +14,8 @@ extern "C" {
     ELECTRON_EXPORT json_t LayerPreviewProperties = {
         "Position", "Size", "Color", "Angle"
     };
-    GLuint sdf2d_compute = -1;
+    GLuint sdf2d_compute = UNDEFINED;
+    GLuint sdf2d_vao = UNDEFINED;
 
     mat2 rotationMatrix(float angle) {
 	    angle *= 3.1415f / 180.0f;
@@ -25,6 +26,37 @@ extern "C" {
     vec2 rotate(vec2 uv, float th) {
         return mat2(cos(th), sin(th), -sin(th), cos(th)) * uv;
     }
+
+    char const* gl_error_string(GLenum const err) noexcept
+{
+  switch (err)
+  {
+    // opengl 2 errors (8)
+    case GL_NO_ERROR:
+      return "GL_NO_ERROR";
+
+    case GL_INVALID_ENUM:
+      return "GL_INVALID_ENUM";
+
+    case GL_INVALID_VALUE:
+      return "GL_INVALID_VALUE";
+
+    case GL_INVALID_OPERATION:
+      return "GL_INVALID_OPERATION";
+
+    case GL_OUT_OF_MEMORY:
+      return "GL_OUT_OF_MEMORY";
+
+    // opengl 3 errors (1)
+    case GL_INVALID_FRAMEBUFFER_OPERATION:
+      return "GL_INVALID_FRAMEBUFFER_OPERATION";
+
+    // gles 2, 3 and gl 4 error are handled by the switch above
+    default:
+      assert(!"unknown error");
+      return nullptr;
+  }
+}
 
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
         owner->properties["Position"] = {
@@ -48,23 +80,32 @@ extern "C" {
         owner->properties["TextureID"] = "";
         owner->properties["EnableTexturing"] = true;
 
-        if (sdf2d_compute == -1) {
-            sdf2d_compute = GraphicsCore::CompileComputeShader("sdf2d.compute");
+        owner->anyData.resize(1);
+        owner->anyData[0] = PipelineFrameBuffer(Shared::graphics->renderBuffer.width, Shared::graphics->renderBuffer.height);
+
+        if (sdf2d_compute == UNDEFINED) {
+            sdf2d_compute = GraphicsCore::CompilePipelineShader("sdf2d.pipeline");
+        }
+
+        if (sdf2d_vao == UNDEFINED) {
+            sdf2d_vao = GraphicsCore::GenerateVAO(fsQuadVertices, fsQuadUV);
         }
     }
 
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
-        RenderBuffer* pbo = &Shared::graphics->renderBuffer;
+        PipelineFrameBuffer* pbo = &Shared::graphics->renderBuffer;
         GraphicsCore* core = Shared::graphics;
-        if (owner->anyData.size() == 0) {
-            owner->anyData.push_back(ResizableRenderBuffer(pbo->width, pbo->height));
-        }
 
-        ResizableRenderBuffer rrb = std::any_cast<ResizableRenderBuffer>(owner->anyData[0]);
+
+        PipelineFrameBuffer frb = std::any_cast<PipelineFrameBuffer>(owner->anyData[0]);
+        if (frb.width != pbo->width || frb.height != pbo->height) {
+            frb.Destroy();
+            frb = PipelineFrameBuffer(pbo->width, pbo->height);
+        }
         
-        core->RequestTextureCollectionCleaning(rrb.color.texture, rrb.uv.texture, rrb.depth.texture, pbo->width, pbo->height);
-        rrb.CheckForResize(pbo);
-        owner->anyData[0] = rrb;
+        owner->anyData[0] = frb;
+        frb = std::any_cast<PipelineFrameBuffer>(owner->anyData[0]); // update sdf2d_fbo (fixes some small issues)
+        Shared::graphics->RequestTextureCollectionCleaning(frb, 0.0f);
 
         auto position = vec2();
         auto size = vec2();
@@ -93,32 +134,31 @@ extern "C" {
 
         bool canTexture = (asset != nullptr && texturingEnabled);
 
-        GraphicsCore::BindGPUTexture(rrb.color.texture, 0, GL_WRITE_ONLY);
-        GraphicsCore::BindGPUTexture(rrb.uv.texture, 1, GL_WRITE_ONLY);
-        GraphicsCore::BindGPUTexture(rrb.depth.texture, 2, GL_WRITE_ONLY);
-        if (canTexture) {
-            GraphicsCore::BindGPUTexture(asset->pboGpuTexture, 3, GL_READ_ONLY);
-        }
+        frb.Bind();
         GraphicsCore::UseShader(sdf2d_compute);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "pboResolution", pbo->width, pbo->height);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "position", position);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "size", size);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "angle", angle);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "color", color);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "canTexture", canTexture ? 1 : 0);
-        if (asset) {
-            GraphicsCore::ShaderSetUniform(sdf2d_compute, "assetSize", asset->GetDimensions());
+        mat3 transform = mat3(1.0f);
+        transform = glm::scale(transform, size);
+        transform = glm::rotate(transform, glm::radians(angle));
+        transform = glm::translate(transform, position);
+        float aspect = (float) frb.width / (float) frb.height;
+        mat4 projection = ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uColor", color);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uTransform", transform);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uProjection", projection);
+        if (canTexture) {
+            GraphicsCore::BindGPUTexture(asset->pboGpuTexture, sdf2d_compute, 0, "uTexture");
         }
-        GraphicsCore::DispatchComputeShader(pbo->width, pbo->height, 1);
-        GraphicsCore::ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uCanTexture", (int) canTexture);
+        glBindVertexArray(sdf2d_vao);
+        glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
+        frb.Unbind();
 
-        Shared::graphics->CallCompositor(rrb.color, rrb.uv, rrb.depth);
-
+        Shared::graphics->CallCompositor(frb);
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
         AppInstance* instance = Shared::app;
-        RenderBuffer* pbo = &Shared::graphics->renderBuffer;
+        PipelineFrameBuffer* pbo = &Shared::graphics->renderBuffer;
 
         bool texturingEnabled = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
         ImGui::Checkbox("Enable texturing", &texturingEnabled);
@@ -155,7 +195,7 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {
-        ResizableRenderBuffer rbo = std::any_cast<ResizableRenderBuffer>(layer->anyData[0]);
+        PipelineFrameBuffer rbo = std::any_cast<PipelineFrameBuffer>(layer->anyData[0]);
         rbo.Destroy();
     }
 }

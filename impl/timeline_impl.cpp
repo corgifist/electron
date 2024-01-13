@@ -291,7 +291,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                 int propertySize = 1;
                 float beginWidgetY = ImGui::GetCursorPosY();
                 holderInfo.yCoord = ImGui::GetCursorPosY() - 3;
-                bool addKeyframe = (ImGui::Button((ICON_FA_PLUS + std::string("##") + JSON_AS_TYPE(previewTargets.at(i), std::string) + std::to_string(i)).c_str()));
+                bool addKeyframe = (ImGui::Button((ICON_FA_PLUS + std::string("##") + JSON_AS_TYPE(previewTargets.at(i), std::string) + std::to_string(i) + std::to_string(layer->id)).c_str()));
                 ImGui::SameLine();
                 switch (propertyType) {
                 case GeneralizedPropertyType::Float: {
@@ -312,14 +312,14 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                     if (!isSlider) {
                         formInput = ImGui::InputFloat(
                             (JSON_AS_TYPE(previewTargets.at(i), std::string) +
-                             "##" + std::to_string(i))
+                             "##" + std::to_string(i) + std::to_string(layer->id))
                                 .c_str(),
                             &x, 0, 0, "%.2f",
                             ImGuiInputTextFlags_EnterReturnsTrue);
                     } else {
                         formInput = ImGui::SliderFloat(
                             (JSON_AS_TYPE(previewTargets.at(i), std::string) +
-                             "##" + std::to_string(i)).c_str(),
+                             "##" + std::to_string(i) + std::to_string(layer->id)).c_str(),
                              &x, sliderBounds.x, sliderBounds.y, "%.2f"
                         );
                     }
@@ -339,7 +339,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                                               JSON_AS_TYPE(x.at(1), float)};
                     if (ImGui::InputFloat2(
                             (JSON_AS_TYPE(previewTargets.at(i), std::string) +
-                             "##" + std::to_string(i))
+                             "##" + std::to_string(i) + std::to_string(layer->id))
                                 .c_str(),
                             raw.data(), "%.2f",
                             ImGuiInputTextFlags_EnterReturnsTrue)) {
@@ -364,14 +364,14 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                             ? ImGui::InputFloat3(
                                   (JSON_AS_TYPE(previewTargets.at(i),
                                                 std::string) +
-                                   "##" + std::to_string(i))
+                                   "##" + std::to_string(i) + std::to_string(layer->id))
                                       .c_str(),
                                   raw.data(), "%.3f",
                                   ImGuiInputTextFlags_EnterReturnsTrue)
                             : ImGui::ColorEdit3(
                                   (JSON_AS_TYPE(previewTargets.at(i),
                                                 std::string) +
-                                   "##" + std::to_string(i))
+                                   "##" + std::to_string(i) + std::to_string(layer->id))
                                       .c_str(),
                                   raw.data(), 0)) {
                         if (!keyframeAlreadyExists && customKeyframesExist) {
@@ -1006,6 +1006,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             layers[Shared::graphics->GetLayerIndexByID(layerIndex)].Destroy();
             layers.erase(layers.begin() + Shared::graphics->GetLayerIndexByID(layerIndex));
         }
+        multipleDragSelectedLayers.clear();
         Shared::selectedRenderLayer = -1;
     }  
     ImGui::EndChild();
@@ -1046,9 +1047,11 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
     if (layerDuplicationTarget != -1) {
         auto &layers = Shared::graphics->layers;
-        RenderLayer layer = layers[layerDuplicationTarget];
-        layer.id = seedrand();
-        layers.insert(layers.begin() + layerDuplicationTarget, layer);
+        RenderLayer& sourceLayer = layers[layerDuplicationTarget];
+        RenderLayer duplicateLayer = RenderLayer(sourceLayer.layerLibrary);
+
+        duplicateLayer.properties = sourceLayer.properties;
+        layers.insert(layers.begin() + layerDuplicationTarget, duplicateLayer);
     }
 
     if (layerCopyTarget != -1 && copyContainer.initialized) {

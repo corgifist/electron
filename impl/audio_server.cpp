@@ -75,6 +75,7 @@ extern "C" {
                 if (!running) break;
             }
             globalApp->stop();
+            JoinThreads();
             exit(0);
         }, pid);
         
@@ -150,7 +151,6 @@ extern "C" {
                     alSourcef(source, AL_GAIN, 1.0f);
                     alSourcei(source, AL_LOOPING, AL_FALSE);
                     alSourcei(source, AL_BUFFER, bundle.buffer);
-                    alSourcef(source, AL_SEC_OFFSET, 0.05f);
                     result["handle"] = source;
                 }
                 if (action == "pause_sample") {

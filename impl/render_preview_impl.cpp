@@ -103,7 +103,7 @@ extern "C" {
                 }
             }
 
-            RenderBuffer* rbo = &Shared::graphics->renderBuffer;
+            PipelineFrameBuffer* rbo = &Shared::graphics->renderBuffer;
             if (firstSetup) {
                 RebuildPreviewResolutions(resolutionVariants, {(float) rbo->width, (float) rbo->height});
                 Shared::graphics->isPlaying = JSON_AS_TYPE(Shared::project.propertiesMap["Playing"], bool);
@@ -152,6 +152,7 @@ extern "C" {
                     imageOffset.y = 0;
                 }
 
+                /*
                 Shared::graphics->UseShader(channel_manipulator);
                 Shared::graphics->BindGPUTexture(previewTexture, 0, GL_READ_ONLY);
                 Shared::graphics->BindGPUTexture(previewTexture, 1, GL_WRITE_ONLY);
@@ -163,7 +164,7 @@ extern "C" {
                 Shared::graphics->ShaderSetUniform(channel_manipulator, "factor", factor);
                 Shared::graphics->DispatchComputeShader(rbo->width, rbo->height, 1);
                 Shared::graphics->ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
-
+                */
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - previewTextureSize.x / 2.0f, windowSize.y / 2.0f - previewTextureSize.y / 2.0f} + imageOffset);
                 ImGui::Image((ImTextureID)(uint64_t) previewTexture, previewTextureSize);
@@ -272,7 +273,12 @@ extern "C" {
             ImGui::EndChild();
         UI::End();
         std::vector<int> projectResolution = JSON_AS_TYPE(Shared::project.propertiesMap["ProjectResolution"], std::vector<int>);
-        if ((resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1]) && !beginInterpolation) {
+        ResolutionVariant currentVariant = resolutionVariants[selectedResolutionVariant];
+        if ((currentVariant.width != rbo->width || currentVariant.height != rbo->height)) {
+            Shared::graphics->ResizeRenderBuffer(currentVariant.width, currentVariant.height);
+            Shared::graphics->RequestRenderBufferCleaningWithinRegion(); // fixes flickering when resizing rbo
+        }
+        if ((resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1])) {
             Shared::graphics->ResizeRenderBuffer(projectResolution[0], projectResolution[1]);
 
             RebuildPreviewResolutions(resolutionVariants, {(float) projectResolution[0], (float) projectResolution[1]});
