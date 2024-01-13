@@ -136,10 +136,10 @@ extern "C" {
 
         frb.Bind();
         GraphicsCore::UseShader(sdf2d_compute);
-        mat3 transform = mat3(1.0f);
-        transform = glm::scale(transform, size);
-        transform = glm::rotate(transform, glm::radians(angle));
-        transform = glm::translate(transform, position);
+        mat4 transform = glm::identity<mat3>();
+        transform = glm::scale(transform, vec3(size, 1.0f));
+        transform = glm::rotate(transform, glm::radians(angle), vec3(0, 0, 1));
+        transform = glm::translate(transform, vec3(position, 0.0f));
         float aspect = (float) frb.width / (float) frb.height;
         mat4 projection = ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uColor", color);
