@@ -119,5 +119,7 @@
     "GENERIC_IMPORTING": "Importing",
     "GATHERING_COVER": "Gathering Cover",
     "FFPROBE_GATHERING": "Gathering FFProbe Data",
-    "IMPORTING_AUDIO": "Importing Audio"
+    "IMPORTING_AUDIO": "Importing Audio",
+    "OPENGLES_BACKEND_MESSAGE": "Your OpenGL ES implementation is not officially supported\n  Please Use ANGLE OpenGL ES!",
+    "AUDIO_FILTERING_IN_PROGRESS": "Audio Filtering In Progress"
 }
