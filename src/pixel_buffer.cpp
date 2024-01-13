@@ -55,42 +55,22 @@ GLuint PixelBuffer::BuildGPUTexture() {
     GLuint id;
     glGenTextures(1, &id);
     glBindTexture(GL_TEXTURE_2D, id);
-    std::vector<float> textureConversion(this->width * this->height * 4);
+    std::vector<GLubyte> textureConversion(this->width * this->height * 4);
     for (int x = 0; x < this->width; x++) {
         for (int y = 0; y < this->height; y++) {
             int index = (x + y * width) * 4;
             Pixel pixel = GetPixel(x, y);
-            textureConversion[index + 0] = pixel.r;
-            textureConversion[index + 1] = pixel.g;
-            textureConversion[index + 2] = pixel.b;
-            textureConversion[index + 3] = pixel.a;
+            textureConversion[index + 0] = (GLubyte) (pixel.r * 255.0f);
+            textureConversion[index + 1] = (GLubyte) (pixel.g * 255.0f);
+            textureConversion[index + 2] = (GLubyte) (pixel.b * 255.0f);
+            textureConversion[index + 3] = (GLubyte) (pixel.a * 255.0f);
         }
     }
 
-    // PixelBuffer is a pretty low-level API, so we are using raw GLES functions here
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, width, height);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureConversion.data());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
-
-    glUseProgram(Shared::tex_transfer_compute);
-    glUniform2i(glGetUniformLocation(Shared::tex_transfer_compute, "imageResolution"), width, height);
-
-    GLuint data_ssbo;
-    glGenBuffers(1, &data_ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, data_ssbo);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, textureConversion.size() * sizeof(float), textureConversion.data(), GL_STATIC_READ);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, data_ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, id);
-    glBindImageTexture(0, id, 0, GL_FALSE, 0, GL_WRITE_ONLY,
-                       GL_RGBA32F);
-
-    glDispatchCompute(std::ceil(width / Wavefront::x), std::ceil(height / Wavefront::y), 1);
-    glMemoryBarrier(GL_ALL_BARRIER_BITS);
-    glDeleteBuffers(1, &data_ssbo);
 
     return id;
 }

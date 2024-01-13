@@ -11,25 +11,39 @@
 using namespace Electron;
 
 int main(int argc, char *argv[]) {
+    bool disableBackwards = false;
+    setenv("ANGLE_DEFAULT_PLATFORM", "vulkan", 0); 
+    backward::SignalHandling* sh = nullptr;
     if (argc > 1) {
         std::string serverType = "";
         int port = 80;
         int pid = 0;
+        bool useServer = false;
         for (int i = 1; i < argc; i++) {
             std::string arg = argv[i];
             if (arg == "--type") {
                 serverType = argv[++i];
+                useServer = true;
             } else if (arg == "--port") {
                 std::string ps = argv[++i];
                 port = std::stoi(ps);
+                useServer = true;
             } else if (arg == "--pid") {
                 pid = std::stoi(argv[++i]);
+                useServer = true;
+            } else if (arg == "--disable-backwards") {
+                disableBackwards = true;
             }
         }
-        print("starting " << serverType << " server at port " << std::to_string(port));
-        Libraries::LoadLibrary("libs", serverType);
-        Libraries::GetFunction<void(int, int)>(serverType, "ServerStart")(port, pid);
-        exit(0);
+        if (useServer) {
+            print("starting " << serverType << " server at port " << std::to_string(port));
+            Libraries::LoadLibrary("libs", serverType);
+            Libraries::GetFunction<void(int, int)>(serverType, "ServerStart")(port, pid);
+            exit(0);
+        }
+    }
+    if (!disableBackwards) {
+        sh = new backward::SignalHandling();
     }
     print("electron " + std::to_string(BUILD_NUMBER) + " is starting soon...");
 

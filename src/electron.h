@@ -35,7 +35,7 @@
 #include <utility>
 
 #include "gles2.h"
-#include <SDL2/SDL.h>
+#include "GLFW/glfw3.h"
 
 #include "ImGui/imgui.h"
 
@@ -44,6 +44,7 @@
 #include "IconsFontAwesome5.h"
 #include "glm/glm.hpp"
 #include "glm/gtx/matrix_transform_2d.hpp"
+#include <glm/gtc/type_ptr.hpp>
 
 typedef std::vector<std::string> DylibRegistry;
 
@@ -54,6 +55,7 @@ typedef std::vector<std::string> DylibRegistry;
 #define DUMP_VAR(var) print(#var << " = " << (var))
 
 #define SERVER_ERROR_CONST "-xfahgbso"
+#define UNDEFINED 4178187
 
 namespace Electron {
 

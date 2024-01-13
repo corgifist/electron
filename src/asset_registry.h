@@ -40,8 +40,7 @@ namespace Electron {
             this->invalid = false;
             this->ready = true;
         }
-        ~TextureUnion() {
-        }
+        ~TextureUnion() {}
 
         // Can be interpreted as texture
         bool IsTextureCompatible() {
@@ -49,11 +48,9 @@ namespace Electron {
         }
 
         void RebuildAssetData();
-
         glm::vec2 GetDimensions();
-
         void GenerateUVTexture();
-
+        void DumpData();
         std::string GetIcon();
         static std::string GetIconByType(TextureUnionType type);
     }; 

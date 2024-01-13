@@ -27,7 +27,6 @@ namespace Electron {
 
     GLuint Shared::basic_compute = -1;
     GLuint Shared::compositor_compute = -1;
-    GLuint Shared::tex_transfer_compute = -1;
 
     GLuint Shared::shadowTex = 0;
 
@@ -35,4 +34,11 @@ namespace Electron {
     std::string Shared::importErrorMessage = "";
 
     float Shared::deltaTime = 0.0f;
+
+    GLuint Shared::fsVAO = UNDEFINED;
+
+    ImVec2 Shared::displayPos{};
+    ImVec2 Shared::displaySize{};
+
+    std::string Shared::glslVersion = "#version 460"; // use standard OpenGL by default
 }

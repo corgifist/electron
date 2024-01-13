@@ -5,7 +5,7 @@
 
 #include "ImGui/imgui.h"
 #define IMGUI_IMPL_OPENGL_ES3
-#include "ImGui/imgui_impl_sdl2.h"
+#include "ImGui/imgui_impl_glfw.h"
 #include "ImGui/imgui_impl_opengl3.h"
 #include "ImGui/imgui_internal.h"
 
@@ -33,8 +33,7 @@ namespace Electron {
 
     // Initializes OpenGL and renders UI
     struct AppInstance {
-        SDL_Window* displayHandle; // SDL window handle
-        SDL_GLContext glc; // GL Context
+        GLFWwindow* displayHandle;
         void* rdr; // Renderer
         std::vector<UIActivity> content; // Array of windows
         ImGuiContext* context; // Store main ImGui context for using in impl files
@@ -60,14 +59,13 @@ namespace Electron {
         void ExecuteSignal(Signal signal);
 
         void RestoreBadConfig();
-
         void RenderCriticalError(std::string text, bool* p_open);
+        void PushNotification(int duration, std::string text);
 
         ImVec2 GetNativeWindowSize();
         ImVec2 GetNativeWindowPos();
 
         void SetupImGuiStyle();
-
         int GetCacheIndex();
 
         void AddUIContent(UIActivity ui) {

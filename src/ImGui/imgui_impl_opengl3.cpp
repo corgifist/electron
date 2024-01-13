@@ -15,12 +15,19 @@
 
 // You can use unmodified imgui_impl_* files in your project. See examples/ folder for examples of using this.
 // Prefer including the entire imgui/ repository into your project (either as a copy or as a submodule), and only build the backends you need.
-// If you are new to Dear ImGui, read documentation from the docs/ folder + read the top of imgui.cpp.
-// Read online: https://github.com/ocornut/imgui/tree/master/docs
+// Learn about Dear ImGui:
+// - FAQ                  https://dearimgui.com/faq
+// - Getting Started      https://dearimgui.com/getting-started
+// - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
+// - Introduction, links and more at the top of imgui.cpp
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
 //  2023-XX-XX: Platform: Added support for multiple windows via the ImGuiPlatformIO interface.
+//  2024-01-09: OpenGL: Update GL3W based imgui_impl_opengl3_loader.h to load "libGL.so" and variants, fixing regression on distros missing a symlink.
+//  2023-11-08: OpenGL: Update GL3W based imgui_impl_opengl3_loader.h to load "libGL.so" instead of "libGL.so.1", accommodating for NetBSD systems having only "libGL.so.3" available. (#6983)
+//  2023-10-05: OpenGL: Rename symbols in our internal loader so that LTO compilation with another copy of gl3w is possible. (#6875, #6668, #4445)
+//  2023-06-20: OpenGL: Fixed erroneous use glGetIntegerv(GL_CONTEXT_PROFILE_MASK) on contexts lower than 3.2. (#6539, #6333)
 //  2023-05-09: OpenGL: Support for glBindSampler() backup/restore on ES3. (#6375)
 //  2023-04-18: OpenGL: Restore front and back polygon mode separately when supported by context. (#6333)
 //  2023-03-23: OpenGL: Properly restoring "no shader program bound" if it was the case prior to running the rendering function. (#6267, #6220, #6224)
@@ -105,13 +112,10 @@
 #endif
 
 #include "imgui.h"
+#ifndef IMGUI_DISABLE
 #include "imgui_impl_opengl3.h"
 #include <stdio.h>
-#if defined(_MSC_VER) && _MSC_VER <= 1500 // MSVC 2008 or earlier
-#include <stddef.h>     // intptr_t
-#else
 #include <stdint.h>     // intptr_t
-#endif
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
@@ -149,8 +153,7 @@
 #if (defined(__APPLE__) && (TARGET_OS_IOS || TARGET_OS_TV))
 #include <OpenGLES/ES3/gl.h>    // Use GL ES 3
 #else
-#define  GLAD_GLES2_IMPLEMENTATION
-#include "../gles2.h"
+#include <GLES3/gl3.h>          // Use GL ES 3
 #endif
 #elif !defined(IMGUI_IMPL_OPENGL_LOADER_CUSTOM)
 // Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
@@ -161,7 +164,7 @@
 // - You can temporarily use an unstripped version. See https://github.com/dearimgui/gl3w_stripped/releases
 // Changes to this backend using new APIs should be accompanied by a regenerated stripped loader version.
 #define IMGL3W_IMPL
-#include <GLES3/gl31.h>
+#include "../gles2.h"
 #endif
 
 // Vertex arrays are not supported on ES2/WebGL1 unless Emscripten which uses an extension
@@ -285,19 +288,22 @@ bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
     io.BackendRendererName = "imgui_impl_opengl3";
 
     // Query for GL version (e.g. 320 for GL 3.2)
-#if !defined(IMGUI_IMPL_OPENGL_ES2)
-    GLint major = 0;
-    GLint minor = 0;
-    glGetIntegerv(GL_MAJOR_VERSION, &major);
-    glGetIntegerv(GL_MINOR_VERSION, &minor);
-    if (major == 0 && minor == 0)
-    {
-        major = 3; minor = 1;
-    }
-    bd->GlVersion = (GLuint)(major * 100 + minor * 10);
+#if defined(IMGUI_IMPL_OPENGL_ES2)
+    // GLES 2
+    bd->GlVersion = 200;
+    bd->GlProfileIsES2 = true;
+#else
+    // Desktop or GLES 3
+    GLint major = 3;
+    GLint minor = 1;
 #if defined(GL_CONTEXT_PROFILE_MASK)
-    glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &bd->GlProfileMask);
+    if (bd->GlVersion >= 320)
+        glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &bd->GlProfileMask);
     bd->GlProfileIsCompat = (bd->GlProfileMask & GL_CONTEXT_COMPATIBILITY_PROFILE_BIT) != 0;
+#endif
+
+#if defined(IMGUI_IMPL_OPENGL_ES3)
+    bd->GlProfileIsES3 = true;
 #endif
 
     bd->UseBufferSubData = false;
@@ -309,16 +315,10 @@ bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
             bd->UseBufferSubData = true;
 #endif
     */
-#elif defined(IMGUI_IMPL_OPENGL_ES2)
-    bd->GlVersion = 200; // GLES 2
-    bd->GlProfileIsES2 = true;
-#elif defined(IMGUI_IMPL_OPENGL_ES3)
-    bd->GlVersion = 200; // Don't raise version as it is intended as a desktop version check for now.
-    bd->GlProfileIsES3 = true;
 #endif
 
 #ifdef IMGUI_IMPL_OPENGL_DEBUG
-    printf("GL_MAJOR_VERSION = %d\nGL_MINOR_VERSION = %d\nGL_VENDOR = '%s'\nGL_RENDERER = '%s'\n", major, minor, (const char*)glGetString(GL_VENDOR), (const char*)glGetString(GL_RENDERER)); // [DEBUG]
+    printf("GlVersion = %d\nGlProfileIsCompat = %d\nGlProfileMask = 0x%X\nGlProfileIsES2 = %d, GlProfileIsES3 = %d\nGL_VENDOR = '%s'\nGL_RENDERER = '%s'\n", bd->GlVersion, bd->GlProfileIsCompat, bd->GlProfileMask, bd->GlProfileIsES2, bd->GlProfileIsES3, (const char*)glGetString(GL_VENDOR), (const char*)glGetString(GL_RENDERER)); // [DEBUG]
 #endif
 
 #ifdef IMGUI_IMPL_OPENGL_MAY_HAVE_VTX_OFFSET
@@ -338,7 +338,7 @@ bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
 #elif defined(__APPLE__)
         glsl_version = "#version 150";
 #else
-        glsl_version = "#version 130";
+        glsl_version = "#version 310 es";
 #endif
     }
     IM_ASSERT((int)strlen(glsl_version) + 2 < IM_ARRAYSIZE(bd->GlslVersionString));
@@ -460,9 +460,9 @@ static void ImGui_ImplOpenGL3_SetupRenderState(ImDrawData* draw_data, int fb_wid
     GL_CALL(glEnableVertexAttribArray(bd->AttribLocationVtxPos));
     GL_CALL(glEnableVertexAttribArray(bd->AttribLocationVtxUV));
     GL_CALL(glEnableVertexAttribArray(bd->AttribLocationVtxColor));
-    GL_CALL(glVertexAttribPointer(bd->AttribLocationVtxPos,   2, GL_FLOAT,         GL_FALSE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, pos)));
-    GL_CALL(glVertexAttribPointer(bd->AttribLocationVtxUV,    2, GL_FLOAT,         GL_FALSE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, uv)));
-    GL_CALL(glVertexAttribPointer(bd->AttribLocationVtxColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), (GLvoid*)IM_OFFSETOF(ImDrawVert, col)));
+    GL_CALL(glVertexAttribPointer(bd->AttribLocationVtxPos,   2, GL_FLOAT,         GL_FALSE, sizeof(ImDrawVert), (GLvoid*)offsetof(ImDrawVert, pos)));
+    GL_CALL(glVertexAttribPointer(bd->AttribLocationVtxUV,    2, GL_FLOAT,         GL_FALSE, sizeof(ImDrawVert), (GLvoid*)offsetof(ImDrawVert, uv)));
+    GL_CALL(glVertexAttribPointer(bd->AttribLocationVtxColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), (GLvoid*)offsetof(ImDrawVert, col)));
 }
 
 // OpenGL3 Render function.
@@ -749,6 +749,38 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
     glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &last_vertex_array);
 #endif
 
+    // Parse GLSL version string
+    int glsl_version = 130;
+    sscanf(bd->GlslVersionString, "#version %d", &glsl_version);
+
+    const GLchar* vertex_shader_glsl_120 =
+        "uniform mat4 ProjMtx;\n"
+        "attribute vec2 Position;\n"
+        "attribute vec2 UV;\n"
+        "attribute vec4 Color;\n"
+        "varying vec2 Frag_UV;\n"
+        "varying vec4 Frag_Color;\n"
+        "void main()\n"
+        "{\n"
+        "    Frag_UV = UV;\n"
+        "    Frag_Color = Color;\n"
+        "    gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
+        "}\n";
+
+    const GLchar* vertex_shader_glsl_130 =
+        "uniform mat4 ProjMtx;\n"
+        "in vec2 Position;\n"
+        "in vec2 UV;\n"
+        "in vec4 Color;\n"
+        "out vec2 Frag_UV;\n"
+        "out vec4 Frag_Color;\n"
+        "void main()\n"
+        "{\n"
+        "    Frag_UV = UV;\n"
+        "    Frag_Color = Color;\n"
+        "    gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
+        "}\n";
+
     const GLchar* vertex_shader_glsl_300_es =
         "precision highp float;\n"
         "layout (location = 0) in vec2 Position;\n"
@@ -764,6 +796,42 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
         "    gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
         "}\n";
 
+    const GLchar* vertex_shader_glsl_410_core =
+        "layout (location = 0) in vec2 Position;\n"
+        "layout (location = 1) in vec2 UV;\n"
+        "layout (location = 2) in vec4 Color;\n"
+        "uniform mat4 ProjMtx;\n"
+        "out vec2 Frag_UV;\n"
+        "out vec4 Frag_Color;\n"
+        "void main()\n"
+        "{\n"
+        "    Frag_UV = UV;\n"
+        "    Frag_Color = Color;\n"
+        "    gl_Position = ProjMtx * vec4(Position.xy,0,1);\n"
+        "}\n";
+
+    const GLchar* fragment_shader_glsl_120 =
+        "#ifdef GL_ES\n"
+        "    precision mediump float;\n"
+        "#endif\n"
+        "uniform sampler2D Texture;\n"
+        "varying vec2 Frag_UV;\n"
+        "varying vec4 Frag_Color;\n"
+        "void main()\n"
+        "{\n"
+        "    gl_FragColor = Frag_Color * texture2D(Texture, Frag_UV.st);\n"
+        "}\n";
+
+    const GLchar* fragment_shader_glsl_130 =
+        "uniform sampler2D Texture;\n"
+        "in vec2 Frag_UV;\n"
+        "in vec4 Frag_Color;\n"
+        "out vec4 Out_Color;\n"
+        "void main()\n"
+        "{\n"
+        "    Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
+        "}\n";
+
     const GLchar* fragment_shader_glsl_300_es =
         "precision mediump float;\n"
         "uniform sampler2D Texture;\n"
@@ -775,10 +843,21 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
         "    Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
         "}\n";
 
+    const GLchar* fragment_shader_glsl_410_core =
+        "in vec2 Frag_UV;\n"
+        "in vec4 Frag_Color;\n"
+        "uniform sampler2D Texture;\n"
+        "layout (location = 0) out vec4 Out_Color;\n"
+        "void main()\n"
+        "{\n"
+        "    Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
+        "}\n";
 
     // Select shaders matching our GLSL versions
-    const GLchar* vertex_shader = vertex_shader_glsl_300_es;
-    const GLchar* fragment_shader = fragment_shader_glsl_300_es;
+    const GLchar* vertex_shader = nullptr;
+    const GLchar* fragment_shader = nullptr;
+    vertex_shader = vertex_shader_glsl_300_es;
+    fragment_shader = fragment_shader_glsl_300_es;
 
     // Create shaders
     const GLchar* vertex_shader_with_version[2] = { bd->GlslVersionString, vertex_shader };
@@ -864,9 +943,13 @@ static void ImGui_ImplOpenGL3_ShutdownPlatformInterface()
     ImGui::DestroyPlatformWindows();
 }
 
+//-----------------------------------------------------------------------------
+
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
+
+#endif // #ifndef IMGUI_DISABLE

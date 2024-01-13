@@ -33,6 +33,23 @@ namespace Electron {
     class AppInstance;
     class RenderBuffer;
 
+    static std::vector<float> fsQuadVertices = {
+        -1.0f, 1.0f,
+        -1.0f, -1.0f,
+        1.0f, -1.0f,
+        -1.0f, 1.0f,
+        1.0f, -1.0f,
+        1.0f, 1.0f
+    };
+    static std::vector<float> fsQuadUV = {
+        0, 1,
+        0, 0,
+        1, 0,
+        0, 1,
+        1, 0,
+        1, 1
+    };
+
     // A set of GPU textures that represents color/depth/uv buffers
     class RenderBuffer {
     public:
@@ -41,11 +58,13 @@ namespace Electron {
         GLuint depthBuffer;
         int width, height;
 
-        RenderBuffer(GraphicsCore* core, int width, int height);
+        RenderBuffer(int width, int height);
         RenderBuffer() {
             this->width = 0;
             this->height = 0;
         };
+
+        void Destroy();
 
         ~RenderBuffer();
     };
@@ -73,14 +92,28 @@ namespace Electron {
         void Destroy();
     };
 
+    struct PipelineFrameBuffer {
+        GLuint fbo, stencil;
+        RenderBuffer rbo;
+        int width, height;
+
+        PipelineFrameBuffer(int width, int height);
+        PipelineFrameBuffer() {}
+
+        void Bind();
+        void Unbind();
+        void Destroy();
+    };
+
     typedef int(*Electron_CacheIndexT)();
     
     // Responsible of some GPU manipulations
     struct GraphicsCore {
-        RenderBuffer renderBuffer;
+        PipelineFrameBuffer renderBuffer;
         PreviewOutputBufferType outputBufferType;
         std::vector<RenderLayer> layers;
         bool isPlaying;
+        static std::unordered_map<GLuint, std::unordered_map<std::string, GLuint>> uniformCache;
 
 
         float renderFrame;
@@ -99,27 +132,34 @@ namespace Electron {
         int GetLayerIndexByID(int id);
 
         void RequestRenderBufferCleaningWithinRegion();
-        void RequestTextureCollectionCleaning(GLuint color, GLuint uv, GLuint depth, int width, int height);
+        void RequestTextureCollectionCleaning(PipelineFrameBuffer frb, float multiplier = 1.0f);
         std::vector<float> RequestRenderWithinRegion();
         void ResizeRenderBuffer(int width, int height);
         GLuint GetPreviewGPUTexture();
 
+        static GLuint GenerateVAO(std::vector<float> vertices, std::vector<float> uv);
         static GLuint CompileComputeShader(std::string path);
+        static GLuint CompilePipelineShader(std::string path);
         static void UseShader(GLuint shader);
         static void DispatchComputeShader(int grid_x, int grid_y, int grid_z);
         static void ComputeMemoryBarier(GLbitfield barrier);
         static GLuint GenerateGPUTexture(int width, int height, int unit);
-        static void BindGPUTexture(GLuint texture, int unit, int readStatus);
+        static void BindGPUTexture(GLuint texture, GLuint shader, int unit, std::string uniform);
         static void ShaderSetUniform(GLuint program, std::string name, int x, int y);
         static void ShaderSetUniform(GLuint program, std::string name, glm::vec3 vec);
         static void ShaderSetUniform(GLuint program, std::string name, float f);
         static void ShaderSetUniform(GLuint program, std::string name, glm::vec2 vec);
         static void ShaderSetUniform(GLuint program, std::string name, int x);
         static void ShaderSetUniform(GLuint program, std::string name, glm::vec4 vec);
+        static void ShaderSetUniform(GLuint program, std::string name, glm::mat3 mat3);
+        static void ShaderSetUniform(GLuint program, std::string name, glm::mat4 mat4);
+
+        static GLuint GetUniformLocation(GLuint program, std::string name);
 
         void FireTimelineSeek();
         void FirePlaybackChange();
 
-        void CallCompositor(ResizableGPUTexture color, ResizableGPUTexture uv, ResizableGPUTexture depth);
+        void CallCompositor(PipelineFrameBuffer frb);
+        
     };
 }

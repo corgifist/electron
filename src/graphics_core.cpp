@@ -1,11 +1,14 @@
 #include "graphics_core.h"
 
 namespace Electron {
-RenderBuffer::RenderBuffer(GraphicsCore *core, int width,
+
+std::unordered_map<GLuint, std::unordered_map<std::string, GLuint>> GraphicsCore::uniformCache{};
+
+RenderBuffer::RenderBuffer(int width,
                                      int height) {
-    this->colorBuffer = core->GenerateGPUTexture(width, height, 0);
-    this->uvBuffer = core->GenerateGPUTexture(width, height, 1);
-    this->depthBuffer = core->GenerateGPUTexture(width, height, 2);
+    this->colorBuffer = GraphicsCore::GenerateGPUTexture(width, height, 0);
+    this->uvBuffer = GraphicsCore::GenerateGPUTexture(width, height, 1);
+    this->depthBuffer = GraphicsCore::GenerateGPUTexture(width, height, 2);
 
     this->width = width;
     this->height = height;
@@ -13,6 +16,11 @@ RenderBuffer::RenderBuffer(GraphicsCore *core, int width,
 
 RenderBuffer::~RenderBuffer() {}
 
+void RenderBuffer::Destroy() {
+    PixelBuffer::DestroyGPUTexture(colorBuffer);
+    PixelBuffer::DestroyGPUTexture(uvBuffer);
+    PixelBuffer::DestroyGPUTexture(depthBuffer);
+}
 
 GraphicsCore::GraphicsCore() {
 
@@ -24,9 +32,10 @@ GraphicsCore::GraphicsCore() {
 }
 
 void GraphicsCore::PrecompileEssentialShaders() {
-    Shared::basic_compute = CompileComputeShader("basic.compute");
-    Shared::compositor_compute = CompileComputeShader("compositor.compute");
-    Shared::tex_transfer_compute = CompileComputeShader("tex_transfer.compute");
+    Shared::basic_compute = CompilePipelineShader("basic.pipeline");
+    Shared::compositor_compute = CompilePipelineShader("compositor_forward.pipeline");
+
+    Shared::fsVAO = GenerateVAO(fsQuadVertices, fsQuadUV);
 }
 
 void GraphicsCore::FetchAllLayers() {
@@ -46,7 +55,8 @@ DylibRegistry GraphicsCore::GetImplementationsRegistry() {
 }
 
 void GraphicsCore::ResizeRenderBuffer(int width, int height) {
-    this->renderBuffer = RenderBuffer(this, width, height);
+    this->renderBuffer.Destroy();
+    this->renderBuffer = PipelineFrameBuffer(width, height);
 }
 
 ResizableGPUTexture::ResizableGPUTexture(int width, int height) {
@@ -86,6 +96,55 @@ void ResizableRenderBuffer::Destroy() {
     depth.Destroy();
 }
 
+PipelineFrameBuffer::PipelineFrameBuffer(int width, int height) {
+    this->width = width;
+    this->height = height;
+    this->rbo = RenderBuffer(width, height);
+    glGenFramebuffers(1, &fbo);
+    Bind();
+
+    glBindTexture(GL_TEXTURE_2D, rbo.colorBuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rbo.colorBuffer, 0);
+
+    glBindTexture(GL_TEXTURE_2D, rbo.uvBuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, rbo.uvBuffer, 0);
+
+    glBindTexture(GL_TEXTURE_2D, rbo.depthBuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, rbo.depthBuffer, 0);
+
+    glGenRenderbuffers(1, &stencil);
+    glBindRenderbuffer(GL_RENDERBUFFER, stencil);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, stencil);
+
+    GLuint attachments[3] = {
+        GL_COLOR_ATTACHMENT0,
+        GL_COLOR_ATTACHMENT1,
+        GL_COLOR_ATTACHMENT2
+    };
+    glDrawBuffers(3, attachments);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        throw std::runtime_error("framebuffer is not complete!");
+    }
+    Unbind();
+}
+
+void PipelineFrameBuffer::Bind() {
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glViewport(0, 0, width, height);
+}
+
+void PipelineFrameBuffer::Unbind() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, Shared::displaySize.x, Shared::displaySize.y);
+}
+
+void PipelineFrameBuffer::Destroy() {
+    rbo.Destroy();
+    glDeleteRenderbuffers(1, &stencil);
+    glDeleteFramebuffers(1, &fbo);
+}
+
 RenderLayer *GraphicsCore::GetLayerByID(int id) {
     for (auto &layer : layers) {
         if (layer.id == id)
@@ -112,43 +171,31 @@ void GraphicsCore::AddRenderLayer(RenderLayer layer) {
 }
 
 void GraphicsCore::RequestRenderBufferCleaningWithinRegion() {
-    /* this->renderBuffer.color.FillColor(Pixel(metadata.backgroundColor[0],
-    metadata.backgroundColor[1], metadata.backgroundColor[2], 1), metadata);
-    this->renderBuffer.depth.FillColor(Pixel(MAX_DEPTH, 0, 0, 1), metadata);
-    this->renderBuffer.uv.FillColor(Pixel(0, 0, 0, 1), metadata);
-    */
-
-    RequestTextureCollectionCleaning(
-        renderBuffer.colorBuffer, renderBuffer.uvBuffer,
-        renderBuffer.depthBuffer, renderBuffer.width, renderBuffer.height);
+    RequestTextureCollectionCleaning(renderBuffer);
 }
 
-void GraphicsCore::RequestTextureCollectionCleaning(
-    GLuint color, GLuint uv, GLuint depth, int width, int height) {
+void GraphicsCore::RequestTextureCollectionCleaning(PipelineFrameBuffer frb, float multiplier) {
 
     UseShader(Shared::basic_compute);
-    BindGPUTexture(color, 0, GL_WRITE_ONLY);
-    BindGPUTexture(uv, 1, GL_WRITE_ONLY);
-    BindGPUTexture(depth, 2, GL_WRITE_ONLY);
 
-
+    frb.Bind();
     ShaderSetUniform(Shared::basic_compute, "backgroundColor",
                      glm::vec3(JSON_AS_TYPE(Shared::project.propertiesMap["BackgroundColor"].at(0), float),
                                JSON_AS_TYPE(Shared::project.propertiesMap["BackgroundColor"].at(1), float),
                                JSON_AS_TYPE(Shared::project.propertiesMap["BackgroundColor"].at(2), float)));
-    ShaderSetUniform(Shared::basic_compute, "maxDepth", (float)MAX_DEPTH);
-    DispatchComputeShader(renderBuffer.width,
-                          renderBuffer.height, 1);
-    ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
+    ShaderSetUniform(Shared::basic_compute, "multiplier", multiplier);
+    glBindVertexArray(Shared::fsVAO);
+    glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
+    frb.Unbind();
 }
 
 std::vector<float> GraphicsCore::RequestRenderWithinRegion() {
     std::vector<float> renderTimes(layers.size());
     int layerIndex = 0;
     for (auto &layer : layers) {
-        float first = (float) SDL_GetTicks() / 1000.0;
+        float first = glfwGetTime();
         layer.Render();
-        renderTimes[layerIndex] = (((float) SDL_GetTicks() / 1000.0) - first);
+        renderTimes[layerIndex] = (glfwGetTime() - first);
         layerIndex++;
     }
     return renderTimes;
@@ -157,13 +204,37 @@ std::vector<float> GraphicsCore::RequestRenderWithinRegion() {
 GLuint GraphicsCore::GetPreviewGPUTexture() {
     switch (outputBufferType) {
     case PreviewOutputBufferType_Color:
-        return renderBuffer.colorBuffer;
+        return renderBuffer.rbo.colorBuffer;
     case PreviewOutputBufferType_Depth:
-        return renderBuffer.depthBuffer;
+        return renderBuffer.rbo.depthBuffer;
     case PreviewOutputBufferType_UV:
-        return renderBuffer.uvBuffer;
+        return renderBuffer.rbo.uvBuffer;
     }
-    return renderBuffer.uvBuffer;
+    return renderBuffer.rbo.colorBuffer;
+}
+
+GLuint GraphicsCore::GenerateVAO(std::vector<float> vertices, std::vector<float> uv) {
+    GLuint verticesVBO, uvVBO;
+    GLuint vao;
+    glGenBuffers(1, &verticesVBO);
+    glGenBuffers(1, &uvVBO);
+
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, verticesVBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (void*) 0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, uvVBO);
+    glBufferData(GL_ARRAY_BUFFER, uv.size() * sizeof(GLfloat), uv.data(), GL_STATIC_DRAW);
+    
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
+
+    return vao;
 }
 
 GLuint GraphicsCore::CompileComputeShader(std::string path) {
@@ -219,6 +290,62 @@ GLuint GraphicsCore::CompileComputeShader(std::string path) {
     return computeProgram;
 }
 
+GLuint GraphicsCore::CompilePipelineShader(std::string path) {
+    path = "compute/" + path;
+    std::string vertex = "";
+    std::string fragment = "";
+    std::vector<std::string> lines = split_string(read_file(path), "\n");
+    int appendState = 0; // 0 - vertex shader, 1 - fragment shader
+    for (auto& line : lines) {
+        if (line.find("#vertex") != std::string::npos) appendState = 0;
+        else if (line.find("#fragment") != std::string::npos) appendState = 1;
+        if (appendState == 0 && line.find("#vertex") == std::string::npos) vertex += line + "\n";
+        else if (appendState == 1 && line.find("#fragment") == std::string::npos) fragment += line + "\n";
+    }
+
+    vertex = Shared::glslVersion + "\nprecision highp float;\n" + vertex;
+    fragment = Shared::glslVersion + "\nprecision highp float;\n" + fragment;
+
+    const char* cVertex = vertex.c_str();
+    const char* cFragment = fragment.c_str();
+
+    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint program = glCreateProgram();
+    
+    glShaderSource(vertexShader, 1, &cVertex, NULL);
+    glCompileShader(vertexShader);
+
+    int  success;
+    char infoLog[512];
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        throw std::runtime_error(infoLog);
+    }
+
+    glShaderSource(fragmentShader, 1, &cFragment, NULL);
+    glCompileShader(fragmentShader);
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+        throw std::runtime_error(infoLog);
+    }
+
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, fragmentShader);
+    glLinkProgram(program);
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if(!success) {
+        glGetProgramInfoLog(program, 512, NULL, infoLog);
+        throw std::runtime_error(infoLog);
+    }
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    return program;
+}
+
 void GraphicsCore::UseShader(GLuint shader) { glUseProgram(shader); }
 
 void GraphicsCore::DispatchComputeShader(int grid_x, int grid_y,
@@ -232,7 +359,7 @@ void GraphicsCore::ComputeMemoryBarier(GLbitfield barrier) {
 
 GLuint GraphicsCore::GenerateGPUTexture(int width, int height,
                                                   int unit) {
-    unsigned int texture;
+ /*   
 
     glGenTextures(1, &texture);
     glActiveTexture(GL_TEXTURE0 + unit);
@@ -241,67 +368,93 @@ GLuint GraphicsCore::GenerateGPUTexture(int width, int height,
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, PixelBuffer::filtering);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, PixelBuffer::filtering);
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, width, height);
+    glTexStorage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height);
+    */
+   unsigned int texture;
+   glGenTextures(1, &texture);
+   glBindTexture(GL_TEXTURE_2D, texture);
+   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     return texture;
 }
 
-void GraphicsCore::BindGPUTexture(GLuint texture, int unit, int readStatus) {
+void GraphicsCore::BindGPUTexture(GLuint texture, GLuint shader, int unit, std::string uniform) {
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_2D, texture);
-    glBindImageTexture(unit, texture, 0, GL_FALSE, 0, readStatus,
-                       GL_RGBA32F);
+    glUniform1i(glGetUniformLocation(shader, uniform.c_str()), unit);
 }
 
 void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                               int x, int y) {
-    glUniform2i(glGetUniformLocation(program, name.c_str()), x, y);
+    glUniform2i(GetUniformLocation(program, name), x, y);
 }
 
 void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                               glm::vec3 vec) {
-    glUniform3f(glGetUniformLocation(program, name.c_str()), vec.x, vec.y,
+    glUniform3f(GetUniformLocation(program, name), vec.x, vec.y,
                 vec.z);
 }
 
 void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                               float f) {
-    glUniform1f(glGetUniformLocation(program, name.c_str()), f);
+    glUniform1f(GetUniformLocation(program, name), f);
 }
 
 void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                               glm::vec2 vec) {
-    glUniform2f(glGetUniformLocation(program, name.c_str()), vec.x, vec.y);
+    glUniform2f(GetUniformLocation(program, name), vec.x, vec.y);
 }
 
 void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                               int x) {
-    glUniform1i(glGetUniformLocation(program, name.c_str()), x);
+    glUniform1i(GetUniformLocation(program, name), x);
 }
 
 void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, glm::vec4 vec) {
-    glUniform4f(glGetUniformLocation(program, name.c_str()), vec.x, vec.y, vec.z, vec.w);;
+    glUniform4f(GetUniformLocation(program, name), vec.x, vec.y, vec.z, vec.w);;
 }
 
+void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, glm::mat3 mat3) {
+    glUniformMatrix3fv(GetUniformLocation(program, name), 1, GL_FALSE, glm::value_ptr(mat3));
+}
 
-void GraphicsCore::CallCompositor(ResizableGPUTexture color,
-                                            ResizableGPUTexture uv,
-                                            ResizableGPUTexture depth) {
+void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, glm::mat4 mat4) {
+    glUniformMatrix4fv(GetUniformLocation(program, name), 1, GL_FALSE, glm::value_ptr(mat4));
+}
 
+GLuint GraphicsCore::GetUniformLocation(GLuint program, std::string name) {
+    std::unordered_map<std::string, GLuint> programMap{};
+    if (uniformCache.find(program) != uniformCache.end())
+        programMap = uniformCache[program];
+    GLuint location = 0;
+    if (programMap.find(name) != programMap.end()) {
+        return programMap[name];
+    } else {
+        location = glGetUniformLocation(program, name.c_str());
+        programMap[name] = location;
+    }
+    uniformCache[program] = programMap;
+    return location;
+}
+
+// Please use DefferCompositor Instead
+void GraphicsCore::CallCompositor(PipelineFrameBuffer frb) {
+
+    renderBuffer.Bind();
     UseShader(Shared::compositor_compute);
-    BindGPUTexture(renderBuffer.colorBuffer, 0, GL_WRITE_ONLY);
-    BindGPUTexture(renderBuffer.uvBuffer, 1, GL_WRITE_ONLY);
-    BindGPUTexture(renderBuffer.depthBuffer, 2, GL_WRITE_ONLY);
-    BindGPUTexture(renderBuffer.depthBuffer, 6, GL_READ_ONLY);
-
-    BindGPUTexture(color.texture, 3, GL_READ_ONLY);
-    BindGPUTexture(uv.texture, 4, GL_READ_ONLY);
-    BindGPUTexture(depth.texture, 5, GL_READ_ONLY);
-
-    DispatchComputeShader(renderBuffer.width,
-                          renderBuffer.height, 1);
-    ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
+    BindGPUTexture(frb.rbo.colorBuffer, Shared::compositor_compute, 0, "lColor");
+    BindGPUTexture(frb.rbo.uvBuffer, Shared::compositor_compute, 1, "lUV");
+    BindGPUTexture(frb.rbo.depthBuffer, Shared::compositor_compute, 2, "lDepth");
+    
+    glBindVertexArray(Shared::fsVAO);
+    glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
+    renderBuffer.Unbind();
 }
+
 
 void GraphicsCore::FireTimelineSeek() {
     for (auto& layer : layers) {

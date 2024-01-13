@@ -271,7 +271,6 @@ void RenderLayer::RenderAssetProperty(json_t &property,
             assetName = textureAsset->name;
         }
         if (textureAsset != nullptr) {
-            RenderBuffer *pbo = &Shared::graphics->renderBuffer;
             glm::vec2 textureDimensions = textureAsset->GetDimensions();
             ImVec2 imageCenterRect = FitRectInRect(ImVec2(150, 150), ImVec2(textureDimensions.x, textureDimensions.y));
             ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - imageCenterRect.x / 2.0f);

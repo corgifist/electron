@@ -39,6 +39,7 @@ using namespace backward;
 
 namespace backward {
 
-backward::SignalHandling sh;
+// sorry
+// backward::SignalHandling sh; 
 
 } // namespace backward

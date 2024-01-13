@@ -62,6 +62,12 @@ std::string TextureUnion::GetIconByType(TextureUnionType type) {
     return ICON_FA_QUESTION;
 }
 
+void TextureUnion::DumpData() {
+    print("== Asset Dump " << name << " ==");
+    print("type: " << AssetRegistry::StringFromTextureUnionType(type));
+    print("path: " << path);
+}
+
 void AssetRegistry::LoadFromProject(json_t project) {
     Clear();
 
@@ -254,7 +260,7 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                             tu->coverResolution = {
                                 coverBuffer.width, coverBuffer.height
                             };
-                        }, {coverPath, tu}, string_format("ffmpeg -y -i %s %s &>/dev/null", originalAudioPath.c_str(), coverPath.c_str()), 
+                        }, {coverPath, tu}, string_format("ffmpeg -y -i %s %s >/dev/null", originalAudioPath.c_str(), coverPath.c_str()), 
                             string_format("%s %s '%s'", ICON_FA_IMAGE, ELECTRON_GET_LOCALIZATION("GATHERING_COVER"), tu->path.c_str())
                     ));
                 } else {
@@ -269,7 +275,7 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                     std::string formattedCachePath = string_format("cache/%i.wav", Cache::GetCacheIndex());
                     operations->push_back(AsyncFFMpegOperation(
                         nullptr, {},
-                        string_format("ffmpeg -y -i %s %s &>/dev/null", tu->path.c_str(), formattedCachePath.c_str()),
+                        string_format("ffmpeg -y -i %s %s >/dev/null", tu->path.c_str(), formattedCachePath.c_str()),
                         string_format("%s %s '%s'", ICON_FA_FILE_IMPORT, ELECTRON_GET_LOCALIZATION("GENERIC_IMPORTING"), tu->path.c_str())
                     ));
                     tu->path = formattedCachePath;

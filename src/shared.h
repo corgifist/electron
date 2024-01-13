@@ -32,12 +32,18 @@ namespace Electron {
         static GraphicsCore* graphics;
         static AssetRegistry* assets;
 
-        static GLuint basic_compute, compositor_compute, tex_transfer_compute;
+        static GLuint basic_compute, compositor_compute;
         static GLuint shadowTex;
 
         static int assetSelected;
         static std::string importErrorMessage;
 
         static float deltaTime;
+
+        static GLuint fsVAO;
+
+        static ImVec2 displayPos, displaySize;
+
+        static std::string glslVersion;
     };
 }
