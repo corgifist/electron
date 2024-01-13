@@ -1,0 +1,21 @@
+#vertex
+
+layout (location = 0) in vec2 aPos;
+
+void main() {
+    gl_Position = vec4(aPos, 0.0, 1.0);
+}
+
+#fragment
+
+layout(location = 0) out vec4 gColor;
+layout(location = 1) out vec4 gUV;
+layout(location = 2) out vec4 gDepth;
+
+uniform vec3 backgroundColor;
+uniform float multiplier;
+
+void main() {
+    gColor = vec4(backgroundColor, 1.0) * multiplier;
+    gUV = vec4(vec3(0.0), 1.0) * multiplier;
+}

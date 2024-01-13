@@ -1,0 +1,37 @@
+#vertex
+
+layout(location = 0) in vec2 aPos;
+layout(location = 1) in vec2 aUV;
+
+out vec2 vPos;
+out vec2 vUV;
+
+uniform mat4 uTransform;
+uniform mat4 uProjection;
+
+void main() {
+    gl_Position = uProjection * uTransform * vec4(vec3(aPos, 0.0), 1.0);
+    vPos = aPos;
+    vUV = aUV;
+}
+#fragment
+
+layout(location = 0) out vec4 gColor;
+layout(location = 1) out vec4 gUV;
+layout(location = 2) out vec4 gDepth;
+
+in vec2 vPos;
+in vec2 vUV;
+
+uniform vec3 uColor;
+uniform int uCanTexture;
+uniform sampler2D uTexture;
+
+void main() {
+    gColor = vec4(uColor, 1.0);
+    if (uCanTexture == 1) {
+        gColor *= texture(uTexture, vUV);
+    }
+    gUV = vec4(vUV, 0.0, 1.0);
+    gDepth = vec4(0.0, 0.0, 0.0, 0.0);
+}

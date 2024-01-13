@@ -1,0 +1,10 @@
+layout(rgba32f, binding = 0) uniform highp readonly image2D readImage;
+layout(rgba32f, binding = 1) uniform highp writeonly image2D writeImage;
+
+uniform vec4 factor;
+
+void main() {
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec4 pixel = imageLoad(readImage, texelCoord);
+    imageStore(writeImage, texelCoord, pixel * factor);
+}
