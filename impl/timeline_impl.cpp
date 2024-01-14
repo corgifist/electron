@@ -36,6 +36,14 @@ static bool MouseHoveringBounds(RectBounds bounds) {
     return ImGui::IsMouseHoveringRect(bounds.UL, bounds.BR);
 }
 
+static bool BoundsContains(RectBounds x, RectBounds y) {
+    return ((y.pos.x + y.size.y) < (x.pos.x + x.size.x)
+        && (y.pos.x) > (x.pos.x)
+        && (y.pos.y) > (x.pos.y)
+        && (y.pos.y + y.size.y) < (x.pos.y + x.size.y)
+        );
+}
+
 static ImVec4 GetColor(ImGuiCol color) {
     ImVec4 col = ImGui::GetStyle().Colors[color];
     col.w = 1.0f;
@@ -65,7 +73,8 @@ static void TimelineRenderLayerPopup(AppInstance *instance, int i,
                                      RenderLayer &copyContainer,
                                      int &layerDuplicationTarget,
                                      int &layerCopyTarget,
-                                     int &layerDeleteionTarget) {
+                                     int &layerDeleteionTarget,
+                                     int &layerCutTarget) {
     RenderLayer *layer = &Shared::graphics->layers[i];
     ImGui::PopStyleVar(2);
     if (ImGui::BeginPopup(string_format("TimelineLayerPopup%i", i).c_str())) {
@@ -84,6 +93,9 @@ static void TimelineRenderLayerPopup(AppInstance *instance, int i,
                                 .c_str(),
                             "Ctrl+V")) {
             layerCopyTarget = i;
+        }
+        if (ImGui::MenuItem(string_format("%s %s", ICON_FA_SCISSORS, ELECTRON_GET_LOCALIZATION("GENERIC_CUT")).c_str())) {
+            layerCutTarget = i;
         }
         if (ImGui::MenuItem(string_format("%s %s", ICON_FA_PASTE,
                                           ELECTRON_GET_LOCALIZATION(
@@ -132,6 +144,14 @@ static bool TimelineRenderDragNDrop(AppInstance *instance, int &i) {
     }
     TimelienRenderDragNDropTarget(instance, i);
     return dragging;
+}
+
+static RenderLayer DuplicateRenderLayer(RenderLayer& sourceLayer) {
+    RenderLayer duplicateLayer = RenderLayer(sourceLayer.layerLibrary);
+    duplicateLayer.properties = sourceLayer.properties;
+    duplicateLayer.beginFrame = sourceLayer.beginFrame;
+    duplicateLayer.endFrame = sourceLayer.endFrame;
+    return duplicateLayer;
 }
 
 ELECTRON_EXPORT void UIRender(AppInstance *instance) {
@@ -212,6 +232,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     int layerDeleteionTarget = -1;
     int layerDuplicationTarget = -1;
     int layerCopyTarget = -1;
+    int layerCutTarget = -1;
 
     bool anyPopupsOpen = false;
     bool firePopupsFlag = false;
@@ -260,7 +281,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             }
             TimelineRenderLayerPopup(instance, i, firePopupsFlag, copyContainer,
                                      layerDuplicationTarget, layerCopyTarget,
-                                     layerDeleteionTarget);
+                                     layerDeleteionTarget, layerCutTarget);
             active = true;
             TimelineRenderDragNDrop(instance, i);
             ImGui::PopStyleVar(2);
@@ -446,7 +467,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             }
             TimelineRenderLayerPopup(instance, i, firePopupsFlag, copyContainer,
                                      layerDuplicationTarget, layerCopyTarget,
-                                     layerDeleteionTarget);
+                                     layerDeleteionTarget, layerCutTarget);
         }
 
         propertiesCoordAcc += propertiesStep + layersPropertiesOffset[i];
@@ -566,13 +587,19 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                  style.Colors[ImGuiCol_Border]);
     }
     for (auto &layerPair : keyframeInfos) {
-        RenderLayer *keyframesOwner =
-            Shared::graphics->GetLayerByID(layerPair.first);
-        PushClipRect(RectBounds(
+        RenderLayer* keyframesOwner = nullptr;
+        try {
+            keyframesOwner =
+                Shared::graphics->GetLayerByID(layerPair.first);
+        } catch (std::runtime_error err) {
+            continue;
+        }
+        RectBounds keyframesBoundsClip = RectBounds(
             ImVec2(keyframesOwner->beginFrame * pixelsPerFrame, 0),
             ImVec2((keyframesOwner->endFrame - keyframesOwner->beginFrame) *
                        pixelsPerFrame,
-                   ImGui::GetWindowSize().y)));
+                   ImGui::GetWindowSize().y));
+        PushClipRect(keyframesBoundsClip);
         std::vector<KeyframeHolderInfo> info = layerPair.second;
         for (int i = 0; i < keyframesOwner->previewProperties.size(); i++) {
             KeyframeHolderInfo keyInfo = info.at(i);
@@ -615,7 +642,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
                 if (MouseHoveringBounds(keyframeBounds) &&
                     ImGui::GetIO().MouseDown[ImGuiMouseButton_Right] &&
-                    !anyOtherButtonsDragged) {
+                    !anyOtherButtonsDragged && BoundsContains(keyframesBoundsClip, keyframesBoundsClip)) {
                     ImGui::OpenPopup(string_format("KeyframePopup%p%i%i",
                                                    keyframesOwner, i, j)
                                          .c_str());
@@ -767,7 +794,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         }
         TimelineRenderLayerPopup(instance, i, firePopupsFlag, copyContainer,
                                  layerDuplicationTarget, layerCopyTarget,
-                                 layerDeleteionTarget);
+                                 layerDeleteionTarget, layerCutTarget);
         ImGui::SetCursorPos(ImVec2{0, 0});
         ImVec2 dragSize =
             ImVec2(layerDuration * pixelsPerFrame / 10, layerSizeY);
@@ -853,8 +880,37 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                 layer->endFrame = tempEndFrame;
             }
 
-            layer->beginFrame = glm::max(layer->beginFrame, 0);
-            layer->endFrame = glm::max(layer->endFrame, 0);
+            layer->beginFrame = glm::max(layer->beginFrame, 0.0f);
+            layer->endFrame = glm::max(layer->endFrame, 0.0f);
+            RenderLayer* nextLayer = nullptr;
+            if (i == Shared::graphics->layers.size() && Shared::graphics->layers.size() != 1) {
+                nextLayer = &Shared::graphics->layers[Shared::graphics->layers.size() - 2];
+            } else {
+                nextLayer = &Shared::graphics->layers[i + 1];
+            }
+            if (nextLayer != nullptr) {
+                if ((int) layer->beginFrame - 1 == (int) nextLayer->beginFrame) {
+                    float durationDifference = layer->endFrame - layer->beginFrame;
+                    layer->beginFrame = nextLayer->beginFrame;
+                    layer->endFrame = layer->beginFrame + durationDifference;
+                    RectBounds stickRenderBounds = RectBounds(
+                        ImVec2(layer->beginFrame * pixelsPerFrame, 0 + ImGui::GetScrollY()),
+                        ImVec2(TTIMELINE_RULLER_WIDTH, ImGui::GetWindowSize().y)
+                    );
+                    DrawRect(stickRenderBounds, layerColor);
+                }
+                if ((int) layer->endFrame - 1 == (int) nextLayer->endFrame) {
+                    float durationDifference = layer->endFrame - layer->beginFrame;
+                    layer->endFrame = nextLayer->endFrame;
+                    layer->beginFrame = layer->endFrame - durationDifference;
+                    RectBounds stickRenderBounds = RectBounds(
+                        ImVec2(layer->endFrame
+                         * pixelsPerFrame, 0 + ImGui::GetScrollY()),
+                        ImVec2(TTIMELINE_RULLER_WIDTH, ImGui::GetWindowSize().y)
+                    );
+                    DrawRect(stickRenderBounds, layerColor);
+                }
+            }
             timelineDrag.Deactivate();
             ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
             if (windowMouseCoords.x > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
@@ -1048,10 +1104,8 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     if (layerDuplicationTarget != -1) {
         auto &layers = Shared::graphics->layers;
         RenderLayer& sourceLayer = layers[layerDuplicationTarget];
-        RenderLayer duplicateLayer = RenderLayer(sourceLayer.layerLibrary);
 
-        duplicateLayer.properties = sourceLayer.properties;
-        layers.insert(layers.begin() + layerDuplicationTarget, duplicateLayer);
+        layers.insert(layers.begin() + layerDuplicationTarget, DuplicateRenderLayer(sourceLayer));
     }
 
     if (layerCopyTarget != -1 && copyContainer.initialized) {
@@ -1061,5 +1115,28 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         layer.id = seedrand();
         layers.insert(layers.begin() + layerCopyTarget + 1, layer);
     }
+
+    if (layerCutTarget != -1) {
+        RenderLayer& sourceLayer = Shared::graphics->layers[layerCutTarget];
+        if (!IsInBounds(Shared::graphics->renderFrame, sourceLayer.beginFrame, sourceLayer.endFrame))
+            goto bypass_cut;
+        int oldEndFrame = sourceLayer.endFrame;
+        int oldBeginFrame = sourceLayer.beginFrame;
+        sourceLayer.endFrame = Shared::graphics->renderFrame - 1;
+
+        RenderLayer cutLayer = DuplicateRenderLayer(sourceLayer);
+        cutLayer.beginFrame = sourceLayer.endFrame;
+        cutLayer.endFrame = oldEndFrame;
+        
+        int previousTimeShift = 0;
+        if (sourceLayer.properties.find("InternalTimeShift") != sourceLayer.properties.end()) {
+            previousTimeShift = JSON_AS_TYPE(sourceLayer.properties["InternalTimeShift"], float);
+        }
+        cutLayer.properties["InternalTimeShift"] = sourceLayer.endFrame - oldBeginFrame + previousTimeShift;
+
+        Shared::graphics->layers.insert(Shared::graphics->layers.begin() + layerCutTarget + 1, cutLayer);
+    }
+    bypass_cut:
+    int x;
 }
 }

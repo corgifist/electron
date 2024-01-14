@@ -105,7 +105,7 @@ extern "C" {
                         Servers::AudioServerRequest({
                             {"action", "is_loaded"},
                             {"path", asset.path}
-                        }).ResponseToJSON()["loaded"], bool);
+                        })["loaded"], bool);
                     }
                     if (!audioHandleInitialized && audioLoaded) {
                         if (audioHandle != 0) {
@@ -114,16 +114,16 @@ extern "C" {
                                 {"handle", audioHandle}
                             });
                         }
-                        ServerResponse audioResponse = Servers::AudioServerRequest({
+                        auto audioResponse = Servers::AudioServerRequest({
                             {"action", "play_sample"},
                             {"path", asset.path}
                         });
-                        audioHandle = JSON_AS_TYPE(audioResponse.ResponseToJSON()["handle"], int);
+                        audioHandle = JSON_AS_TYPE(audioResponse["handle"], int);
                         audioHandleInitialized = true;
                         Servers::AudioServerRequest({
                             {"action", "pause_sample"},
                             {"handle", audioHandle},
-                            {"pause", true}
+                            {"pause", !audioPlaybackPlaying}
                         });
                     }
                     switch (asset.type) {
@@ -136,18 +136,20 @@ extern "C" {
                             Servers::AudioServerRequest({
                                 {"action", "is_loaded"},
                                 {"path", asset.path}
-                            }).ResponseToJSON()["loaded"], bool);
+                            })["loaded"], bool);
                             audioPlaybackProgress = glm::clamp(audioPlaybackProgress, 0.0f, audioPlaybackLength);
                             if (audioPlaybackProgress >= audioPlaybackLength) audioPlaybackPlaying = false;
                             if (audioPlaybackPlaying) audioPlaybackProgress += Shared::deltaTime;
                             if (audioLoaded && ImGui::Button(audioPlaybackPlaying ? ICON_FA_SQUARE : ICON_FA_PLAY)) {
                                 audioPlaybackPlaying = !audioPlaybackPlaying;
                             }
-                            Servers::AudioServerRequest({
-                                {"action", "pause_sample"},
-                                {"handle", audioHandle},
-                                {"pause", !audioPlaybackPlaying}
-                            });
+                            if (audioLoaded) {
+                                Servers::AudioServerRequest({
+                                    {"action", "pause_sample"},
+                                    {"handle", audioHandle},
+                                    {"pause", !audioPlaybackPlaying}
+                                });
+                            }
 
                             if (audioLoaded) ImGui::SameLine();
                             if (audioLoaded) ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, "%0.1f", 0);

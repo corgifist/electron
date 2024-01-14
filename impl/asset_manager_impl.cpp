@@ -115,11 +115,12 @@ extern "C" {
                     std::string reservedResourcePath = asset.path;
                     bool audioLoaded = false;
                     if (asset.type == TextureUnionType::Audio) {
-                        audioLoaded = JSON_AS_TYPE(
-                        Servers::AudioServerRequest({
+                        auto audioStatusResponse =  Servers::AudioServerRequest({
                             {"action", "is_loaded"},
                             {"path", asset.path}
-                        }).ResponseToJSON()["loaded"], bool);
+                        });
+                        audioLoaded = JSON_AS_TYPE(
+                            audioStatusResponse["loaded"], bool);
                         if (!audioLoaded) assetIcon = ICON_FA_SPINNER;
                         if (!audioLoaded) {
                             Servers::AudioServerRequest({

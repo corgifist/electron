@@ -5,6 +5,8 @@
 using namespace Electron;
 using namespace glm;
 
+#define TIMESHIFT(layer) (JSON_AS_TYPE(layer->properties["InternalTimeShift"], float))
+
 extern "C" {
 
     ELECTRON_EXPORT std::string LayerName = "Audio";
@@ -27,6 +29,7 @@ extern "C" {
             {"Volume", 0.0f, 100.0f}
         };
         owner->internalData["LoadID"] = -1;
+        owner->internalData["PreviousInBounds"] = false;
 
         owner->anyData.resize(3);
         owner->anyData[0] = -1; // audio handle
@@ -55,13 +58,11 @@ extern "C" {
         if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
             audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
         }
-        double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame) / 60.0;
-        elapsedTime = std::min(elapsedTime, (double) metadata.audioLength);
         layer->internalData["LoadID"] = JSON_AS_TYPE(Servers::AudioServerRequest({
                 {"action", "load_sample"},
                 {"override", true},
                 {"path", audioPath}
-        }).ResponseToJSON()["id"], int);
+        })["id"], int);
     }
 
     void AudioLayerProcessAsset(RenderLayer* layer, TextureUnion* asset) {
@@ -99,7 +100,7 @@ extern "C" {
             complexFilter += filters[i] + (i + 1 == filters.size() ? "" : ",");
         }
         std::string cmd = string_format(
-            "ffmpeg -y -i %s -af \"%s\" %s > /dev/null",
+            "ffmpeg -y -i %s -af \"%s\" %s >>/dev/null 2>>/dev/null",
             asset->path.c_str(), complexFilter.c_str(), audioPath.c_str()
         );
         auto& operations = Shared::assets->operations;
@@ -149,7 +150,7 @@ extern "C" {
                 Servers::AudioServerRequest({
                     {"action", "load_status"},
                     {"id", loadID}
-                }).ResponseToJSON()["status"], bool
+                })["status"], bool
             );
             if (loaded) {
                 std::string audioPath = asset->path;
@@ -157,13 +158,13 @@ extern "C" {
                 if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
                     audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
                 }
-                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame) / 60.0;
+                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / 60.0;
                 elapsedTime = std::min(elapsedTime, (double) std::get<AudioMetadata>(asset->as).audioLength);
                 layer->anyData[0] = JSON_AS_TYPE(
                     Servers::AudioServerRequest({
                         {"action", "play_sample"},
                         {"path", audioPath}
-                    }).ResponseToJSON()["handle"], int
+                    })["handle"], int
                 );
                 Servers::AudioServerRequest({
                     {"action", "seek_sample"},
@@ -210,9 +211,22 @@ extern "C" {
             Servers::AudioServerRequest({
                 {"action", "pause_sample"},
                 {"handle", std::any_cast<int>(layer->anyData[0])},
-                {"pause", !(Shared::graphics->isPlaying && IsInBounds((int) Shared::graphics->renderFrame, layer->beginFrame, layer->endFrame))}
+                {"pause", !(Shared::graphics->isPlaying && IsInBounds(Shared::graphics->renderFrame, layer->beginFrame, layer->endFrame) && layer->visible)}
             });
         }
+        bool inBounds = IsInBounds(Shared::graphics->renderFrame, layer->beginFrame, layer->endFrame);
+        if (JSON_AS_TYPE(layer->internalData["PreviousInBounds"], bool) != inBounds) {
+            if (std::any_cast<int>(layer->anyData[0]) != -1) {
+                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / 60.0;
+                Servers::AudioServerRequest({
+                    {"action", "seek_sample"},
+                    {"handle", std::any_cast<int>(layer->anyData[0])},
+                    {"seek", elapsedTime}
+                });
+            }
+        }
+
+        layer->internalData["PreviousInBounds"] = inBounds;
     }
 
     ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {
@@ -239,7 +253,7 @@ extern "C" {
             Servers::AudioServerRequest({
                 {"action", "seek_sample"},
                 {"handle", std::any_cast<int>(layer->anyData[0])},
-                {"seek", std::max(0.0, ((double) (Shared::graphics->renderFrame - layer->beginFrame)) / 60.0)}
+                {"seek", std::max(0.0, ((double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer))) / 60.0)}
             });
         }
     }

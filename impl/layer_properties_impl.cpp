@@ -27,11 +27,10 @@ extern "C" {
 
             bool layerExists = false;
             if (instance->projectOpened) {
-                try {
-                    Shared::graphics->GetLayerByID(Shared::selectedRenderLayer);
-                    layerExists = true;
-                } catch (const std::runtime_error& err) {
-                    layerExists = false;
+                for (auto& layer : Shared::graphics->layers) {
+                    if (layer.id == Shared::selectedRenderLayer) 
+                        layerExists = true;
+                    if (layerExists) break;
                 }
             }
             if (Shared::selectedRenderLayer == -1 || Shared::graphics->layers.size() == 0 || !layerExists) {
@@ -61,6 +60,11 @@ extern "C" {
                 ImGui::Text("%s", CSTR(std::string(ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_DYNAMIC_LIBRARY")) + ": " + targetLayer->layerLibrary));
                 ImGui::Text("%s", CSTR(std::string(ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_RENDER_BOUNDS")) + ": " + std::to_string(targetLayer->beginFrame) + " -> " + std::to_string(targetLayer->endFrame)));
                 ImGui::InputText(CSTR(std::string(ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_LAYER_NAME"))), &targetLayer->layerUsername, 0);
+                float timeShift = 0.0;
+                if (targetLayer->properties.find("InternalTimeShift") != targetLayer->properties.end()) {
+                    timeShift = JSON_AS_TYPE(targetLayer->properties["InternalTimeShift"], float);
+                }
+                ImGui::Text("%s: %0.0f", ELECTRON_GET_LOCALIZATION("LAYER_TIME_SHIFT"), timeShift);
                 ImGui::EndPopup();
             }
             ImGui::SameLine();
