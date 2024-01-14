@@ -19,7 +19,7 @@ namespace Electron {
     // Rendering unit of electron
     class RenderLayer {
     public:
-        int beginFrame, endFrame, frameOffset; // Timing data
+        float beginFrame, endFrame, frameOffset; // Timing data
         std::string layerLibrary; // Name of implementation library (e.g. libsdf2d.so)
         json_t previousProperties; // Storing previous properties for LayerOnPropertiesChange event
         json_t properties; // Properties of the layer (keyframes, values) that can be saved to JSON

@@ -260,12 +260,13 @@ void AppInstance::Run() {
         }
         Shared::configMap["CacheIndex"] = Cache::cacheIndex;
 
-        int renderLengthCandidate = 0;
+        float renderLengthCandidate = 0;
         for (auto &layer : Shared::graphics->layers) {
             renderLengthCandidate =
                 glm::max(renderLengthCandidate, layer.endFrame);
 
-            layer.beginFrame = glm::clamp(layer.beginFrame, 0, layer.endFrame);
+            layer.beginFrame = glm::clamp(layer.beginFrame, 0.0f, 
+            layer.endFrame);
         }
         Shared::graphics->renderLength = renderLengthCandidate;
         Shared::graphics->renderFrame = glm::clamp((float)Shared::graphics->renderFrame, 0.0f,

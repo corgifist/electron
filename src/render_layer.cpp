@@ -6,6 +6,7 @@ RenderLayer::RenderLayer(std::string layerLibrary) {
     this->layerLibrary = layerLibrary;
     this->properties = {};
     this->previousProperties = {};
+    this->properties["InternalTimeShift"] = 0;
     // print("Loading dylib " + layerLibrary);
 
     this->beginFrame = Shared::graphics->renderFrame;
@@ -58,7 +59,7 @@ void RenderLayer::Render() {
         timeShift = JSON_AS_TYPE(properties["InternalTimeShift"], float);
     }
     float oldRenderFrame = Shared::graphics->renderFrame;
-    if (IsInBounds((int) Shared::graphics->renderFrame, beginFrame, endFrame)) {
+    if (IsInBounds(Shared::graphics->renderFrame, beginFrame, endFrame)) {
         Shared::graphics->renderFrame += timeShift;
         layerProcedure(this);
         Shared::graphics->renderFrame = oldRenderFrame;
