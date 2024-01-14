@@ -121,5 +121,7 @@
     "FFPROBE_GATHERING": "Gathering FFProbe Data",
     "IMPORTING_AUDIO": "Importing Audio",
     "OPENGLES_BACKEND_MESSAGE": "Your OpenGL ES implementation is not officially supported\n  Please Use ANGLE OpenGL ES!",
-    "AUDIO_FILTERING_IN_PROGRESS": "Audio Filtering In Progress"
+    "AUDIO_FILTERING_IN_PROGRESS": "Audio Filtering In Progress",
+    "GENERIC_CUT": "Cut",
+    "LAYER_TIME_SHIFT": "Layer Time Offset"
 }
