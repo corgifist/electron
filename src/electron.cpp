@@ -53,7 +53,6 @@ int main(int argc, char *argv[]) {
     }
 
     start_server("async_writer", 4040);
-    start_server("audio_server", 4045);
 
     AppInstance instance;
     instance.ExecuteSignal(Signal::_SpawnDockspace);

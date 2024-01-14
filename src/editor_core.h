@@ -17,7 +17,6 @@ namespace Electron {
     class RenderPreview;
     class Timeline;
 
-#ifndef ELECTRON_IMPLEMENTATION_MODE
     struct ImplDylibs {
         static std::string ProjectConfigurationDylib;
         static std::string RenderPreviewDylib;
@@ -26,7 +25,6 @@ namespace Electron {
         static std::string DockspaceDylib;
     };
 
-#endif
 
     struct UICounters {
         static int ProjectConfigurationCounter;

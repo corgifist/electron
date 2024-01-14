@@ -9,7 +9,7 @@ static size_t servers_write_data(void *buffer, size_t size, size_t nmemb, void *
 namespace Electron {
 
     static CURL* hnd = nullptr;
-
+    ServerStructure Servers::audioSystem{};
 
     ServerResponse Servers::PerformSyncedRequest(int port, json_t request) {
         CURLcode ret;
@@ -34,22 +34,34 @@ namespace Electron {
         return PerformSyncedRequest(port, request);
     }
 
+    ServerStructure Servers::LoadSystem(std::string library) {
+        ServerStructure structure;
+        Libraries::LoadLibrary("libs", library);
+        structure.initialization = Libraries::GetFunction<void()>(library, "ServerInit");
+        structure.termination = Libraries::GetFunction<void()>(library, "ServerTerminate");
+        structure.dispatch = Libraries::GetFunction<json_t(json_t)>(library, "ServerDispatch");
+        return structure;
+    }
+
     ServerResponse Servers::AsyncWriterRequest(json_t request) {
         return ServerRequest(4040, request);
     }
 
-    ServerResponse Servers::AudioServerRequest(json_t request) {
-        return ServerRequest(4045, request);
+    json_t Servers::AudioServerRequest(json_t request) {
+        return audioSystem.dispatch(request);
     }
 
-    void Servers::InitializeCurl() {
+    void Servers::Initialize() {
         hnd = curl_easy_init();
+        audioSystem = LoadSystem("audio_server");
+        audioSystem.initialization();
     }
 
-    void Servers::DestroyCurl() {
+    void Servers::Destroy() {
         if (hnd) {
             curl_easy_cleanup(hnd);
             hnd = nullptr;
         }
+        audioSystem.termination();
     }
 }

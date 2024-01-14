@@ -50,7 +50,7 @@ AppInstance::AppInstance() {
     Shared::app = this;
     Shared::graphics = new GraphicsCore();
     Shared::assets = new AssetRegistry();
-    if (system("ffmpeg -h > /dev/null") == 0 && system("ffprobe -h > /dev/null") == 0) {
+    if (system("ffmpeg -h >>/dev/null 2>>/dev/null") == 0 && system("ffprobe -h >>/dev/null 2>>/dev/null") == 0) {
         ffmpegAvailable = true;
     }
     try {
@@ -187,7 +187,7 @@ AppInstance::AppInstance() {
     Shared::localizationMap = json_t::parse(std::fstream("misc/localization_en.json"));
     this->projectOpened = false;
 
-    Servers::InitializeCurl();
+    Servers::Initialize();
 
     Shared::graphics->ResizeRenderBuffer(128, 128);
 
@@ -225,12 +225,6 @@ void AppInstance::Run() {
     while (!glfwWindowShouldClose(this->displayHandle)) {
         double firstTime = GetTime();
         this->context = ImGui::GetCurrentContext();   
-        static bool audioServerDead = false;
-        if (!Servers::AudioServerRequest({
-            {"action", "alive"}
-        }).alive && !audioServerDead) {
-            audioServerDead = true;
-        }
 
         static bool asyncWriterDead = false;
         if (!Servers::AsyncWriterRequest({
@@ -302,12 +296,6 @@ void AppInstance::Run() {
 
         if (showBadConfigMessage) {
             RenderCriticalError(ELECTRON_GET_LOCALIZATION("CORRUPTED_CONFIG_MESSAGE_MESSAGE"), &showBadConfigMessage);
-        }
-
-
-        if (audioServerDead) {
-            static bool asOpen = true;
-            RenderCriticalError(ELECTRON_GET_LOCALIZATION("AUDIO_SERVER_CRASHED"), &asOpen);
         }
 
         if (asyncWriterDead) {
@@ -476,7 +464,7 @@ void AppInstance::PushNotification(int duration, std::string text) {
 
 void AppInstance::Terminate() {
 
-    Servers::DestroyCurl();
+    Servers::Destroy();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

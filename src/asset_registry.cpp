@@ -247,6 +247,15 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                     }
                 }
                 tu->as = metadata;
+                if (!hasEnding(tu->path, ".wav")) {
+                    std::string formattedCachePath = string_format("cache/%i.wav", Cache::GetCacheIndex());
+                    operations->push_back(AsyncFFMpegOperation(
+                        nullptr, {},
+                        string_format("ffmpeg -y -i %s %s >/dev/null", originalAudioPath.c_str(), formattedCachePath.c_str()),
+                        string_format("%s %s '%s'", ICON_FA_FILE_IMPORT, ELECTRON_GET_LOCALIZATION("GENERIC_IMPORTING"), tu->path.c_str())
+                    ));
+                    tu->path = formattedCachePath;
+                }
                 if (tu->ffprobeData.find("attached pic") != std::string::npos) {
                     std::string coverPath = string_format("cache/%i.png", cacheIndex);
                     /* Perform async cover extraction */
@@ -270,15 +279,6 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                     tu->coverResolution = {
                         wavTex.width, wavTex.height
                     };
-                }
-                if (!hasEnding(tu->path, ".wav")) {
-                    std::string formattedCachePath = string_format("cache/%i.wav", Cache::GetCacheIndex());
-                    operations->push_back(AsyncFFMpegOperation(
-                        nullptr, {},
-                        string_format("ffmpeg -y -i %s %s >/dev/null", tu->path.c_str(), formattedCachePath.c_str()),
-                        string_format("%s %s '%s'", ICON_FA_FILE_IMPORT, ELECTRON_GET_LOCALIZATION("GENERIC_IMPORTING"), tu->path.c_str())
-                    ));
-                    tu->path = formattedCachePath;
                 }
                 tu->as = metadata;
                 tu->ready = true;

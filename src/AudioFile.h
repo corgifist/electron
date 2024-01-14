@@ -169,6 +169,7 @@ public:
      *      samples[channel][sampleIndex]
      */
     AudioBuffer samples;
+    int samplesStartIndex;
     
     //=============================================================
     /** An optional iXML chunk that can be added to the AudioFile. 
@@ -650,6 +651,7 @@ bool AudioFile<T>::decodeWaveFile (std::vector<uint8_t>& fileData)
     
     int numSamples = dataChunkSize / (numChannels * bitDepth / 8);
     int samplesStartIndex = indexOfDataChunk + 8;
+    this->samplesStartIndex = samplesStartIndex;
     
     clearAudioBuffer();
     samples.resize (numChannels);

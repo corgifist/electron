@@ -72,6 +72,7 @@ namespace Electron {
         _SpawnTimeline,
         _SpawnDockspace,
         _SpawnAssetExaminer,
+        _TerminateServer,
         _A,
         _B,
         _None

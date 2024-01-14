@@ -2,6 +2,7 @@
 
 #include "electron.h"
 #include <curl/curl.h>
+#include "libraries.h"
 
 namespace Electron {
 
@@ -19,16 +20,28 @@ namespace Electron {
         }
     };
 
+    typedef void (*ServerState_F)();
+    typedef json_t (*ServerDispatch_F)(json_t);
+    struct ServerStructure {
+        ServerState_F initialization, termination;
+        ServerDispatch_F dispatch;
+
+        ServerStructure() {}
+    };
+
     // Provides ability to communicate with electron servers
     class Servers {
     private:
         static ServerResponse PerformSyncedRequest(int port, json_t request);
         static ServerResponse ServerRequest(int port, json_t request);
+        static ServerStructure LoadSystem(std::string library);
 
     public:
+        static ServerStructure audioSystem;
+
         static ServerResponse AsyncWriterRequest(json_t request);
-        static ServerResponse AudioServerRequest(json_t request);
-        static void InitializeCurl();
-        static void DestroyCurl();
+        static json_t AudioServerRequest(json_t request);
+        static void Initialize();
+        static void Destroy();
     };
 }

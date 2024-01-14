@@ -53,9 +53,16 @@ void RenderLayer::FetchImplementation() {
 
 void RenderLayer::Render() {
     if (!visible) return;
-    if (std::clamp((int)Shared::graphics->renderFrame, beginFrame, endFrame) ==
-        (int)Shared::graphics->renderFrame)
+    float timeShift = 0.0;
+    if (properties.find("InternalTimeShift") != properties.end()) {
+        timeShift = JSON_AS_TYPE(properties["InternalTimeShift"], float);
+    }
+    float oldRenderFrame = Shared::graphics->renderFrame;
+    if (IsInBounds((int) Shared::graphics->renderFrame, beginFrame, endFrame)) {
+        Shared::graphics->renderFrame += timeShift;
         layerProcedure(this);
+        Shared::graphics->renderFrame = oldRenderFrame;
+    }
 }
 
 void RenderLayer::SortKeyframes(json_t &keyframes) {
@@ -67,11 +74,6 @@ void RenderLayer::SortKeyframes(json_t &keyframes) {
                 keyframes.at(i + 1) = temp;
             }
         }
-    }
-
-    for (int i = 1; i < keyframes.size(); i++) {
-        keyframes.at(i).at(0) = glm::clamp(
-            JSON_AS_TYPE(keyframes.at(i).at(0), int), 0, endFrame - beginFrame);
     }
 
     for (int i = 1; i < keyframes.size(); i++) {
