@@ -12,7 +12,7 @@ if eq(get_platform(), windows) {
 }
 print(cat("Platform: ", get_platform()))
 
-load_module("scripts/electron_build_utils.py")
+load_module("misc/scripts/electron_build_utils.py")
 
 std_cxx = "20"
 
@@ -54,9 +54,9 @@ scenario build_imgui {
         $build_arch
     )
     if eq(get_platform(), windows) {
-        deps = [opengl32, SDL2]
+        deps = [opengl32, glfw]
     } else {
-        deps = [SDL2]
+        deps = [glfw]
     }
 
     link_executable($imgui_objects, cat($dylib_id, cat("imgui", $dylib_prefix)), $deps, shared, imgui, "libs")
@@ -83,7 +83,7 @@ scenario build_core {
         ]
     } else {
         deps = [
-            SDL2, m, pthread, "stdc++", dl, backtrace, bfd, xcb, curl, imgui, boost_filesystem, "decor-0"
+            glfw, m, pthread, "stdc++", dl, backtrace, bfd, unwind, xcb, curl, imgui, boost_filesystem, "decor-0"
         ]
     }
 
@@ -101,7 +101,7 @@ scenario build_starter {
     starter_targets = ["src/electron.cpp"]
     starter_objects = object_compile($starter_targets, $build_arch, [], "libs")
     link_executable($starter_objects, "electron", 
-        [electron, imgui, SDL2, bfd], null, electron, "libs"
+        [electron, imgui, glfw, bfd, unwind], null, electron, "libs"
     )
     move_shared_libs()
 }
@@ -120,11 +120,11 @@ scenario build_impl {
         ]
     } else {
         impl_deps = [
-            "stdc++", dl, pthread, backtrace, bfd, dl
+            "stdc++", dl, pthread, backtrace, bfd, unwind dl
         ]
     }
     if eq($impl_target_file, audio_server) {
-        impl_deps = cat($impl_deps, [openal, OALWrapper])
+        impl_deps = cat($impl_deps, [openal])
     }
     link_executable($impl_objects, $shared_library_name, $impl_deps, shared, "implib", "libs")
     move_shared_libs()
