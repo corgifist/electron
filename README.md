@@ -12,7 +12,7 @@ The Only Supported Platform for now is Linux.
 
 Dependencies (Ubuntu apt packages):
 * `python3-ply`, `python3-colorama` (for build system)
-* `libglm-dev`, `libsdl2`, `libopenal-dev`, `binutils-dev`, `libcurl-dev` (for editor & subsystems)
+* `libglm-dev`, `libopenal-dev`, `binutils-dev`, `libcurl-dev` (for editor & subsystems)
 
 Build manual:
 * `python HashBuild/hash_build.py` to build project
