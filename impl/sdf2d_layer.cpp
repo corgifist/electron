@@ -79,6 +79,13 @@ extern "C" {
 
         owner->properties["TextureID"] = "";
         owner->properties["EnableTexturing"] = true;
+        owner->properties["PropertyAlias"] = {
+            {"Position", ICON_FA_UP_DOWN_LEFT_RIGHT " Position"},
+            {"Size", ICON_FA_SCALE_BALANCED " Size"},
+            {"Color", ICON_FA_DROPLET " Color"},
+            {"Angle", ICON_FA_ROTATE " Angle"},
+            {"Texturing", ICON_FA_IMAGE " Texturing"}
+        };
 
         owner->anyData.resize(1);
         owner->anyData[0] = PipelineFrameBuffer(Shared::graphics->renderBuffer.width, Shared::graphics->renderBuffer.height);

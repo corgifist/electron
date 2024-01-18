@@ -195,7 +195,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     ImVec2 windowMouseCoords =
         ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
-    pixelsPerFrame = glm::clamp(pixelsPerFrame, 0.5f, 10.0f);
+    pixelsPerFrame = glm::clamp(pixelsPerFrame, 0.5f, 20.0f);
     if (percentagePRF >= 0) {
         pixelsPerFrame = ImLerp(beginPRF, targetPRF, percentagePRF);
         percentagePRF += 0.05f;
@@ -289,8 +289,13 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
             json_t previewTargets = layer->previewProperties;
             float layerViewTime =
-                Shared::graphics->renderFrame - layer->beginFrame;
+                Shared::graphics->renderFrame - layer->beginFrame + JSON_AS_TYPE(layer->properties["InternalTimeShift"], float);
             for (int i = 0; i < previewTargets.size(); i++) {
+                std::string previewAlias = previewTargets.at(i);
+                json_t aliases = layer->properties["PropertyAlias"];
+                if (aliases.find(previewAlias) != aliases.end()) {
+                    previewAlias = JSON_AS_TYPE(aliases[previewAlias], std::string);
+                }
                 json_t &propertyMap = layer->properties[previewTargets.at(i)];
                 GeneralizedPropertyType propertyType =
                     static_cast<GeneralizedPropertyType>(
@@ -314,6 +319,8 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                 holderInfo.yCoord = ImGui::GetCursorPosY() - 3;
                 bool addKeyframe = (ImGui::Button((ICON_FA_PLUS + std::string("##") + JSON_AS_TYPE(previewTargets.at(i), std::string) + std::to_string(i) + std::to_string(layer->id)).c_str()));
                 ImGui::SameLine();
+                float oldRenderFrame = Shared::graphics->renderFrame;
+                Shared::graphics->renderFrame += JSON_AS_TYPE(layer->properties["InternalTimeShift"], float);
                 switch (propertyType) {
                 case GeneralizedPropertyType::Float: {
                     float x = JSON_AS_TYPE(
@@ -332,14 +339,14 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                     bool formInput = false;
                     if (!isSlider) {
                         formInput = ImGui::InputFloat(
-                            (JSON_AS_TYPE(previewTargets.at(i), std::string) +
+                            (previewAlias +
                              "##" + std::to_string(i) + std::to_string(layer->id))
                                 .c_str(),
                             &x, 0, 0, "%.2f",
                             ImGuiInputTextFlags_EnterReturnsTrue);
                     } else {
                         formInput = ImGui::SliderFloat(
-                            (JSON_AS_TYPE(previewTargets.at(i), std::string) +
+                            (previewAlias +
                              "##" + std::to_string(i) + std::to_string(layer->id)).c_str(),
                              &x, sliderBounds.x, sliderBounds.y, "%.2f"
                         );
@@ -359,7 +366,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                     std::vector<float> raw = {JSON_AS_TYPE(x.at(0), float),
                                               JSON_AS_TYPE(x.at(1), float)};
                     if (ImGui::InputFloat2(
-                            (JSON_AS_TYPE(previewTargets.at(i), std::string) +
+                            (previewAlias +
                              "##" + std::to_string(i) + std::to_string(layer->id))
                                 .c_str(),
                             raw.data(), "%.2f",
@@ -383,15 +390,13 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                                               JSON_AS_TYPE(x.at(2), float)};
                     if (propertyType == GeneralizedPropertyType::Vec3
                             ? ImGui::InputFloat3(
-                                  (JSON_AS_TYPE(previewTargets.at(i),
-                                                std::string) +
+                                  (previewAlias +
                                    "##" + std::to_string(i) + std::to_string(layer->id))
                                       .c_str(),
                                   raw.data(), "%.3f",
                                   ImGuiInputTextFlags_EnterReturnsTrue)
-                            : ImGui::ColorEdit3(
-                                  (JSON_AS_TYPE(previewTargets.at(i),
-                                                std::string) +
+                            : ImGui::ColorEdit3((
+                                  previewAlias +
                                    "##" + std::to_string(i) + std::to_string(layer->id))
                                       .c_str(),
                                   raw.data(), 0)) {
@@ -409,6 +414,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                     break;
                 }
                 }
+                Shared::graphics->renderFrame = oldRenderFrame;
                 if (ImGui::IsItemHovered() &&
                     ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
                     ImGui::OpenPopup(
@@ -419,11 +425,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                         string_format("LegendProperty%i%i", i, layer->id)
                             .c_str())) {
                     anyPopupsOpen = true;
-                    ImGui::SeparatorText(
-                        string_format("%s", (JSON_AS_TYPE(previewTargets.at(i),
-                                                          std::string))
-                                                .c_str())
-                            .c_str());
+                    ImGui::SeparatorText(previewAlias.c_str());
                     if (ImGui::MenuItem(
                             string_format(
                                 "%s %s", ICON_FA_PLUS,
@@ -519,15 +521,16 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
     PushClipRect(fullscreenTicksMask);
     std::vector<TimeStampTarget> stamps{};
     DrawRect(ticksBackground, style.Colors[ImGuiCol_WindowBg] * ImVec4{0.5f, 0.5f, 0.5f, 1.0f});
-    int desiredTicksCount = pixelsPerFrame * 2;
+    int desiredTicksCount = 5;
     float tickStep =
         (float)Shared::graphics->renderFramerate / (float)desiredTicksCount;
     float tickPositionStep = tickStep * pixelsPerFrame;
     float tickPositionAccumulator = 0;
     float tickAccumulator = 0;
+    float previousMajorTick = 0;
     while (tickAccumulator <= Shared::graphics->renderLength) {
-        bool majorTick = remainder(tickAccumulator,
-                                   Shared::graphics->renderFramerate) == 0.0f;
+        bool majorTick = remainder((int) tickAccumulator,
+                                   (int) Shared::graphics->renderFramerate) == 0.0f;
         float tickHeight = majorTick ? 0 : 2.0f;
         RectBounds tickBounds = RectBounds(
             ImVec2(tickPositionAccumulator, 0 + ImGui::GetScrollY()),
@@ -539,6 +542,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             stamp.frame = tickAccumulator;
             stamp.position = ImVec2(tickPositionAccumulator, 0);
             stamps.push_back(stamp);
+            previousMajorTick = tickAccumulator;
         }
 
         tickPositionAccumulator += tickPositionStep;
@@ -623,7 +627,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                            ImGui::GetWindowSize().y + ImGui::GetScrollY());
                 RectBounds keyframeBounds = RectBounds(
                     ImVec2((keyframesOwner->beginFrame * pixelsPerFrame +
-                            time * pixelsPerFrame) -
+                            time * pixelsPerFrame - JSON_AS_TYPE(keyframesOwner->properties["InternalTimeShift"], float) * pixelsPerFrame) -
                                keyframeSize.x / 2.0f,
                            keyInfo.yCoord),
                     keyframeSize);
@@ -642,7 +646,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
                 if (MouseHoveringBounds(keyframeBounds) &&
                     ImGui::GetIO().MouseDown[ImGuiMouseButton_Right] &&
-                    !anyOtherButtonsDragged && BoundsContains(keyframesBoundsClip, keyframesBoundsClip)) {
+                    !anyOtherButtonsDragged) {
                     ImGui::OpenPopup(string_format("KeyframePopup%p%i%i",
                                                    keyframesOwner, i, j)
                                          .c_str());
@@ -685,7 +689,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                 float dragDist;
                 if (drag.isActive && MouseHoveringBounds(fullscreenTicksMask) &&
                     ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] &&
-                    !anyKeyframesDragged) {
+                    !anyKeyframesDragged && IsInBounds(time, keyframesOwner->beginFrame - 1, keyframesOwner->endFrame + 1)) {
                     blockTimelineDrag = true;
                     float dragWindowCoord =
                         windowMouseCoords.x + ImGui::GetScrollX();
@@ -851,6 +855,9 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && backwardDrag.isActive &&
             !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
             layer->beginFrame += backwardDragDistance / pixelsPerFrame;
+            if (JSON_AS_TYPE(layer->properties["InternalTimeShift"], float) != 0.0) {
+                layer->properties["InternalTimeShift"] = JSON_AS_TYPE(layer->properties["InternalTimeShift"], float) + backwardDragDistance / pixelsPerFrame;
+            }
             if (windowMouseCoords.x > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
                 ImGui::SetScrollX(ImGui::GetScrollX() + 1);
             }
@@ -899,7 +906,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                     );
                     DrawRect(stickRenderBounds, layerColor);
                 }
-                if ((int) layer->endFrame - 1 == (int) nextLayer->endFrame) {
+                if ((int) layer->endFrame + 1 == (int) nextLayer->endFrame) {
                     float durationDifference = layer->endFrame - layer->beginFrame;
                     layer->endFrame = nextLayer->endFrame;
                     layer->beginFrame = layer->endFrame - durationDifference;

@@ -65,8 +65,14 @@ extern "C" {
 
                 int projectFramerate = JSON_AS_TYPE(project.propertiesMap["Framerate"], int);
                 float fProjectFramerate = (float) projectFramerate;
-                ImGui::SliderFloat(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_FRAMERATE"), &fProjectFramerate, 1, 60, "%0.0f", 0);
+                bool overshootEnabled = Shared::maxFramerate > 60;
+                if (ImGui::Button(string_format("%s %s", ICON_FA_BEZIER_CURVE, overshootEnabled ? ELECTRON_GET_LOCALIZATION("GENERIC_DISABLE") : ELECTRON_GET_LOCALIZATION("GENERIC_OVERSHOOT")).c_str())) {
+                    Shared::maxFramerate = overshootEnabled ? 60 : Shared::maxFramerate * 2;
+                }
+                ImGui::SameLine();
+                ImGui::SliderFloat(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_FRAMERATE"), &fProjectFramerate, 1, Shared::maxFramerate, "%0.0f", 0);
                 projectFramerate = (int) fProjectFramerate;
+                project.propertiesMap["MaxFramerate"] = Shared::maxFramerate;
                 project.propertiesMap["Framerate"] = projectFramerate;
             }
 

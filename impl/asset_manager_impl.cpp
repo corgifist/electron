@@ -170,7 +170,7 @@ extern "C" {
                             ImGui::Text("%s", CSTR(path));
                         }
                         if (column == 2) {
-                            ImGui::Text("%s", CSTR(std::to_string((float) filesize(asset.path.c_str()) / 1024.0f / 1024.0f)));
+                            ImGui::Text("%0.1f MB", filesize(asset.path.c_str()) / 1024.0f / 1024.0f);
                         }
                     }
                 
@@ -218,9 +218,13 @@ extern "C" {
 
         if (assetDeletionIndex != -1) {
             auto& assets = Shared::assets->assets;
+            TextureUnion& asset = assets.at(assetDeletionIndex);
             TextureUnionType type = assets.at(assetDeletionIndex).type;
             if (type == TextureUnionType::Texture || type == TextureUnionType::Audio) {
                 PixelBuffer::DestroyGPUTexture(assets.at(assetDeletionIndex).pboGpuTexture);
+            }
+            for (auto& path : asset.linkedCache) {
+                std::filesystem::remove(path);
             }
             assets.erase(assets.begin() + assetDeletionIndex);
         }

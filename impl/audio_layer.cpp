@@ -83,15 +83,15 @@ extern "C" {
         } else {
             int previousKey = 0;
             int currentKey = JSON_AS_TYPE(volume.at(2).at(0), int);
-            filters.push_back(FFMpegAudioFilter(previousKey / 60, currentKey / 60, JSON_AS_TYPE(volume.at(1).at(1), int), JSON_AS_TYPE(volume.at(2).at(1), int)));
+            filters.push_back(FFMpegAudioFilter(previousKey / Shared::graphics->renderFramerate, currentKey / Shared::graphics->renderFramerate, JSON_AS_TYPE(volume.at(1).at(1), int), JSON_AS_TYPE(volume.at(2).at(1), int)));
             previousKey = currentKey;
             for (int i = 3; i < volume.size(); i++) {
                 currentKey = JSON_AS_TYPE(volume.at(i).at(0), int);
-                filters.push_back(FFMpegAudioFilter(previousKey / 60, currentKey / 60, JSON_AS_TYPE(volume.at(i - 1).at(1), int), JSON_AS_TYPE(volume.at(i).at(1), int)));
+                filters.push_back(FFMpegAudioFilter(previousKey / Shared::graphics->renderFramerate, currentKey / Shared::graphics->renderFramerate, JSON_AS_TYPE(volume.at(i - 1).at(1), int), JSON_AS_TYPE(volume.at(i).at(1), int)));
                 previousKey = currentKey;
             }
-            if (currentKey / 60 != metadata.audioLength) {
-                filters.push_back(FFMpegAudioFilter(currentKey / 60, metadata.audioLength, JSON_AS_TYPE(volume.at(volume.size() - 1).at(1), float), JSON_AS_TYPE(volume.at(volume.size() - 1).at(1), float)));
+            if (currentKey / Shared::graphics->renderFramerate != metadata.audioLength) {
+                filters.push_back(FFMpegAudioFilter(currentKey / Shared::graphics->renderFramerate, metadata.audioLength, JSON_AS_TYPE(volume.at(volume.size() - 1).at(1), float), JSON_AS_TYPE(volume.at(volume.size() - 1).at(1), float)));
             }
 
         }
@@ -144,6 +144,8 @@ extern "C" {
                     asset = &assets.at(i);
             }
         }
+        if (asset != nullptr)
+            owner->endFrame = std::clamp(owner->endFrame, owner->beginFrame, owner->beginFrame + std::get<AudioMetadata>(asset->as).audioLength * Shared::graphics->renderFramerate);
         int loadID = JSON_AS_TYPE(owner->internalData["LoadID"], int);
         if (loadID != -1) {
             bool loaded = JSON_AS_TYPE(
@@ -158,7 +160,7 @@ extern "C" {
                 if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
                     audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
                 }
-                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / 60.0;
+                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / Shared::graphics->renderFramerate;
                 elapsedTime = std::min(elapsedTime, (double) std::get<AudioMetadata>(asset->as).audioLength);
                 layer->anyData[0] = JSON_AS_TYPE(
                     Servers::AudioServerRequest({
@@ -196,7 +198,7 @@ extern "C" {
             if (asset != nullptr) {
                 ReloadAudioHandle(layer, asset);
                 AudioMetadata metadata = std::get<AudioMetadata>(asset->as);
-                layer->endFrame = layer->beginFrame + (metadata.audioLength * 60);
+                layer->endFrame = layer->beginFrame + (metadata.audioLength * Shared::graphics->renderFramerate);
             }
         }
 
@@ -213,11 +215,11 @@ extern "C" {
                 {"handle", std::any_cast<int>(layer->anyData[0])},
                 {"pause", !(Shared::graphics->isPlaying && IsInBounds(Shared::graphics->renderFrame, layer->beginFrame, layer->endFrame) && layer->visible)}
             });
-        }
+        }        
         bool inBounds = IsInBounds(Shared::graphics->renderFrame, layer->beginFrame, layer->endFrame);
         if (JSON_AS_TYPE(layer->internalData["PreviousInBounds"], bool) != inBounds) {
             if (std::any_cast<int>(layer->anyData[0]) != -1) {
-                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / 60.0;
+                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / Shared::graphics->renderFramerate;
                 Servers::AudioServerRequest({
                     {"action", "seek_sample"},
                     {"handle", std::any_cast<int>(layer->anyData[0])},
@@ -253,7 +255,7 @@ extern "C" {
             Servers::AudioServerRequest({
                 {"action", "seek_sample"},
                 {"handle", std::any_cast<int>(layer->anyData[0])},
-                {"seek", std::max(0.0, ((double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer))) / 60.0)}
+                {"seek", std::max(0.0, ((double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer))) / Shared::maxFramerate)}
             });
         }
     }
