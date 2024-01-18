@@ -142,8 +142,8 @@ namespace Electron {
     }
 
     static std::string formatToTimestamp(int frame, int framerate) {
-        float transformedFrame = (float) frame / 60.0f;
-        float minutes = glm::floor(transformedFrame / (float) framerate);
+        float transformedFrame = (float) frame / (float) framerate;
+        float minutes = glm::floor(transformedFrame / (float) 60);
         float seconds = glm::floor((int) transformedFrame % 60);
         return string_format("%02i:%02i", (int) minutes, (int) seconds);
     }

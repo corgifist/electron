@@ -7,6 +7,7 @@ RenderLayer::RenderLayer(std::string layerLibrary) {
     this->properties = {};
     this->previousProperties = {};
     this->properties["InternalTimeShift"] = 0;
+    this->properties["PropertyAlias"] = {};
     // print("Loading dylib " + layerLibrary);
 
     this->beginFrame = Shared::graphics->renderFrame;
@@ -98,6 +99,10 @@ void RenderLayer::RenderProperty(GeneralizedPropertyType type,
                                            std::string propertyName, ImVec2 floatBoundaries) {
     ImVec2 windowSize = ImGui::GetWindowSize();
     float inputFieldDivider = 11;
+    json_t aliases = properties["PropertyAlias"];
+    if (aliases.find(propertyName) != aliases.end()) {
+        propertyName = JSON_AS_TYPE(aliases[propertyName], std::string);
+    }
     if (ImGui::CollapsingHeader(propertyName.c_str())) {
         if (ImGui::Button((std::string(ICON_FA_PLUS) +
                            std::string(" Add keyframe") + "##" + propertyName)
@@ -256,6 +261,10 @@ void RenderLayer::RenderProperty(GeneralizedPropertyType type,
 
 void RenderLayer::RenderAssetProperty(json_t &property,
                                                   std::string label, TextureUnionType type) {
+    json_t aliases = properties["PropertyAlias"];
+    if (aliases.find(label) != aliases.end()) {
+        label = JSON_AS_TYPE(aliases[label], std::string);
+    }
     if (ImGui::CollapsingHeader(label.c_str())) {
         ImGui::Spacing();
         std::string textureID = JSON_AS_TYPE(property, std::string);
