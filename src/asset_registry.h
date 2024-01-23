@@ -12,7 +12,11 @@ namespace Electron {
     // Holds ffprobe's result
     struct AudioMetadata {
         float audioLength;
+        int bitrate;
+        int sampleRate;
+        std::string codecName;
 
+        AudioMetadata(json_t probeJson);
         AudioMetadata() {}
     };
 
@@ -26,12 +30,13 @@ namespace Electron {
         std::string path;
         std::string strType;
         std::string audioCacheCover;
-        std::string ffprobeData;
+        std::string ffprobeData, ffprobeJsonData;
         GLuint pboGpuTexture;
         GLuint previousPboGpuTexture;
         bool invalid;
         float previewScale;
         glm::vec2 coverResolution;
+        std::vector<std::string> linkedCache;
         int id;
         bool ready;
 

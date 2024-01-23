@@ -10,6 +10,7 @@ void Shortcuts::Ctrl_P_O(ProjectMap projectMap) {
     Shared::project = projectMap;
 
     Shared::selectedRenderLayer = JSON_AS_TYPE(projectMap.propertiesMap["LastSelectedLayer"], int);
+    Shared::maxFramerate = JSON_AS_TYPE(projectMap.propertiesMap["MaxFramerate"], float);
 
     Shared::assets->LoadFromProject(projectMap.propertiesMap);
 }

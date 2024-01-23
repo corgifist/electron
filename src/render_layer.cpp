@@ -8,6 +8,7 @@ RenderLayer::RenderLayer(std::string layerLibrary) {
     this->previousProperties = {};
     this->properties["InternalTimeShift"] = 0;
     this->properties["PropertyAlias"] = {};
+    this->properties["ShowLoadingSpinner"] = false;
     // print("Loading dylib " + layerLibrary);
 
     this->beginFrame = Shared::graphics->renderFrame;
@@ -367,10 +368,13 @@ void RenderLayer::RenderAssetProperty(json_t &property,
     }
 }
 
-json_t RenderLayer::InterpolateProperty(json_t keyframes) {
+json_t RenderLayer::InterpolateProperty(json_t keyframes, float time) {
     int targetKeyframeIndex = -1;
     int keyframesLength = keyframes.size();
-    int renderViewTime = Shared::graphics->renderFrame - beginFrame;
+    float renderViewTime = Shared::graphics->renderFrame - beginFrame;
+    if (time > 0.0) {
+        renderViewTime = time;
+    }
     GeneralizedPropertyType propertyType = keyframes.at(0);
 
     for (int i = 1; i < keyframesLength; i++) {

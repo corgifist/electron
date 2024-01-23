@@ -333,11 +333,13 @@ void AppInstance::Run() {
                 }
             }
             for (auto& target : deleteTargets) {
+                int index = 0;
                 for (auto& op : Shared::assets->operations) {
                     if (op.id == target) {
-                        Shared::assets->operations.erase(Shared::assets->operations.begin() + target);
+                        Shared::assets->operations.erase(Shared::assets->operations.begin() + index);
                         break;
                     }
+                    index++;
                 }
             }
         }
@@ -439,7 +441,9 @@ void AppInstance::Run() {
                         texUnion.coverResolution.x, texUnion.coverResolution.y
                     };
                 }
+                assetDescription["LinkedCache"] = texUnion.linkedCache;
                 assetDescription["FFProbeData"] = texUnion.ffprobeData;
+                assetDescription["FFProbeJsonData"] = texUnion.ffprobeJsonData;
                 assetRegistry.push_back(assetDescription);
             }
             Shared::project.propertiesMap["AssetRegistry"] = assetRegistry;

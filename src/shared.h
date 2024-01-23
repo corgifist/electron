@@ -45,5 +45,7 @@ namespace Electron {
         static ImVec2 displayPos, displaySize;
 
         static std::string glslVersion;
+
+        static float maxFramerate;
     };
 }

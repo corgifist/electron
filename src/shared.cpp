@@ -41,4 +41,5 @@ namespace Electron {
     ImVec2 Shared::displaySize{};
 
     std::string Shared::glslVersion = "#version 460"; // use standard OpenGL by default
+    float Shared::maxFramerate = 60;
 }

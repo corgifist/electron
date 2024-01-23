@@ -58,7 +58,7 @@ namespace Electron {
         void RenderProperties();
 
         void SortKeyframes(json_t& keyframes);
-        json_t InterpolateProperty(json_t property);
+        json_t InterpolateProperty(json_t property, float time = -1.0f);
         json_t ExtractExactValue(json_t property);
 
         Electron_LayerImplF TryGetLayerImplF(std::string key);
