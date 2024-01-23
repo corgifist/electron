@@ -270,8 +270,12 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         }
         if (visible) ImGui::PopStyleColor();
         ImGui::SameLine();
+        std::string spinnerText = "";
+        if (JSON_AS_TYPE(layer->properties["ShowLoadingSpinner"], bool)) {
+            spinnerText = ICON_FA_SPINNER " - ";
+        }
         if (ImGui::CollapsingHeader(
-                (layer->layerUsername + "##" + std::to_string(i)).c_str())) {
+                (spinnerText + layer->layerUsername + "##" + std::to_string(i)).c_str())) {
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4);
             if (ImGui::IsItemHovered() &&
                 ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
@@ -329,10 +333,11 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                     ImVec2 sliderBounds = {0, 0};
                     if (layer->internalData.find("TimelineSliders") != layer->internalData.end()) {
                         json_t& timelineSliders = layer->internalData["TimelineSliders"];
-                        for (int i = 0; i < timelineSliders.size(); i++) {
-                            if (JSON_AS_TYPE(timelineSliders.at(i).at(0), std::string) == JSON_AS_TYPE(previewTargets.at(i), std::string)) {
+                        for (int j = 0; j < timelineSliders.size(); j++) {
+                            if (JSON_AS_TYPE(timelineSliders.at(j).at(0), std::string) == JSON_AS_TYPE(previewTargets.at(i), std::string)) {
                                 isSlider = true;
-                                sliderBounds = ImVec2(JSON_AS_TYPE(timelineSliders.at(i).at(1), float), JSON_AS_TYPE(timelineSliders.at(i).at(2), float));
+                                sliderBounds = ImVec2(JSON_AS_TYPE(timelineSliders.at(j).at(1), float), JSON_AS_TYPE(timelineSliders.at(j).at(2), float));
+                                break;
                             }
                         }
                     }

@@ -104,7 +104,7 @@ extern "C" {
             if (!hasEnding(path, ".wav")) {
                 return {{"id", -1}};
             }
-            if (!file_exists(path)) return {{"id", -1}};
+            if (!file_exists(path) && body.find("fake_name") == body.end()) return {{"id", -1}};
             if (loadedRegistry.find(path) == loadedRegistry.end() || body.count("override") != 0) {
                 loadedRegistry.insert(path);
                 if (wavRegistry.find(path) != wavRegistry.end()) {
@@ -113,21 +113,37 @@ extern "C" {
                 loadInfo.push_back(false);
                 int infoIndex = loadInfo.size() - 1;
                 threadRegistry.push_back(
-                    std::thread([](std::string path, int infoIndex) {
+                    std::thread([](std::string path, int infoIndex, json_t body) {
                         alcMakeContextCurrent(alContext);
                         AudioBundle bundle;
-                        alGenBuffers(1, &bundle.buffer);
+                        int samplesStartIndex, sampleRate, numChannels, bitDepth;
+                        AudioFile<float>* buffer = nullptr;
                         std::vector<uint8_t> audioBytes;
-                        std::string audioFile = read_file(path);
-                        for (int i = 0; i < audioFile.size(); i++) {
-                            audioBytes.push_back((uint8_t) audioFile[i]);
+                        if (body.find("buffer_ptr") != body.end() && JSON_AS_TYPE(body["buffer_ptr"], unsigned long) != 0) {
+                            buffer = (AudioFile<float>*) JSON_AS_TYPE(body["buffer_ptr"], unsigned long);
+                            bundle.data = *buffer;
+                            audioBytes = buffer->saveWavToMemory();
+                        } else {
+                            buffer = &bundle.data;
+                            std::string audioFile = read_file(path);
+                            for (int i = 0; i < audioFile.size(); i++) {
+                                audioBytes.push_back((uint8_t) audioFile[i]);
+                            }
+                            buffer->loadFromMemory(audioBytes);
                         }
-                        bundle.data.loadFromMemory(audioBytes);
-                        alBufferData(bundle.buffer, GetALFormat(bundle.data.getNumChannels(), bundle.data.getBitDepth()), 
-                                                    audioBytes.data() + bundle.data.samplesStartIndex, audioBytes.size() - bundle.data.samplesStartIndex, bundle.data.getSampleRate());
+                        sampleRate = buffer->getSampleRate();
+                        numChannels = buffer->getNumChannels();
+                        samplesStartIndex = buffer->samplesStartIndex;
+                        bitDepth = buffer->getBitDepth();
+                        alGenBuffers(1, &bundle.buffer);
+                        alBufferData(bundle.buffer, GetALFormat(numChannels, bitDepth), 
+                                                    audioBytes.data() + samplesStartIndex, audioBytes.size() - samplesStartIndex, sampleRate);
+                        if (body.find("dispose_after_loading") != body.end() && JSON_AS_TYPE(body["dispose_after_loading"], bool) == true) {
+                            delete buffer;
+                        }
                         wavRegistry[path] = bundle;
                         loadInfo[infoIndex] = true; 
-                    }, path, infoIndex)
+                    }, path, infoIndex, body)
                 );
                 result["id"] = infoIndex;
             }
@@ -141,6 +157,8 @@ extern "C" {
             alSourcef(source, AL_GAIN, 1.0f);
             alSourcei(source, AL_LOOPING, AL_FALSE);
             alSourcei(source, AL_BUFFER, bundle.buffer);
+            alSourcef(source, AL_ROLLOFF_FACTOR, 0.0f);
+            alSourcei(source, AL_SOURCE_RELATIVE, true);
             result["handle"] = source;
         }
         if (action == "pause_sample") {
@@ -161,6 +179,14 @@ extern "C" {
             float seek = JSON_AS_TYPE(body["seek"], double);
             alSourcef(JSON_AS_TYPE(body["handle"], int), AL_SEC_OFFSET, seek);
         }
+        if (action == "gain_sample") {
+            float gain = JSON_AS_TYPE(body["gain"], float);
+            alSourcef(JSON_AS_TYPE(body["handle"], int), AL_GAIN, gain);
+        }
+        if (action == "pan_sample") {
+            float pan = JSON_AS_TYPE(body["pan"], float);
+            alSource3f(JSON_AS_TYPE(body["handle"], int), AL_POSITION, pan, 0, -sqrtf(1.0f - pow(pan, 2)));
+        }
         if (action == "is_loaded") {
             result["loaded"] = (wavRegistry.find(JSON_AS_TYPE(body["path"], std::string)) != wavRegistry.end());
         }
@@ -168,8 +194,8 @@ extern "C" {
             if (JSON_AS_TYPE(body["id"], int) == -1) return {{"result", false}};
             result["status"] = loadInfo.at(JSON_AS_TYPE(body["id"], int));
         }
-        if (action == "get_audio_duration") {
-            result["duration"] = wavRegistry[JSON_AS_TYPE(body["path"], std::string)].data.getLengthInSeconds();
+        if (action == "audio_buffer_ptr") {
+            result["ptr"] = (uint64_t) &wavRegistry[JSON_AS_TYPE(body["path"], std::string)].data;
         }
         return result;
     }

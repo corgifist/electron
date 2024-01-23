@@ -16,7 +16,7 @@ extern "C" {
         ImGui::SetCurrentContext(instance->context);
 
 
-        if (Shared::assetSelected != -1 && Shared::assetSelected != -128 && instance->projectOpened) {
+        if (Shared::assetSelected != -1 && Shared::assetSelected != -128 && instance->projectOpened && Shared::assetSelected < Shared::assets->assets.size()) {
             UI::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_ASSET_EXAMINER"))), Signal::_CloseWindow, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
                 ImVec2 windowSize = ImGui::GetContentRegionAvail();
                 static float assetPreviewScale = JSON_AS_TYPE(Shared::project.propertiesMap["LastAssetPreviewScale"], float);

@@ -44,7 +44,7 @@ extern "C" {
 
             static float titleChildHeight = 100;
             RenderLayer* targetLayer = Shared::graphics->GetLayerByID(Shared::selectedRenderLayer);
-            ImGui::BeginChild("layerPropsTitleChild", ImVec2(ImGui::GetWindowSize().x, titleChildHeight), false, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
+            ImGui::BeginChild("layerPropsTitleChild", ImVec2(ImGui::GetContentRegionAvail().x, titleChildHeight), false, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
             float beginCursor = ImGui::GetCursorPos().y;
             ImGui::PushFont(instance->largeFont);
                 ImGui::Text("%s", CSTR(std::string(ICON_FA_LAYER_GROUP " ") + targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(targetLayer->id) + ">" + ")"));
