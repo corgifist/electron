@@ -119,7 +119,6 @@ void AssetRegistry::LoadFromProject(json_t project) {
         }
         assetUnion.result.audioCacheCover = audioCoverPath;
         assetUnion.result.coverResolution = audioCoverResolution;
-        DUMP_VAR(assetUnion.result.audioCacheCover);
         if (assetUnion.result.type == TextureUnionType::Audio && audioCoverPath != "") {
             assetUnion.result.pboGpuTexture = PixelBuffer(audioCoverPath).BuildGPUTexture();
         }
@@ -289,14 +288,16 @@ std::string AssetRegistry::ImportAsset(std::string path) {
                 string_format("%s %s '%s'", ICON_FA_INFO, ELECTRON_GET_LOCALIZATION("FFPROBE_GATHERING"), tu->path.c_str())
         ));
     }
-    
-    // Quickly update editor, so cache index will always be fresh
-    Servers::AsyncWriterRequest({
-        {"action", "write"},
-        {"path", "misc/config.json"},
-        {"content", Shared::configMap.dump()}
-    });
     return loadInfo.returnMessage;
+}
+
+TextureUnion* AssetRegistry::GetAsset(std::string id) {
+    for (int i = 0; i < assets.size(); i++) {
+        if (intToHex(assets.at(i).id) == id) {
+                return &assets.at(i);
+        }
+    }
+    return nullptr;
 }
 
 void AssetRegistry::Clear() { 

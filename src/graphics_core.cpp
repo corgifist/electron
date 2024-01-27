@@ -34,7 +34,7 @@ GraphicsCore::GraphicsCore() {
 void GraphicsCore::PrecompileEssentialShaders() {
     Shared::basic_compute = CompilePipelineShader("basic.pipeline");
     Shared::compositor_compute = CompilePipelineShader("compositor_forward.pipeline");
-
+    Shared::channel_manipulator_compute = CompilePipelineShader("channel_manipulator.pipeline");
     Shared::fsVAO = GenerateVAO(fsQuadVertices, fsQuadUV);
 }
 

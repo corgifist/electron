@@ -32,7 +32,7 @@ namespace Electron {
         static GraphicsCore* graphics;
         static AssetRegistry* assets;
 
-        static GLuint basic_compute, compositor_compute;
+        static GLuint basic_compute, compositor_compute, channel_manipulator_compute;
         static GLuint shadowTex;
 
         static int assetSelected;

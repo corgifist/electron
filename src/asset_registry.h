@@ -103,6 +103,8 @@ namespace Electron {
         // Load asset and get it's TextureUnion representation
         AssetLoadInfo LoadAssetFromPath(std::string path);
 
+        TextureUnion* GetAsset(std::string id);
+
         static TextureUnionType TextureUnionTypeFromString(std::string type) {
             if (type == "Image") {
                 return TextureUnionType::Texture;

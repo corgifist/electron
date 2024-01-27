@@ -42,8 +42,6 @@ extern "C" {
         ImGui::SetCurrentContext(instance->context);
         static ResolutionVariant resolutionVariants[9];
         static bool firstSetup = true;
-        static GLuint channel_manipulator = Shared::graphics->CompileComputeShader("preview_channel_manipulator.compute");
-
 
         static int internalFrameIndex = 0;
 
@@ -152,19 +150,20 @@ extern "C" {
                     imageOffset.y = 0;
                 }
 
-                /*
-                Shared::graphics->UseShader(channel_manipulator);
-                Shared::graphics->BindGPUTexture(previewTexture, 0, GL_READ_ONLY);
-                Shared::graphics->BindGPUTexture(previewTexture, 1, GL_WRITE_ONLY);
+                rbo->Bind();
+                Shared::graphics->UseShader(Shared::channel_manipulator_compute);
+                Shared::graphics->BindGPUTexture(rbo->rbo.colorBuffer, Shared::channel_manipulator_compute, 0, "uColor");
+                Shared::graphics->BindGPUTexture(rbo->rbo.uvBuffer, Shared::channel_manipulator_compute, 1, "uUV");
                 glm::vec4 factor{};
                 if (selectedChannel == 0) factor = {1, 0, 0, 1};
                 if (selectedChannel == 1) factor = {0, 1, 0, 1};
                 if (selectedChannel == 2) factor = {0, 0, 1, 1};
                 if (selectedChannel == 3) factor = {1, 1, 1, 1};
-                Shared::graphics->ShaderSetUniform(channel_manipulator, "factor", factor);
-                Shared::graphics->DispatchComputeShader(rbo->width, rbo->height, 1);
-                Shared::graphics->ComputeMemoryBarier(GL_ALL_BARRIER_BITS);
-                */
+                GraphicsCore::ShaderSetUniform(Shared::channel_manipulator_compute, "uFactor", factor);
+                glBindVertexArray(Shared::fsVAO);
+                glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
+                rbo->Unbind();
+                
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - previewTextureSize.x / 2.0f, windowSize.y / 2.0f - previewTextureSize.y / 2.0f} + imageOffset);
                 ImGui::Image((ImTextureID)(uint64_t) previewTexture, previewTextureSize);

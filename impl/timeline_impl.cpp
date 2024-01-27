@@ -484,11 +484,25 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
 
     ImGui::SameLine();
 
+    static bool showHorizontalScrollbar = false;
+    static bool showVerticalScrollbar = false;
+    ImGuiWindowFlags timelineFlags = 0;
+    if (showHorizontalScrollbar)
+        timelineFlags |= ImGuiWindowFlags_AlwaysHorizontalScrollbar;
+    if (showVerticalScrollbar)
+        timelineFlags |= ImGuiWindowFlags_AlwaysVerticalScrollbar;
     ImGui::BeginChild("projectTimeline",
                       ImVec2(canvasSize.x - legendSize.x, canvasSize.y), false,
-                      ImGuiWindowFlags_AlwaysHorizontalScrollbar |
-                          ImGuiWindowFlags_AlwaysVerticalScrollbar);
+                      timelineFlags);
     windowMouseCoords = ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
+    bool previousVerticalBar = showVerticalScrollbar;
+    bool previousHorizontalBar = showHorizontalScrollbar;
+    showVerticalScrollbar = (windowMouseCoords.x - ImGui::GetScrollX() >= (ImGui::GetWindowSize().x - 20)) && windowMouseCoords.x - ImGui::GetScrollY() < ImGui::GetWindowSize().x + 5;
+    showHorizontalScrollbar = (windowMouseCoords.y - ImGui::GetScrollY() >= (ImGui::GetWindowSize().y - 20)) && windowMouseCoords.y - ImGui::GetScrollY() < ImGui::GetWindowSize().y + 5;
+    if (previousVerticalBar && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
+        showVerticalScrollbar = true;
+    if (previousHorizontalBar && ImGui::GetIO().MouseDown[ImGuiMouseButton_Left])
+        showHorizontalScrollbar = true;
     legendScrollY = ImGui::GetScrollY();
     bool anyOtherButtonsDragged = false;
     bool anyKeyframesDragged = false;
@@ -583,6 +597,15 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         RectBounds(ImVec2(0 + ImGui::GetScrollX(),
                           ticksBackgroundHeight + ImGui::GetScrollY() + 2),
                    canvasSize);
+    ImGui::SetCursorPos({0, 0});
+    int dummyAccY = 0;
+    for (int i = 0; i < Shared::graphics->layers.size(); i++) {
+        RenderLayer& layer = Shared::graphics->layers[i];
+        ImGui::SetCursorPos({0, (float) dummyAccY});
+        ImGui::Dummy({ImGui::GetWindowSize().x, layerSizeY + layersPropertiesOffset[i]});
+        dummyAccY += layerSizeY + layersPropertiesOffset[i];
+    }
+    ImGui::SetCursorPos({0, 0});
     PushClipRect(innerTicksZone);
 
     bool anyLayerHovered = false;
@@ -677,7 +700,6 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                                               "GENERIC_DELETE"))
                                 .c_str())) {
                         keyframeDeletionTarget = j;
-                        DUMP_VAR(keyframeDeletionTarget);
                     }
                     if (ImGui::MenuItem(
                             string_format("%s %s", ICON_FA_PASTE,
@@ -846,10 +868,10 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         if (ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] && forwardDrag.isActive && 
             !timelineDrag.isActive && !ImGui::GetIO().KeyCtrl) {
             layer->endFrame += forwardDragDistance / pixelsPerFrame;
-            if (windowMouseCoords.x > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
+            if (windowMouseCoords.x - ImGui::GetScrollX() > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
                 ImGui::SetScrollX(ImGui::GetScrollX() + 1);
             }
-            if (windowMouseCoords.x < ImGui::GetWindowSize().x / 10) {
+            if (windowMouseCoords.x - ImGui::GetScrollX() < ImGui::GetWindowSize().x / 10) {
                 ImGui::SetScrollX(ImGui::GetScrollX() - 1);
             }
         } else
@@ -863,10 +885,10 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             if (JSON_AS_TYPE(layer->properties["InternalTimeShift"], float) != 0.0) {
                 layer->properties["InternalTimeShift"] = JSON_AS_TYPE(layer->properties["InternalTimeShift"], float) + backwardDragDistance / pixelsPerFrame;
             }
-            if (windowMouseCoords.x > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
+            if (windowMouseCoords.x - ImGui::GetScrollX() > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
                 ImGui::SetScrollX(ImGui::GetScrollX() + 1);
             }
-            if (windowMouseCoords.x < ImGui::GetWindowSize().x / 10) {
+            if (windowMouseCoords.x - ImGui::GetScrollX() < ImGui::GetWindowSize().x / 10) {
                 ImGui::SetScrollX(ImGui::GetScrollX() - 1);
             }
         } else
@@ -898,7 +920,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             if (i == Shared::graphics->layers.size() && Shared::graphics->layers.size() != 1) {
                 nextLayer = &Shared::graphics->layers[Shared::graphics->layers.size() - 2];
             } else {
-                nextLayer = &Shared::graphics->layers[i + 1];
+                nextLayer = &Shared::graphics->layers[i + 2];
             }
             if (nextLayer != nullptr) {
                 if ((int) layer->beginFrame - 1 == (int) nextLayer->beginFrame) {
@@ -925,10 +947,10 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             }
             timelineDrag.Deactivate();
             ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-            if (windowMouseCoords.x > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
+            if (windowMouseCoords.x - ImGui::GetScrollX() > ImGui::GetWindowSize().x - ImGui::GetWindowSize().x / 10) {
                 ImGui::SetScrollX(ImGui::GetScrollX() + 1);
             }
-            if (windowMouseCoords.x < ImGui::GetWindowSize().x / 10) {
+            if (windowMouseCoords.x - ImGui::GetScrollX() < ImGui::GetWindowSize().x / 10) {
                 ImGui::SetScrollX(ImGui::GetScrollX() - 1);
             }
         } else if (!selected)

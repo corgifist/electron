@@ -83,17 +83,9 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
-
         bool playing = std::any_cast<bool>(owner->anyData[1]);
         std::string audioID = JSON_AS_TYPE(owner->properties["AudioID"], std::string);
-        TextureUnion* asset = nullptr;
-        auto& assets = Shared::assets->assets;
-        for (int i = 0; i < assets.size(); i++) {
-            if (intToHex(assets.at(i).id) == audioID) {
-                if (assets.at(i).type == TextureUnionType::Audio)
-                    asset = &assets.at(i);
-            }
-        }
+        TextureUnion* asset = Shared::assets->GetAsset(audioID);
         if (asset != nullptr)
             owner->endFrame = std::clamp(owner->endFrame, owner->beginFrame, owner->beginFrame + std::get<AudioMetadata>(asset->as).audioLength * Shared::graphics->renderFramerate);
         if (std::any_cast<int>(owner->anyData[0]) != -1) {
@@ -111,58 +103,16 @@ extern "C" {
                 {"pan", pan}
             });
         }
-        int loadID = JSON_AS_TYPE(owner->internalData["LoadID"], int);
-        if (loadID != -1) {
-            bool loaded = JSON_AS_TYPE(
-                Servers::AudioServerRequest({
-                    {"action", "load_status"},
-                    {"id", loadID}
-                })["status"], bool
-            );
-            owner->properties["ShowLoadingSpinner"] = true;
-            if (loaded) {
-                std::string audioPath = asset->path;
-                RenderLayer* layer = owner;
-                if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
-                    audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
-                }
-                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / Shared::graphics->renderFramerate;
-                elapsedTime = std::min(elapsedTime, (double) std::get<AudioMetadata>(asset->as).audioLength);
-                layer->anyData[0] = JSON_AS_TYPE(
-                    Servers::AudioServerRequest({
-                        {"action", "play_sample"},
-                        {"path", audioPath}
-                    })["handle"], int
-                );
-                layer->internalData["AudioBufferPtr"] = JSON_AS_TYPE(
-                    Servers::AudioServerRequest({
-                        {"action", "audio_buffer_ptr"},
-                        {"path", audioPath}
-                    })["ptr"], unsigned long
-                );
-                Servers::AudioServerRequest({
-                    {"action", "seek_sample"},
-                    {"handle", std::any_cast<int>(layer->anyData[0])},
-                    {"seek", elapsedTime}
-                });
-                owner->internalData["LoadID"] = -1;
-            }
-        } else owner->properties["ShowLoadingSpinner"] = false;
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
         json_t previousAudioID = layer->properties["AudioID"];
         json_t& audioID = layer->properties["AudioID"];
         layer->RenderAssetProperty(audioID, "Audio", TextureUnionType::Audio);
-        TextureUnion* asset = nullptr;
         std::string audioSID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
-        auto& assets = Shared::assets->assets;
-        for (int i = 0; i < assets.size(); i++) {
-            if (intToHex(assets.at(i).id) == audioSID) {
-                if (assets.at(i).type == TextureUnionType::Audio)
-                    asset = &assets.at(i);
-            }
-        }if (audioSID != "" && asset == nullptr) {
+        TextureUnion* asset = Shared::assets->GetAsset(audioID);
+
+        if (audioSID != "" && asset == nullptr) {
             layer->properties["AudioID"] = "";
             layer->anyData[0] = -1;
         }
@@ -202,7 +152,7 @@ extern "C" {
                 float averageSample = 0;
                 for (uint64_t subSample = sample; subSample < sample + sampleStep; subSample++) {
                     averageSample = (averageSample + audioBuffer->samples[previewAudioChannel][glm::clamp(
-                        (int) subSample - (int) (metadata.sampleRate / 2), 0, 
+                        (int) subSample, 0, 
                         (int) metadata.audioLength * metadata.sampleRate)]) / 2.0f;
                 }
                 waveform[averageIndex] = averageSample;
@@ -241,6 +191,44 @@ extern "C" {
         }
 
         layer->internalData["PreviousInBounds"] = inBounds;
+
+        int loadID = JSON_AS_TYPE(layer->internalData["LoadID"], int);
+        if (loadID != -1) {
+            bool loaded = JSON_AS_TYPE(
+                Servers::AudioServerRequest({
+                    {"action", "load_status"},
+                    {"id", loadID}
+                })["status"], bool
+            );
+            layer->properties["ShowLoadingSpinner"] = true;
+            TextureUnion* asset = Shared::assets->GetAsset(JSON_AS_TYPE(layer->properties["AudioID"], std::string));
+            if (loaded) {
+                std::string audioPath = asset->path;
+                if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
+                    audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
+                }
+                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / Shared::graphics->renderFramerate;
+                elapsedTime = std::min(elapsedTime, (double) std::get<AudioMetadata>(asset->as).audioLength);
+                layer->anyData[0] = JSON_AS_TYPE(
+                    Servers::AudioServerRequest({
+                        {"action", "play_sample"},
+                        {"path", audioPath}
+                    })["handle"], int
+                );
+                layer->internalData["AudioBufferPtr"] = JSON_AS_TYPE(
+                    Servers::AudioServerRequest({
+                        {"action", "audio_buffer_ptr"},
+                        {"path", audioPath}
+                    })["ptr"], unsigned long
+                );
+                Servers::AudioServerRequest({
+                    {"action", "seek_sample"},
+                    {"handle", std::any_cast<int>(layer->anyData[0])},
+                    {"seek", elapsedTime}
+                });
+                layer->internalData["LoadID"] = -1;
+            }
+        } else layer->properties["ShowLoadingSpinner"] = false;
     }
 
     ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {

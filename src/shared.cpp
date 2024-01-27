@@ -27,6 +27,7 @@ namespace Electron {
 
     GLuint Shared::basic_compute = -1;
     GLuint Shared::compositor_compute = -1;
+    GLuint Shared::channel_manipulator_compute = -1;
 
     GLuint Shared::shadowTex = 0;
 
