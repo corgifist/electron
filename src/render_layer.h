@@ -11,6 +11,7 @@ namespace Electron {
     
     class RenderLayer;
     typedef void (*Electron_LayerImplF)(RenderLayer*);
+    typedef json_t (*Electron_PropertiesImplF)(RenderLayer*);
 
     enum class GeneralizedPropertyType {
         Vec3, Vec2, Float, Color3
@@ -24,7 +25,6 @@ namespace Electron {
         json_t previousProperties; // Storing previous properties for LayerOnPropertiesChange event
         json_t properties; // Properties of the layer (keyframes, values) that can be saved to JSON
         json_t internalData; // JSON data that cannot be saved to file
-        json_t previewProperties; // No usage data
         Electron_LayerImplF layerProcedure;
         Electron_LayerImplF destructionProcedure;
         Electron_LayerImplF onPlaybackChangeProcedure;
@@ -33,6 +33,7 @@ namespace Electron {
         Electron_LayerImplF initializationProcedure;
         Electron_LayerImplF propertiesProcedure;
         Electron_LayerImplF sortingProcedure;
+        Electron_PropertiesImplF previewPropertiesProcedure;
         bool initialized;
         std::string layerPublicName;
         float renderTime;
@@ -61,10 +62,14 @@ namespace Electron {
         json_t InterpolateProperty(json_t property, float time = -1.0f);
         json_t ExtractExactValue(json_t property);
 
+        json_t GetPreviewProperties();
+
         Electron_LayerImplF TryGetLayerImplF(std::string key);
+        Electron_PropertiesImplF TryGetPropertiesImplF(std::string key);
 
         void Destroy();
     };
 
     void LayerImplPlaceholder(Electron::RenderLayer* layer);
+    json_t LayerPropertiesImplPlaceholder(Electron::RenderLayer* layer);
 }

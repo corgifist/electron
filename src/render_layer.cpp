@@ -43,12 +43,11 @@ void RenderLayer::FetchImplementation() {
     this->initializationProcedure = TryGetLayerImplF("LayerInitialize");
     this->sortingProcedure = TryGetLayerImplF("LayerSortKeyframes");
     this->onPropertiesChange = TryGetLayerImplF("LayerOnPropertiesChange");
+    this->previewPropertiesProcedure = TryGetPropertiesImplF("LayerGetPreviewProperties");
     this->layerPublicName =
         Libraries::GetVariable<std::string>(layerLibrary, "LayerName");
     this->layerColor =
         Libraries::GetVariable<glm::vec4>(layerLibrary, "LayerTimelineColor");
-    this->previewProperties =
-        Libraries::GetVariable<json_t>(layerLibrary, "LayerPreviewProperties");
 
     if (!layerProcedure)
         throw std::runtime_error("bad layer procedure!");
@@ -447,6 +446,10 @@ json_t RenderLayer::ExtractExactValue(json_t property) {
     return acc;
 }
 
+json_t RenderLayer::GetPreviewProperties() {
+    return previewPropertiesProcedure(this);
+}
+
 Electron_LayerImplF RenderLayer::TryGetLayerImplF(std::string key) {
     try {
         return Libraries::GetFunction<void(RenderLayer*)>(layerLibrary, key);
@@ -455,5 +458,14 @@ Electron_LayerImplF RenderLayer::TryGetLayerImplF(std::string key) {
     }
 }
 
+Electron_PropertiesImplF RenderLayer::TryGetPropertiesImplF(std::string key) {
+    try {
+        return Libraries::GetFunction<json_t(RenderLayer*)>(layerLibrary, key);
+    } catch (internalDylib::symbol_error err) {
+        return LayerPropertiesImplPlaceholder;
+    }
+}
+
 void LayerImplPlaceholder(RenderLayer* layer) {}
+json_t LayerPropertiesImplPlaceholder(RenderLayer* layer) {return {};}
 }

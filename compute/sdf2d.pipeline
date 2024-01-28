@@ -27,10 +27,41 @@ uniform vec3 uColor;
 uniform int uCanTexture;
 uniform sampler2D uTexture;
 
+#define SDF_SHAPE_NONE 0
+#define SDF_SHAPE_CIRCLE 1
+#define SDF_SHAPE_ROUNDED_RECT 2
+
+uniform int uSdfShape;
+
+uniform float uSdfCircleRadius;
+uniform vec2 uSize;
+
+float sdfCircle(vec2 uv, float r) {
+    return length(uv) - r;
+}
+
+float sdfRoundedBox(vec2 position, vec2 halfSize, float cornerRadius) {
+   position = abs(position) - halfSize + cornerRadius;
+   return length(max(position, 0.0)) + min(max(position.x, position.y), 0.0) - cornerRadius;
+}
+
+
 void main() {
     gColor = vec4(uColor, 1.0);
     if (uCanTexture == 1) {
         gColor *= texture(uTexture, vUV);
+    }
+    if (uSdfShape != SDF_SHAPE_NONE) {
+        float d = 0.0;
+        if (uSdfShape == SDF_SHAPE_CIRCLE) {
+            d = sdfCircle(vUV - 0.5, uSdfCircleRadius);
+        }
+        if (uSdfShape == SDF_SHAPE_ROUNDED_RECT) {
+            d = sdfRoundedBox(vUV - 0.5, uSize, uSdfCircleRadius);
+        }
+        if (d > 0.0) {
+            gColor *= 0.0;
+        }
     }
     gUV = vec4(vUV, 0.0, 1.0);
     gDepth = vec4(0.0, 0.0, 0.0, 0.0);

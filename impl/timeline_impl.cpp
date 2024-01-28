@@ -253,7 +253,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
         RenderLayer *layer = &Shared::graphics->layers[i];
         if (keyframeInfos.find(layer->id) == keyframeInfos.end()) {
             keyframeInfos[layer->id] = std::vector<KeyframeHolderInfo>(
-                layer->previewProperties.size());
+                layer->GetPreviewProperties().size());
         }
         std::vector<KeyframeHolderInfo> &info = keyframeInfos[layer->id];
         ImGui::SetCursorPosY(ticksBackgroundHeight + 2 + propertiesCoordAcc);
@@ -291,7 +291,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
             ImGui::PopStyleVar(2);
             float firstCursorY = ImGui::GetCursorPosY();
 
-            json_t previewTargets = layer->previewProperties;
+            json_t previewTargets = layer->GetPreviewProperties();
             float layerViewTime =
                 Shared::graphics->renderFrame - layer->beginFrame + JSON_AS_TYPE(layer->properties["InternalTimeShift"], float);
             for (int i = 0; i < previewTargets.size(); i++) {
@@ -632,12 +632,15 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                        pixelsPerFrame,
                    ImGui::GetWindowSize().y));
         PushClipRect(keyframesBoundsClip);
-        std::vector<KeyframeHolderInfo> info = layerPair.second;
-        for (int i = 0; i < keyframesOwner->previewProperties.size(); i++) {
+        std::vector<KeyframeHolderInfo>& info = layerPair.second;
+        if (keyframesOwner->GetPreviewProperties().size() != info.size()) {
+            info = std::vector<KeyframeHolderInfo>(keyframesOwner->GetPreviewProperties().size());
+        }
+        for (int i = 0; i < keyframesOwner->GetPreviewProperties().size(); i++) {
             KeyframeHolderInfo keyInfo = info.at(i);
             json_t propertyMap =
                 keyframesOwner
-                    ->properties[keyframesOwner->previewProperties.at(i)];
+                    ->properties[keyframesOwner->GetPreviewProperties().at(i)];
             int keyframeDeletionTarget = -1;
             int keyframeDuplicationTarget = -1;
             for (int j = 1; j < propertyMap.size(); j++) {
@@ -689,7 +692,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                         string_format(
                             "%s %i",
                             JSON_AS_TYPE(
-                                keyframesOwner->previewProperties.at(i),
+                                keyframesOwner->GetPreviewProperties().at(i),
                                 std::string)
                                 .c_str(),
                             j)
@@ -750,7 +753,7 @@ ELECTRON_EXPORT void UIRender(AppInstance *instance) {
                                    keyframeInstance);
             }
             keyframesOwner
-                ->properties[keyframesOwner->previewProperties.at(i)] =
+                ->properties[keyframesOwner->GetPreviewProperties().at(i)] =
                 propertyMap;
             info.at(i) = keyInfo;
         }

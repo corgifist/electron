@@ -14,9 +14,6 @@ extern "C" {
     ELECTRON_EXPORT glm::vec4 LayerTimelineColor = {
         0.831, 0.569, 0.286, 1
     };
-    ELECTRON_EXPORT json_t LayerPreviewProperties = {
-        "Volume", "Panning"
-    };
 
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
         owner->properties["Volume"] = {
@@ -248,5 +245,11 @@ extern "C" {
                 {"seek", std::max(0.0, ((double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer))) / Shared::maxFramerate)}
             });
         }
+    }
+
+    ELECTRON_EXPORT json_t LayerGetPreviewProperties(RenderLayer* layer) {
+        return {
+            "Volume", "Panning"
+        };
     }
 }

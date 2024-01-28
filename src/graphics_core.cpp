@@ -359,23 +359,12 @@ void GraphicsCore::ComputeMemoryBarier(GLbitfield barrier) {
 
 GLuint GraphicsCore::GenerateGPUTexture(int width, int height,
                                                   int unit) {
- /*   
-
-    glGenTextures(1, &texture);
-    glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, PixelBuffer::filtering);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, PixelBuffer::filtering);
-    glTexStorage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height);
-    */
    unsigned int texture;
    glGenTextures(1, &texture);
    glBindTexture(GL_TEXTURE_2D, texture);
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, PixelBuffer::filtering);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, PixelBuffer::filtering);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	// set texture wrapping to GL_REPEAT (default wrapping method)
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 

@@ -11,52 +11,14 @@ extern "C" {
 
     ELECTRON_EXPORT std::string LayerName = "SDF2D";
     ELECTRON_EXPORT glm::vec4 LayerTimelineColor = {0.58, 0.576, 1, 1};
-    ELECTRON_EXPORT json_t LayerPreviewProperties = {
-        "Position", "Size", "Color", "Angle"
-    };
     GLuint sdf2d_compute = UNDEFINED;
     GLuint sdf2d_vao = UNDEFINED;
 
-    mat2 rotationMatrix(float angle) {
-	    angle *= 3.1415f / 180.0f;
-        float s=glm::sin(angle), c=glm::cos(angle);
-        return mat2( c, -s, s, c );
-    }
-
-    vec2 rotate(vec2 uv, float th) {
-        return mat2(cos(th), sin(th), -sin(th), cos(th)) * uv;
-    }
-
-    char const* gl_error_string(GLenum const err) noexcept
-{
-  switch (err)
-  {
-    // opengl 2 errors (8)
-    case GL_NO_ERROR:
-      return "GL_NO_ERROR";
-
-    case GL_INVALID_ENUM:
-      return "GL_INVALID_ENUM";
-
-    case GL_INVALID_VALUE:
-      return "GL_INVALID_VALUE";
-
-    case GL_INVALID_OPERATION:
-      return "GL_INVALID_OPERATION";
-
-    case GL_OUT_OF_MEMORY:
-      return "GL_OUT_OF_MEMORY";
-
-    // opengl 3 errors (1)
-    case GL_INVALID_FRAMEBUFFER_OPERATION:
-      return "GL_INVALID_FRAMEBUFFER_OPERATION";
-
-    // gles 2, 3 and gl 4 error are handled by the switch above
-    default:
-      assert(!"unknown error");
-      return nullptr;
-  }
-}
+    enum class SDFShape {
+        None = 0,
+        Circle = 1,
+        RoundedRect = 2
+    };
 
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
         owner->properties["Position"] = {
@@ -84,8 +46,13 @@ extern "C" {
             {"Size", ICON_FA_SCALE_BALANCED " Size"},
             {"Color", ICON_FA_DROPLET " Color"},
             {"Angle", ICON_FA_ROTATE " Angle"},
-            {"Texturing", ICON_FA_IMAGE " Texturing"}
+            {"Texturing", ICON_FA_IMAGE " Texturing"},
+            {"Radius", ICON_FA_CIRCLE " Radius"},
+            {"CircleRadius", ICON_FA_CIRCLE " Radius"},
+            {"BoxRadius", ICON_FA_SQUARE " Radius"}
         };
+
+        owner->properties["SelectedSDFShape"] = 0;
 
         owner->anyData.resize(1);
         owner->anyData[0] = PipelineFrameBuffer(Shared::graphics->renderBuffer.width, Shared::graphics->renderBuffer.height);
@@ -143,7 +110,7 @@ extern "C" {
 
         frb.Bind();
         GraphicsCore::UseShader(sdf2d_compute);
-        mat4 transform = glm::identity<mat3>();
+        mat4 transform = glm::identity<mat4>();
         transform = glm::scale(transform, vec3(size, 1.0f));
         transform = glm::rotate(transform, glm::radians(angle), vec3(0, 0, 1));
         transform = glm::translate(transform, vec3(position, 0.0f));
@@ -152,6 +119,21 @@ extern "C" {
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uColor", color);
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uTransform", transform);
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uProjection", projection);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfShape", JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int));
+        switch ((SDFShape) JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int)) {
+            case SDFShape::None: break;
+            case SDFShape::Circle: {
+                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["CircleRadius"]), std::vector<float>)[0];
+                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
+                break;
+            }
+            case SDFShape::RoundedRect: {
+                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["BoxRadius"]), std::vector<float>)[0];
+                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
+                break;
+            }
+        }
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSize", size);
         if (canTexture) {
             GraphicsCore::BindGPUTexture(asset->pboGpuTexture, sdf2d_compute, 0, "uTexture");
         }
@@ -183,6 +165,68 @@ extern "C" {
         json_t& angle = layer->properties["Angle"];
         layer->RenderProperty(GeneralizedPropertyType::Float, angle, "Angle");
 
+        static std::vector<std::string> shapesCollection = {
+            ICON_FA_XMARK " None",
+            ICON_FA_CIRCLE " Circle",
+            ICON_FA_SQUARE " Rounded Rectangle"
+        };
+
+        if (ImGui::CollapsingHeader(ICON_FA_SHAPES " Shape")) {
+            ImGui::Text("SDF Shape: ");
+            ImGui::SameLine();
+            if (ImGui::Selectable(shapesCollection[JSON_AS_TYPE(layer->properties["SelectedSDFShape"], int)].c_str())) {
+                ImGui::OpenPopup("sdf2d_shape_selector");
+            }
+            switch ((SDFShape) JSON_AS_TYPE(layer->properties["SelectedSDFShape"], int)) {
+                case SDFShape::None: {
+                    break;
+                }
+                case SDFShape::Circle: {
+                    json_t& circleRadius = layer->properties["CircleRadius"];
+                    layer->RenderProperty(GeneralizedPropertyType::Float, circleRadius, "CircleRadius");
+                    break;
+                }
+                case SDFShape::RoundedRect: {
+                    json_t& boxRadius = layer->properties["BoxRadius"];
+                    layer->RenderProperty(GeneralizedPropertyType::Float, boxRadius, "BoxRadius");
+                    break;
+                }
+            }
+            ImGui::Separator();
+        }
+
+        if (ImGui::BeginPopup("sdf2d_shape_selector")) {
+            ImGui::SeparatorText(ICON_FA_SHAPES " Shapes");
+            for (int i = 0; i < shapesCollection.size(); i++) {
+                if (ImGui::Selectable(shapesCollection[i].c_str())) {
+                    layer->properties["SelectedSDFShape"] = i;
+
+                    // populate sdf properties
+                    switch ((SDFShape) i) {
+                        case SDFShape::None: {
+                            break;
+                        }
+                        case SDFShape::Circle: {
+                            layer->properties["CircleRadius"] = {
+                                GeneralizedPropertyType::Float,
+                                {0, 0.5f}
+                            };
+                            break;
+                        }
+
+                        case SDFShape::RoundedRect: {
+                            layer->properties["BoxRadius"] = {
+                                GeneralizedPropertyType::Float,
+                                {0, 0.2f}
+                            };
+                            break;
+                        }
+                    }
+                }
+            }
+            ImGui::EndPopup();
+        }
+
         json_t& textureID = layer->properties["TextureID"];
         layer->RenderAssetProperty(textureID, "Texturing", TextureUnionType::Texture);
     }
@@ -204,5 +248,22 @@ extern "C" {
     ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {
         PipelineFrameBuffer rbo = std::any_cast<PipelineFrameBuffer>(layer->anyData[0]);
         rbo.Destroy();
+    }
+
+    ELECTRON_EXPORT json_t LayerGetPreviewProperties(RenderLayer* layer) {
+        json_t base = {
+            "Position", "Size", "Color", "Angle"
+        };
+        switch ((SDFShape) JSON_AS_TYPE(layer->properties["SelectedSDFShape"], int)) {
+            case SDFShape::Circle: {
+                base.push_back("CircleRadius");
+                break;
+            }
+            case SDFShape::RoundedRect: {
+                base.push_back("BoxRadius");
+                break;
+            }
+        }
+        return base;
     }
 }
