@@ -152,7 +152,7 @@ extern "C" {
                             }
 
                             if (audioLoaded) ImGui::SameLine();
-                            if (audioLoaded) ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, "%0.1f", 0);
+                            if (audioLoaded) ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, formatToTimestamp(audioPlaybackProgress * 60, 60).c_str(), 0);
                             if (audioLoaded && ImGui::IsItemEdited()) {
                                 Servers::AudioServerRequest({
                                     {"action", "seek_sample"},

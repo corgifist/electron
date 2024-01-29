@@ -17,7 +17,8 @@ extern "C" {
     enum class SDFShape {
         None = 0,
         Circle = 1,
-        RoundedRect = 2
+        RoundedRect = 2,
+        Triangle = 3
     };
 
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
@@ -49,7 +50,13 @@ extern "C" {
             {"Texturing", ICON_FA_IMAGE " Texturing"},
             {"Radius", ICON_FA_CIRCLE " Radius"},
             {"CircleRadius", ICON_FA_CIRCLE " Radius"},
-            {"BoxRadius", ICON_FA_SQUARE " Radius"}
+            {"BoxRadius", ICON_FA_SQUARE " Radius"},
+            {"TriangleRadius", ICON_FA_SHAPES " Radius"}
+        };
+        owner->internalData["TimelineSliders"] = {
+            {"CircleRadius", 0, 2},
+            {"BoxRadius", 0, 2},
+            {"TriangleRadius", 0, 2}
         };
 
         owner->properties["SelectedSDFShape"] = 0;
@@ -120,6 +127,7 @@ extern "C" {
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uTransform", transform);
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uProjection", projection);
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfShape", JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int));
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSize", size);
         switch ((SDFShape) JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int)) {
             case SDFShape::None: break;
             case SDFShape::Circle: {
@@ -132,8 +140,12 @@ extern "C" {
                 GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
                 break;
             }
+            case SDFShape::Triangle: {
+                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["TriangleRadius"]), std::vector<float>)[0];
+                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
+                break;
+            }
         }
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSize", size);
         if (canTexture) {
             GraphicsCore::BindGPUTexture(asset->pboGpuTexture, sdf2d_compute, 0, "uTexture");
         }
@@ -168,7 +180,8 @@ extern "C" {
         static std::vector<std::string> shapesCollection = {
             ICON_FA_XMARK " None",
             ICON_FA_CIRCLE " Circle",
-            ICON_FA_SQUARE " Rounded Rectangle"
+            ICON_FA_SQUARE " Rounded Rectangle",
+            ICON_FA_SHAPES " Triangle"
         };
 
         if (ImGui::CollapsingHeader(ICON_FA_SHAPES " Shape")) {
@@ -189,6 +202,11 @@ extern "C" {
                 case SDFShape::RoundedRect: {
                     json_t& boxRadius = layer->properties["BoxRadius"];
                     layer->RenderProperty(GeneralizedPropertyType::Float, boxRadius, "BoxRadius");
+                    break;
+                }
+                case SDFShape::Triangle: {
+                    json_t& triangleRadius = layer->properties["TriangleRadius"];
+                    layer->RenderProperty(GeneralizedPropertyType::Float, triangleRadius, "TriangleRadius");
                     break;
                 }
             }
@@ -213,11 +231,17 @@ extern "C" {
                             };
                             break;
                         }
-
                         case SDFShape::RoundedRect: {
                             layer->properties["BoxRadius"] = {
                                 GeneralizedPropertyType::Float,
                                 {0, 0.2f}
+                            };
+                            break;
+                        }
+                        case SDFShape::Triangle: {
+                            layer->properties["TriangleRadius"] = {
+                                GeneralizedPropertyType::Float,
+                                {0, 0.4f}
                             };
                             break;
                         }
@@ -261,6 +285,10 @@ extern "C" {
             }
             case SDFShape::RoundedRect: {
                 base.push_back("BoxRadius");
+                break;
+            }
+            case SDFShape::Triangle: {
+                base.push_back("TriangleRadius");
                 break;
             }
         }

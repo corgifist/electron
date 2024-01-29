@@ -96,9 +96,23 @@ void RenderLayer::RenderProperties() {
 
 void RenderLayer::RenderProperty(GeneralizedPropertyType type,
                                            json_t &property,
-                                           std::string propertyName, ImVec2 floatBoundaries) {
+                                           std::string propertyName) {
     ImVec2 windowSize = ImGui::GetWindowSize();
     float inputFieldDivider = 11;
+    json_t sliders = internalData["TimelineSliders"];
+    bool isSlider = false;
+    glm::vec2 sliderBounds = glm::vec2(0, 0);
+    for (int i = 0; i < sliders.size(); i++) {
+        json_t sliderRecord = sliders.at(i);
+        if (JSON_AS_TYPE(sliderRecord.at(0), std::string) == propertyName) {
+            isSlider = true;
+            sliderBounds = {
+                JSON_AS_TYPE(sliderRecord.at(1), float),
+                JSON_AS_TYPE(sliderRecord.at(2), float)
+            };
+            break;
+        }
+    }
     json_t aliases = properties["PropertyAlias"];
     if (aliases.find(propertyName) != aliases.end()) {
         propertyName = JSON_AS_TYPE(aliases[propertyName], std::string);
@@ -232,7 +246,7 @@ void RenderLayer::RenderProperty(GeneralizedPropertyType type,
                     ImGuiInputTextFlags_EnterReturnsTrue);
                 ImGui::PopItemWidth();
                 ImGui::SameLine();
-                if (floatBoundaries.x + floatBoundaries.y == 0.0f) {
+                if (!isSlider) {
                     ImGui::InputFloat((std::string(ICON_FA_STOPWATCH) +
                                        std::to_string(i - 1) + "##" + propertyName +
                                        std::to_string(i))
@@ -244,7 +258,7 @@ void RenderLayer::RenderProperty(GeneralizedPropertyType type,
                                        std::to_string(i - 1) + "##" + propertyName +
                                        std::to_string(i))
                                           .c_str(),
-                        &fValue, floatBoundaries.x, floatBoundaries.y, "%.2f"
+                        &fValue, sliderBounds.x, sliderBounds.y, "%.2f"
                     );
                 }
 

@@ -122,10 +122,10 @@ extern "C" {
         }
 
         json_t& volume = layer->properties["Volume"];
-        layer->RenderProperty(GeneralizedPropertyType::Float, volume, "Volume", {0, 100});
+        layer->RenderProperty(GeneralizedPropertyType::Float, volume, "Volume");
 
         json_t& panning = layer->properties["Panning"];
-        layer->RenderProperty(GeneralizedPropertyType::Float, panning, "Panning", {-0.5f, 0.5f});
+        layer->RenderProperty(GeneralizedPropertyType::Float, panning, "Panning");
 
         AudioFile<float>* audioBuffer = (AudioFile<float>*) JSON_AS_TYPE(layer->internalData["AudioBufferPtr"], unsigned long);
         int previewAudioChannel = JSON_AS_TYPE(layer->properties["PreviewAudioChannel"], int);
