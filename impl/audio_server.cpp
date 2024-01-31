@@ -1,8 +1,9 @@
-#include "editor_core.h"
 #include <AL/al.h>
 #include <AL/alc.h>
-#include "AudioFile.h"
 #include <set>
+
+#include "editor_core.h"
+#include "utils/AudioFile.h"
 
 using namespace Electron;
 

@@ -1,6 +1,6 @@
 #include "editor_core.h"
 #include "app.h"
-#include "AudioFile.h"
+#include "utils/AudioFile.h"
 #define CSTR(x) ((x).c_str())
 
 using namespace Electron;
@@ -82,9 +82,9 @@ extern "C" {
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
         bool playing = std::any_cast<bool>(owner->anyData[1]);
         std::string audioID = JSON_AS_TYPE(owner->properties["AudioID"], std::string);
-        TextureUnion* asset = Shared::assets->GetAsset(audioID);
+        TextureUnion* asset = AssetCore::GetAsset(audioID);
         if (asset != nullptr)
-            owner->endFrame = std::clamp(owner->endFrame, owner->beginFrame, owner->beginFrame + std::get<AudioMetadata>(asset->as).audioLength * Shared::graphics->renderFramerate);
+            owner->endFrame = std::clamp(owner->endFrame, owner->beginFrame, owner->beginFrame + std::get<AudioMetadata>(asset->as).audioLength * GraphicsCore::renderFramerate);
         if (std::any_cast<int>(owner->anyData[0]) != -1) {
             int handle = std::any_cast<int>(owner->anyData[0]);
             float gain = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Volume"]).at(0), float);
@@ -107,7 +107,7 @@ extern "C" {
         json_t& audioID = layer->properties["AudioID"];
         layer->RenderAssetProperty(audioID, "Audio", TextureUnionType::Audio);
         std::string audioSID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
-        TextureUnion* asset = Shared::assets->GetAsset(audioID);
+        TextureUnion* asset = AssetCore::GetAsset(audioID);
 
         if (audioSID != "" && asset == nullptr) {
             layer->properties["AudioID"] = "";
@@ -117,7 +117,7 @@ extern "C" {
             if (asset != nullptr) {
                 ReloadAudioHandle(layer, asset, nullptr);
                 AudioMetadata metadata = std::get<AudioMetadata>(asset->as);
-                layer->endFrame = layer->beginFrame + (metadata.audioLength * Shared::graphics->renderFramerate);
+                layer->endFrame = layer->beginFrame + (metadata.audioLength * GraphicsCore::renderFramerate);
             }
         }
 
@@ -139,7 +139,7 @@ extern "C" {
             ImGui::Separator();
             int precision = 100;
             std::vector<float> waveform(precision);
-            double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / Shared::graphics->renderFramerate;
+            double elapsedTime = (double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer)) / GraphicsCore::renderFramerate;
             uint64_t beginSample = metadata.sampleRate * elapsedTime;
             uint64_t endSample = beginSample + metadata.sampleRate;
             uint64_t sampleStep = metadata.sampleRate / precision;
@@ -157,7 +157,7 @@ extern "C" {
             }
             ImGui::Spacing();
             ImGui::PlotLines("##audioWaveform", waveform.data(), precision, 0, string_format("%s %s", ICON_FA_AUDIO_DESCRIPTION, metadata.codecName.c_str()).c_str(), -0.5f, 0.5f, ImVec2(ImGui::GetContentRegionAvail().x, 80));
-            if (Shared::app->ButtonCenteredOnLine(string_format("%s %s > %i", ICON_FA_FILE_WAVEFORM, ELECTRON_GET_LOCALIZATION("NEXT_AUDIO_CHANNEL"), nextAudioChannel).c_str())) {
+            if (AppCore::ButtonCenteredOnLine(string_format("%s %s > %i", ICON_FA_FILE_WAVEFORM, ELECTRON_GET_LOCALIZATION("NEXT_AUDIO_CHANNEL"), nextAudioChannel).c_str())) {
                 previewAudioChannel = nextAudioChannel;
             }
             layer->properties["PreviewAudioChannel"] = previewAudioChannel;
@@ -172,13 +172,13 @@ extern "C" {
             Servers::AudioServerRequest({
                 {"action", "pause_sample"},
                 {"handle", std::any_cast<int>(layer->anyData[0])},
-                {"pause", !(Shared::graphics->isPlaying && IsInBounds(Shared::graphics->renderFrame, layer->beginFrame, layer->endFrame) && layer->visible)}
+                {"pause", !(GraphicsCore::isPlaying && IsInBounds(GraphicsCore::renderFrame, layer->beginFrame, layer->endFrame) && layer->visible)}
             });
         }        
-        bool inBounds = IsInBounds(Shared::graphics->renderFrame, layer->beginFrame, layer->endFrame);
+        bool inBounds = IsInBounds(GraphicsCore::renderFrame, layer->beginFrame, layer->endFrame);
         if (JSON_AS_TYPE(layer->internalData["PreviousInBounds"], bool) != inBounds) {
             if (std::any_cast<int>(layer->anyData[0]) != -1) {
-                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / Shared::graphics->renderFramerate;
+                double elapsedTime = (double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer)) / GraphicsCore::renderFramerate;
                 Servers::AudioServerRequest({
                     {"action", "seek_sample"},
                     {"handle", std::any_cast<int>(layer->anyData[0])},
@@ -198,13 +198,13 @@ extern "C" {
                 })["status"], bool
             );
             layer->properties["ShowLoadingSpinner"] = true;
-            TextureUnion* asset = Shared::assets->GetAsset(JSON_AS_TYPE(layer->properties["AudioID"], std::string));
+            TextureUnion* asset = AssetCore::GetAsset(JSON_AS_TYPE(layer->properties["AudioID"], std::string));
             if (loaded) {
                 std::string audioPath = asset->path;
                 if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
                     audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
                 }
-                double elapsedTime = (double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer)) / Shared::graphics->renderFramerate;
+                double elapsedTime = (double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer)) / GraphicsCore::renderFramerate;
                 elapsedTime = std::min(elapsedTime, (double) std::get<AudioMetadata>(asset->as).audioLength);
                 layer->anyData[0] = JSON_AS_TYPE(
                     Servers::AudioServerRequest({
@@ -242,7 +242,7 @@ extern "C" {
             Servers::AudioServerRequest({
                 {"action", "seek_sample"},
                 {"handle", std::any_cast<int>(layer->anyData[0])},
-                {"seek", std::max(0.0, ((double) (Shared::graphics->renderFrame - layer->beginFrame + TIMESHIFT(layer))) / Shared::maxFramerate)}
+                {"seek", std::max(0.0, ((double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer))) / Shared::maxFramerate)}
             });
         }
     }

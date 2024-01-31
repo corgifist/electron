@@ -1,7 +1,7 @@
 #include "editor_core.h"
 #include "app.h"
-#include "ImGuiFileDialog.h"
-#include "drag_utils.h"
+#include "ImGui/ImGuiFileDialog.h"
+#include "utils/drag_utils.h"
 #define CSTR(x) ((x).c_str())
 
 using namespace Electron;
@@ -12,11 +12,11 @@ extern "C" {
         ImGui::GetWindowDrawList()->AddRectFilled(bounds.UL, bounds.BR, ImGui::ColorConvertFloat4ToU32(color));
     }
 
-    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
-        ImGui::SetCurrentContext(instance->context);
+    ELECTRON_EXPORT void UIRender() {
+        ImGui::SetCurrentContext(AppCore::context);
 
 
-        if (Shared::assetSelected != -1 && Shared::assetSelected != -128 && instance->projectOpened && Shared::assetSelected < Shared::assets->assets.size()) {
+        if (Shared::assetSelected != -1 && Shared::assetSelected != -128 && AppCore::projectOpened && Shared::assetSelected < AssetCore::assets.size()) {
             UI::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_ASSET_EXAMINER"))), Signal::_CloseWindow, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
                 ImVec2 windowSize = ImGui::GetContentRegionAvail();
                 static float assetPreviewScale = JSON_AS_TYPE(Shared::project.propertiesMap["LastAssetPreviewScale"], float);
@@ -34,7 +34,7 @@ extern "C" {
                 ImVec2 wp = ImGui::GetWindowPos();
                 ImGui::BeginChild("previewExamineChild", ImVec2(ws.x, ws.y - 60), false);
                 windowSize = ImGui::GetWindowSize();
-                TextureUnion& asset = Shared::assets->assets.at(Shared::assetSelected);
+                TextureUnion& asset = AssetCore::assets.at(Shared::assetSelected);
                 switch (asset.type) {
                     case TextureUnionType::Audio:
                     case TextureUnionType::Texture: {
@@ -72,7 +72,7 @@ extern "C" {
                     }
                     if (asset.type == TextureUnionType::Audio && asset.audioCacheCover != "") {
                         if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_FLOPPY_DISK, ELECTRON_GET_LOCALIZATION("IMPORT_COVER_AS_IMAGE"))))) {
-                            Shared::importErrorMessage = Shared::assets->ImportAsset(asset.audioCacheCover);
+                            Shared::importErrorMessage = AssetCore::ImportAsset(asset.audioCacheCover);
                         }
                     }
                     ImGui::EndPopup();

@@ -3,7 +3,7 @@
 #include "shared.h"
 #include "build_number.h"
 
-#include "ImGuiFileDialog.h"
+#include "ImGui/ImGuiFileDialog.h"
 
 #define CSTR(x) ((x).c_str())
 
@@ -12,38 +12,27 @@ using namespace Electron;
 extern "C" {
 
 
-    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
-        ImGui::SetCurrentContext(instance->context);
+    ELECTRON_EXPORT void UIRender() {
+        ImGui::SetCurrentContext(AppCore::context);
         static bool dockInitialized = false;
 
-        // UIDockSpaceOverViewport(UIGetViewport(), ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
-
-
         ImGuiWindowFlags dockFlags = ImGuiWindowFlags_NoCollapse;
-        if (instance->isNativeWindow) {
 
-            ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-            ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
-        } else {
-            dockFlags |= ImGuiWindowFlags_MenuBar;
-            ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
-        }
+        ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
  
-        UI::Begin(CSTR(std::string(ICON_FA_SCREWDRIVER " ") + ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::ProjectConfigurationCounter)), instance->isNativeWindow ? Signal::_CloseWindow : Signal::_CloseEditor, dockFlags);
+        UI::Begin(CSTR(std::string(ICON_FA_SCREWDRIVER " ") + ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::ProjectConfigurationCounter)), Signal::_CloseWindow, dockFlags);
             std::string projectTip = ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_CREATE_PROJECT_TIP");
             ImVec2 windowSize = ImGui::GetWindowSize();
-            ImVec2 tipSize = ImGui::CalcTextSize(projectTip.c_str());
-    
-
-        if (!instance->isNativeWindow) (instance);        
+            ImVec2 tipSize = ImGui::CalcTextSize(projectTip.c_str());    
 
         if (ImGui::BeginTabBar(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_CONFIGURATIONS"), 0)) {
             if (ImGui::BeginTabItem(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_PROJECT_CONFIGURATION"), nullptr, 0)) {
-            if (instance->projectOpened) {
+            if (AppCore::projectOpened) {
                 ProjectMap& project = Shared::project;
                 std::string projectConfigurationTitle = string_format("%s %s", ICON_FA_GEAR, ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_PROJECT_CONFIGURATION"));
 
-                ImGui::PushFont(instance->largeFont);
+                ImGui::PushFont(AppCore::largeFont);
                     ImVec2 titleSize = ImGui::CalcTextSize(CSTR(projectConfigurationTitle));
                     ImGui::SetCursorPosX(windowSize.x / 2.0f - titleSize.x / 2.0f);
                     ImGui::Text("%s", CSTR(projectConfigurationTitle));
@@ -76,7 +65,7 @@ extern "C" {
                 project.propertiesMap["Framerate"] = projectFramerate;
             }
 
-            if (!instance->projectOpened) {
+            if (!AppCore::projectOpened) {
                 ImGui::SetCursorPos(ImVec2{
                     windowSize.x / 2.0f - tipSize.x / 2.0f,
                     windowSize.y / 2.0f - tipSize.y / 2.0f
@@ -86,7 +75,7 @@ extern "C" {
             ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_EDITOR_CONFIGURATION"), nullptr, 0)) {
-                ImGui::PushFont(instance->largeFont);
+                ImGui::PushFont(AppCore::largeFont);
                     std::string editorConfigurationString = string_format("%s %s", ICON_FA_GEAR, ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_EDITOR_CONFIGURATION"));
                     ImVec2 editorConfigurationTextSize = ImGui::CalcTextSize(CSTR(editorConfigurationString));
                     ImGui::SetCursorPosX(windowSize.x / 2.0f - editorConfigurationTextSize.x / 2.0f);
@@ -139,9 +128,9 @@ extern "C" {
 
                 ImGui::Separator();
                 ImGui::Spacing();
-                ImGui::Text("GL_RENDERER: %s", instance->renderer.c_str());
-                ImGui::Text("GL_VENDOR: %s", instance->vendor.c_str());
-                ImGui::Text("GL_VERSION: %s", instance->version.c_str());
+                ImGui::Text("GL_RENDERER: %s", AppCore::renderer.c_str());
+                ImGui::Text("GL_VENDOR: %s", AppCore::vendor.c_str());
+                ImGui::Text("GL_VERSION: %s", AppCore::version.c_str());
                 
             ImGui::EndTabItem();
             }

@@ -48,7 +48,6 @@ scenario build_imgui {
     info("Building ImGui shared library")
 
     imgui_targets = glob_files("src/ImGui/", "cpp")
-    imgui_targets = cat($imgui_targets, ["src/ImGuiFileDialog.cpp"])
     imgui_objects = object_compile(
         $imgui_targets,
         $build_arch

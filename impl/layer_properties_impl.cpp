@@ -5,12 +5,12 @@
 using namespace Electron;
 
 extern "C" {
-    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
-        ImGui::SetCurrentContext(instance->context);
+    ELECTRON_EXPORT void UIRender() {
+        ImGui::SetCurrentContext(AppCore::context);
         ImGui::SetNextWindowSize({512, 512}, ImGuiCond_Once);
         UI::Begin(CSTR(std::string(ICON_FA_LIST " ") + ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_TITLE") + std::string("##") + std::to_string(UICounters::LayerPropertiesCounter)), Signal::_CloseWindow, ImGuiWindowFlags_NoScrollWithMouse);
             ImVec2 windowSize = ImGui::GetContentRegionAvail();
-            if (!instance->projectOpened) {
+            if (!AppCore::projectOpened) {
                 std::string projectWarningString = ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_NO_PROJECT");
                 ImVec2 warningSize = ImGui::CalcTextSize(projectWarningString.c_str());
                 ImGui::SetCursorPos({windowSize.x / 2.0f - warningSize.x / 2.0f, windowSize.y / 2.0f - warningSize.y / 2.0f});
@@ -26,14 +26,14 @@ extern "C" {
             }
 
             bool layerExists = false;
-            if (instance->projectOpened) {
-                for (auto& layer : Shared::graphics->layers) {
+            if (AppCore::projectOpened) {
+                for (auto& layer : GraphicsCore::layers) {
                     if (layer.id == Shared::selectedRenderLayer) 
                         layerExists = true;
                     if (layerExists) break;
                 }
             }
-            if (Shared::selectedRenderLayer == -1 || Shared::graphics->layers.size() == 0 || !layerExists) {
+            if (Shared::selectedRenderLayer == -1 || GraphicsCore::layers.size() == 0 || !layerExists) {
                 std::string noLayerWarning = ELECTRON_GET_LOCALIZATION("LAYER_PROPERTIES_NO_LAYER_SELECTED");
                 ImVec2 warningSize = ImGui::CalcTextSize(CSTR(noLayerWarning));
                 ImGui::SetCursorPos({windowSize.x / 2.0f - warningSize.x / 2.0f, windowSize.y / 2.0f - warningSize.y / 2.0f});
@@ -43,10 +43,10 @@ extern "C" {
             }
 
             static float titleChildHeight = 100;
-            RenderLayer* targetLayer = Shared::graphics->GetLayerByID(Shared::selectedRenderLayer);
+            RenderLayer* targetLayer = GraphicsCore::GetLayerByID(Shared::selectedRenderLayer);
             ImGui::BeginChild("layerPropsTitleChild", ImVec2(ImGui::GetContentRegionAvail().x, titleChildHeight), false, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
             float beginCursor = ImGui::GetCursorPos().y;
-            ImGui::PushFont(instance->largeFont);
+            ImGui::PushFont(AppCore::largeFont);
                 ImGui::Text("%s", CSTR(std::string(ICON_FA_LAYER_GROUP " ") + targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(targetLayer->id) + ">" + ")"));
             ImGui::PopFont();
             if (ImGui::IsItemHovered()) {

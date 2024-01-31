@@ -62,7 +62,7 @@ extern "C" {
         owner->properties["SelectedSDFShape"] = 0;
 
         owner->anyData.resize(1);
-        owner->anyData[0] = PipelineFrameBuffer(Shared::graphics->renderBuffer.width, Shared::graphics->renderBuffer.height);
+        owner->anyData[0] = PipelineFrameBuffer(GraphicsCore::renderBuffer.width, GraphicsCore::renderBuffer.height);
 
         if (sdf2d_compute == UNDEFINED) {
             sdf2d_compute = GraphicsCore::CompilePipelineShader("sdf2d.pipeline");
@@ -74,9 +74,7 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
-        PipelineFrameBuffer* pbo = &Shared::graphics->renderBuffer;
-        GraphicsCore* core = Shared::graphics;
-
+        PipelineFrameBuffer* pbo = &GraphicsCore::renderBuffer;
 
         PipelineFrameBuffer frb = std::any_cast<PipelineFrameBuffer>(owner->anyData[0]);
         if (frb.width != pbo->width || frb.height != pbo->height) {
@@ -86,7 +84,7 @@ extern "C" {
         
         owner->anyData[0] = frb;
         frb = std::any_cast<PipelineFrameBuffer>(owner->anyData[0]); // update sdf2d_fbo (fixes some small issues)
-        Shared::graphics->RequestTextureCollectionCleaning(frb, 0.0f);
+        GraphicsCore::RequestTextureCollectionCleaning(frb, 0.0f);
 
         auto position = vec2();
         auto size = vec2();
@@ -105,7 +103,7 @@ extern "C" {
         bool texturingEnabled = JSON_AS_TYPE(owner->properties["EnableTexturing"], bool);
         std::string textureID = JSON_AS_TYPE(owner->properties["TextureID"], std::string);
         TextureUnion* asset = nullptr;
-        auto& assets = Shared::assets->assets;
+        auto& assets = AssetCore::assets;
         for (int i = 0; i < assets.size(); i++) {
             if (intToHex(assets.at(i).id) == textureID) {
                 if (assets.at(i).IsTextureCompatible())
@@ -154,12 +152,11 @@ extern "C" {
         glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
         frb.Unbind();
 
-        Shared::graphics->CallCompositor(frb);
+        GraphicsCore::CallCompositor(frb);
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
-        AppInstance* instance = Shared::app;
-        PipelineFrameBuffer* pbo = &Shared::graphics->renderBuffer;
+        PipelineFrameBuffer* pbo = &GraphicsCore::renderBuffer;
 
         bool texturingEnabled = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
         ImGui::Checkbox("Enable texturing", &texturingEnabled);

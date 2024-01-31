@@ -1,14 +1,14 @@
 #include "editor_core.h"
 #include "app.h"
 #include "shared.h"
-#include "ImGuiFileDialog.h"
+#include "ImGui/ImGuiFileDialog.h"
 #define CSTR(x) ((x).c_str())
 
 using namespace Electron;
 
 extern "C" {
 
-    void DockspaceRenderTabBar(AppInstance* instance, bool& openModal) {
+    void DockspaceRenderTabBar(bool& openModal) {
         if (ImGui::BeginMenuBar()) {
                 if (ImGui::BeginMenu(string_format("%s %s", ICON_FA_FOLDER_OPEN, ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU")).c_str())) {
                     if (ImGui::MenuItem(CSTR(ICON_FA_FOLDER_OPEN + std::string(" ") + ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_MENU_BAR_PROJECT_MENU_OPEN")), "Ctrl+P+O")) {
@@ -36,11 +36,11 @@ extern "C" {
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu(CSTR(ICON_FA_LAYER_GROUP + std::string(" ") + std::string(ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_MENU_BAR_LAYERS"))))) {
-                    auto registry = Shared::graphics->GetImplementationsRegistry();
+                    auto registry = GraphicsCore::GetImplementationsRegistry();
                     for (auto& key : registry) {
                         Libraries::LoadLibrary("layers", key);
                         if (ImGui::MenuItem(string_format("%s %s (%s)", ICON_FA_PLUS, Libraries::GetVariable<std::string>(key, "LayerName").c_str(), key.c_str()).c_str())) {
-                            Shared::graphics->AddRenderLayer(key);
+                            GraphicsCore::AddRenderLayer(key);
                         }
                     }
                     ImGui::EndMenu();
@@ -67,9 +67,9 @@ extern "C" {
             }
     }
 
-    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
+    ELECTRON_EXPORT void UIRender() {
           {
-            ImGui::SetCurrentContext(instance->context);
+            ImGui::SetCurrentContext(AppCore::context);
             ImGuiViewport* viewport = ImGui::GetWindowViewport();
             ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
 
@@ -95,8 +95,8 @@ extern "C" {
             ImGui::PopStyleVar(3);
             bool openModal = false;
             static bool modalActive = true;
-            if (instance->isNativeWindow) {
-                DockspaceRenderTabBar(instance, openModal);
+            if (AppCore::isNativeWindow) {
+                DockspaceRenderTabBar(openModal);
             }
             if (openModal) {
                 ImGui::OpenPopup(ELECTRON_GET_LOCALIZATION("ARE_YOU_SURE"));
@@ -109,7 +109,7 @@ extern "C" {
             if (ImGui::BeginPopupModal(ELECTRON_GET_LOCALIZATION("ARE_YOU_SURE"), &modalActive, ImGuiWindowFlags_AlwaysAutoResize)) {
                 ImGui::Text("%s", ELECTRON_GET_LOCALIZATION("PROJECT_INVALIDATION_WARNING"));
                 ImGui::Spacing();
-                if (instance->ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
+                if (AppCore::ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
                     Shortcuts::Ctrl_E_C();
                     modalActive = false;
                 };

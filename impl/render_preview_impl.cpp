@@ -1,6 +1,6 @@
 #include "editor_core.h"
 #include "app.h"
-#include "drag_utils.h"
+#include "utils/drag_utils.h"
 #define CSTR(x) ((x).c_str())
 
 using namespace Electron;
@@ -38,8 +38,8 @@ extern "C" {
         ImGui::GetWindowDrawList()->AddRectFilled(bounds.UL, bounds.BR, ImGui::ColorConvertFloat4ToU32(color));
     }
 
-    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
-        ImGui::SetCurrentContext(instance->context);
+    ELECTRON_EXPORT void UIRender() {
+        ImGui::SetCurrentContext(AppCore::context);
         static ResolutionVariant resolutionVariants[9];
         static bool firstSetup = true;
 
@@ -56,9 +56,9 @@ extern "C" {
         ImGui::SetNextWindowSize({640, 480}, ImGuiCond_Once);
         static DragStructure imagePreviewDrag{};
         static ImVec2 imageOffset{0, 0};
-        UI::Begin((std::string(ICON_FA_IMAGE " ") + ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::RenderPreviewCounter)).c_str(), Signal::_CloseWindow, instance->isNativeWindow ? ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize : ImGuiWindowFlags_NoCollapse);
+        UI::Begin((std::string(ICON_FA_IMAGE " ") + ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_WINDOW_TITLE") + std::string("##") + std::to_string(UICounters::RenderPreviewCounter)).c_str(), Signal::_CloseWindow, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             ImVec2 windowSize = ImGui::GetWindowSize();
-            if (!instance->projectOpened) {
+            if (!AppCore::projectOpened) {
                 std::string projectRequiredString = ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_PROJECT_REQUIRED_WARNING");
                 ImVec2 warningTextSize = ImGui::CalcTextSize(CSTR(projectRequiredString));
 
@@ -87,44 +87,44 @@ extern "C" {
                 previewScale = defaultPreviewScale;
             }
 
-            if (Shared::graphics->isPlaying) {
-                if ((int) Shared::graphics->renderFrame >= Shared::graphics->renderLength) {
+            if (GraphicsCore::isPlaying) {
+                if ((int) GraphicsCore::renderFrame >= GraphicsCore::renderLength) {
                     if (looping) {
-                        Shared::graphics->renderFrame = 0.0f;
-                        Shared::graphics->FireTimelineSeek();
-                        Shared::graphics->FirePlaybackChange();
-                    } else Shared::graphics->isPlaying = false;
+                        GraphicsCore::renderFrame = 0.0f;
+                        GraphicsCore::FireTimelineSeek();
+                        GraphicsCore::FirePlaybackChange();
+                    } else GraphicsCore::isPlaying = false;
                 } else {
-                    if (Shared::graphics->renderFrame < Shared::graphics->renderLength) {
-                        Shared::graphics->renderFrame += (Shared::graphics->renderFramerate * Shared::deltaTime);
+                    if (GraphicsCore::renderFrame < GraphicsCore::renderLength) {
+                        GraphicsCore::renderFrame += (GraphicsCore::renderFramerate * Shared::deltaTime);
                     }
                 }
             }
 
-            PipelineFrameBuffer* rbo = &Shared::graphics->renderBuffer;
+            PipelineFrameBuffer* rbo = &GraphicsCore::renderBuffer;
             if (firstSetup) {
                 RebuildPreviewResolutions(resolutionVariants, {(float) rbo->width, (float) rbo->height});
-                Shared::graphics->isPlaying = JSON_AS_TYPE(Shared::project.propertiesMap["Playing"], bool);
-                Shared::graphics->renderFrame = JSON_AS_TYPE(Shared::project.propertiesMap["TimelineValue"], int);
+                GraphicsCore::isPlaying = JSON_AS_TYPE(Shared::project.propertiesMap["Playing"], bool);
+                GraphicsCore::renderFrame = JSON_AS_TYPE(Shared::project.propertiesMap["TimelineValue"], int);
                 firstSetup = false;
             }
 
-            Shared::project.propertiesMap["Playing"] = Shared::graphics->isPlaying;
+            Shared::project.propertiesMap["Playing"] = GraphicsCore::isPlaying;
             
-            GLuint previewTexture = Shared::graphics->GetPreviewGPUTexture();
+            GLuint previewTexture = GraphicsCore::GetPreviewGPUTexture();
             Shared::project.propertiesMap["LoopPlayback"] = looping;
-            Shared::project.propertiesMap["TimelineValue"] = Shared::graphics->renderFrame;
+            Shared::project.propertiesMap["TimelineValue"] = GraphicsCore::renderFrame;
             Shared::project.propertiesMap["PreviewResolution"] = selectedResolutionVariant;
             Shared::project.propertiesMap["RenderPreviewScale"] = previewScale;
 
             float windowAspectRatio = windowSize.x / windowSize.y;
             windowAspectRatio = glm::clamp(windowAspectRatio, 0.0f, 1.0f);
             ImVec2 previewTextureSize = FitRectInRect(windowSize, {(float) resolutionVariants[0].width, (float) resolutionVariants[0].height}) * previewScale;
-            Shared::graphics->renderFramerate = JSON_AS_TYPE(Shared::project.propertiesMap["Framerate"], int);
+            GraphicsCore::renderFramerate = JSON_AS_TYPE(Shared::project.propertiesMap["Framerate"], int);
             
             std::vector<float> renderTimes{};
-            Shared::graphics->RequestRenderBufferCleaningWithinRegion();
-            renderTimes = Shared::graphics->RequestRenderWithinRegion();
+            GraphicsCore::RequestRenderBufferCleaningWithinRegion();
+            renderTimes = GraphicsCore::RequestRenderWithinRegion();
 
             static float propertiesHeight = 50;
             static ImVec2 previousWindowPos = ImGui::GetWindowPos();
@@ -151,9 +151,9 @@ extern "C" {
                 }
 
                 rbo->Bind();
-                Shared::graphics->UseShader(Shared::channel_manipulator_compute);
-                Shared::graphics->BindGPUTexture(rbo->rbo.colorBuffer, Shared::channel_manipulator_compute, 0, "uColor");
-                Shared::graphics->BindGPUTexture(rbo->rbo.uvBuffer, Shared::channel_manipulator_compute, 1, "uUV");
+                GraphicsCore::UseShader(Shared::channel_manipulator_compute);
+                GraphicsCore::BindGPUTexture(rbo->rbo.colorBuffer, Shared::channel_manipulator_compute, 0, "uColor");
+                GraphicsCore::BindGPUTexture(rbo->rbo.uvBuffer, Shared::channel_manipulator_compute, 1, "uUV");
                 glm::vec4 factor{};
                 if (selectedChannel == 0) factor = {1, 0, 0, 1};
                 if (selectedChannel == 1) factor = {0, 1, 0, 1};
@@ -177,11 +177,11 @@ extern "C" {
 
                 if (ImGui::BeginTable("propertiesTable", 4)) {
                     ImGui::TableNextColumn();
-                    if (ImGui::Button(string_format("%s %s", Shared::graphics->isPlaying ? ICON_FA_PAUSE : ICON_FA_PLAY, 
-                            ELECTRON_GET_LOCALIZATION(Shared::graphics->isPlaying ? "RENDER_PREVIEW_PAUSE" 
+                    if (ImGui::Button(string_format("%s %s", GraphicsCore::isPlaying ? ICON_FA_PAUSE : ICON_FA_PLAY, 
+                            ELECTRON_GET_LOCALIZATION(GraphicsCore::isPlaying ? "RENDER_PREVIEW_PAUSE" 
                                                                                 : "RENDER_PREVIEW_PLAY")).c_str())) {
-                        Shared::graphics->isPlaying = !Shared::graphics->isPlaying;
-                        Shared::graphics->FirePlaybackChange();
+                        GraphicsCore::isPlaying = !GraphicsCore::isPlaying;
+                        GraphicsCore::FirePlaybackChange();
                     }
                     ImGui::SameLine();
                     ImGui::Text("%s", ICON_FA_EXPAND);
@@ -225,7 +225,7 @@ extern "C" {
                     if (ImGui::IsItemHovered()) {
                         ImGui::SetTooltip("%s", ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_OUTPUT_BUFFER_TYPE"));
                     }
-                    Shared::graphics->outputBufferType = rawBufferTypes[selectedOutputBufferType];
+                    GraphicsCore::outputBufferType = rawBufferTypes[selectedOutputBufferType];
                     ImGui::TableNextColumn();
                     static std::string channelTypes[] = {
                         ELECTRON_GET_LOCALIZATION("GENERIC_R"),
@@ -254,12 +254,12 @@ extern "C" {
                     static std::vector<float> plottingRenderAverages(90);
                     static int plottingCounter = 0;
                     float renderAverage = 0;
-                    for (int i = 0; i < Shared::graphics->layers.size(); i++) {
-                        RenderLayer& layer = Shared::graphics->layers[i];
+                    for (int i = 0; i < GraphicsCore::layers.size(); i++) {
+                        RenderLayer& layer = GraphicsCore::layers[i];
                         float renderTime = renderTimes[i];
                         renderAverage += renderTime;
                     }
-                    renderAverage = renderAverage / Shared::graphics->layers.size();
+                    renderAverage = renderAverage / GraphicsCore::layers.size();
                     if (plottingCounter == plottingRenderAverages.size()) 
                         plottingCounter = 0;
                     plottingRenderAverages[plottingCounter++] = renderAverage;
@@ -274,16 +274,16 @@ extern "C" {
         std::vector<int> projectResolution = JSON_AS_TYPE(Shared::project.propertiesMap["ProjectResolution"], std::vector<int>);
         ResolutionVariant currentVariant = resolutionVariants[selectedResolutionVariant];
         if ((currentVariant.width != rbo->width || currentVariant.height != rbo->height)) {
-            Shared::graphics->ResizeRenderBuffer(currentVariant.width, currentVariant.height);
-            Shared::graphics->RequestRenderBufferCleaningWithinRegion(); // fixes flickering when resizing rbo
+            GraphicsCore::ResizeRenderBuffer(currentVariant.width, currentVariant.height);
+            GraphicsCore::RequestRenderBufferCleaningWithinRegion(); // fixes flickering when resizing rbo
         }
         if ((resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1])) {
-            Shared::graphics->ResizeRenderBuffer(projectResolution[0], projectResolution[1]);
+            GraphicsCore::ResizeRenderBuffer(projectResolution[0], projectResolution[1]);
 
             RebuildPreviewResolutions(resolutionVariants, {(float) projectResolution[0], (float) projectResolution[1]});
 
             ResolutionVariant selectedVariant = resolutionVariants[selectedResolutionVariant];
-            Shared::graphics->ResizeRenderBuffer(selectedVariant.width, selectedVariant.height);
+            GraphicsCore::ResizeRenderBuffer(selectedVariant.width, selectedVariant.height);
         }
         internalFrameIndex++;
     }

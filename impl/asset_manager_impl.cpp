@@ -1,7 +1,7 @@
 #include "editor_core.h"
 #include "app.h"
-#include "ImGuiFileDialog.h"
-#include "drag_utils.h"
+#include "ImGui/ImGuiFileDialog.h"
+#include "utils/drag_utils.h"
 #define CSTR(x) ((x).c_str())
 
 using namespace Electron;
@@ -13,12 +13,12 @@ extern "C" {
     }
 
 
-    ELECTRON_EXPORT void UIRender(AppInstance* instance) {
-        ImGui::SetCurrentContext(instance->context);
+    ELECTRON_EXPORT void UIRender() {
+        ImGui::SetCurrentContext(AppCore::context);
 
         UI::Begin(CSTR(std::string(ICON_FA_FOLDER " ") + ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_TITLE") + std::string("##") + std::to_string(UICounters::AssetManagerCounter)), Signal::_CloseWindow, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
             ImVec2 windowSize = ImGui::GetContentRegionAvail();
-            if (!instance->projectOpened) {
+            if (!AppCore::projectOpened) {
                 std::string noProjectOpened = ELECTRON_GET_LOCALIZATION("GENERIC_NO_PROJECT_IS_OPENED");
                 ImVec2 textSize = ImGui::CalcTextSize(CSTR(noProjectOpened));
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - textSize.x / 2.0f, windowSize.y / 2.0f - textSize.y / 2.0f});
@@ -40,13 +40,13 @@ extern "C" {
             bool p = false;
 
             ImGui::BeginChild("searchBarChild", ImVec2(windowSize.x, endCursorY - beginCursorY), false, 0);
-            if (Shared::assetSelected >= Shared::assets->assets.size()) Shared::assetSelected = -1;
+            if (Shared::assetSelected >= AssetCore::assets.size()) Shared::assetSelected = -1;
                 if (Shared::assetSelected == -1) {
                     std::string noAssetSelectedMsg = ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_NO_ASSET_SELECTED");
                     ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize(CSTR(noAssetSelectedMsg)).x / 2.0f);
                     ImGui::Text("%s", CSTR(noAssetSelectedMsg));
                 } else {
-                    TextureUnion& asset = Shared::assets->assets[Shared::assetSelected];
+                    TextureUnion& asset = AssetCore::assets[Shared::assetSelected];
                     ImVec2 acceptedPreviewResolution = {ImGui::GetContentRegionAvail().x * 0.35f, 128};
                     GLuint gpuPreview = -1;
                     glm::vec2 assetResolution = {0, 0};
@@ -106,7 +106,7 @@ extern "C" {
                 ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_PATH"));
                 ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_SIZE"));
                 ImGui::TableHeadersRow();
-                for (auto& asset : Shared::assets->assets) {
+                for (auto& asset : AssetCore::assets) {
                     ImGui::TableNextRow();
                     if (searchFilter != "" && (asset.name.find(searchFilter) == std::string::npos || hexToInt(trim_copy(searchFilter)) != asset.id)) 
                         continue;
@@ -149,7 +149,7 @@ extern "C" {
                             if (ImGui::BeginPopup(string_format("AssetPopup%i", asset.id).c_str(), 0)) {
                                 ImGui::SeparatorText(CSTR(asset.name));
                                 if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_EXAMINE_ASSET"))), nullptr, false, UICounters::AssetExaminerCounter != 1)) {
-                                    instance->ExecuteSignal(Signal::_SpawnAssetExaminer);
+                                    AppCore::ExecuteSignal(Signal::_SpawnAssetExaminer);
                                 }
                                 if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_RECYCLE, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_REIMPORT_ASSET"))), "")) {
                                     ImGuiFileDialog::Instance()->OpenDialog("BrowseAssetPath", ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_BROWSE_ASSET_PATH"), IMPORT_EXTENSIONS, ".");
@@ -186,16 +186,15 @@ extern "C" {
         
         if (ImGuiFileDialog::Instance()->Display("ImportAssetDlg")) {
             if (ImGuiFileDialog::Instance()->IsOk()) {
-                Shared::importErrorMessage = Shared::assets->ImportAsset(ImGuiFileDialog::Instance()->GetFilePathName());
+                Shared::importErrorMessage = AssetCore::ImportAsset(ImGuiFileDialog::Instance()->GetFilePathName());
             }
             ImGuiFileDialog::Instance()->Close();
         }
 
         if (ImGuiFileDialog::Instance()->Display("BrowseAssetPath")) {
             if (ImGuiFileDialog::Instance()->IsOk()) {
-                AssetRegistry* reg = Shared::assets;
-                reg->assets[targetAssetBrowsePath].path = ImGuiFileDialog::Instance()->GetFilePathName();
-                reg->assets[targetAssetBrowsePath].RebuildAssetData();
+                AssetCore::assets[targetAssetBrowsePath].path = ImGuiFileDialog::Instance()->GetFilePathName();
+                AssetCore::assets[targetAssetBrowsePath].RebuildAssetData();
             }
 
             ImGuiFileDialog::Instance()->Close();
@@ -208,7 +207,7 @@ extern "C" {
                 ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize(CSTR(Shared::importErrorMessage)).x / 2.0f);
                 ImGui::Text("%s", CSTR(Shared::importErrorMessage));
 
-                if (instance->ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
+                if (AppCore::ButtonCenteredOnLine(ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
                     Shared::importErrorMessage = "";
                 }
                 ImGui::EndPopup();
@@ -217,7 +216,7 @@ extern "C" {
         }
 
         if (assetDeletionIndex != -1) {
-            auto& assets = Shared::assets->assets;
+            auto& assets = AssetCore::assets;
             TextureUnion& asset = assets.at(assetDeletionIndex);
             TextureUnionType type = assets.at(assetDeletionIndex).type;
             if (type == TextureUnionType::Texture || type == TextureUnionType::Audio) {
