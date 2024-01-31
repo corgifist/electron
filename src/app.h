@@ -1,0 +1,75 @@
+#pragma once
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "electron.h"
+#include "electron_font.h"
+
+#include "ImGui/imgui.h"
+#define IMGUI_IMPL_OPENGL_ES3
+#include "ImGui/imgui_impl_glfw.h"
+#include "ImGui/imgui_impl_opengl3.h"
+#include "ImGui/imgui_internal.h"
+
+#include "editor_core.h"
+#include "graphics_core.h"
+#include "async_ffmpeg.h"
+
+#include "shortcuts.h"
+#include "servers.h"
+#include "asset_core.h"
+
+
+namespace Electron {
+
+    class ElectronUI;
+    class AppCore;
+    class ProjectConfiguration;
+    class RenderPreview;
+    class Shortcuts;
+
+    namespace UI {
+        void Begin(const char* name, Signal signal, ImGuiWindowFlags flags);
+        void End();
+    };
+
+    // Initializes OpenGL and renders UI
+    struct AppCore {
+        static GLFWwindow* displayHandle;
+        static std::vector<UIActivity> content; // Array of windows
+        static ImGuiContext* context; // Store main ImGui context for using in impl files
+        static std::string renderer, vendor, version; // GL Constants
+        static bool projectOpened; // True if any project is opened
+        static bool isNativeWindow; // Always true (if config.json is not manually edited)
+        static bool showBadConfigMessage;
+        static bool ffmpegAvailable; // is FFMpeg available
+
+
+        static float fontSize; // Used in FontAtlas manipulations
+        static ImFont* largeFont;
+        static ImFont* mediumFont;
+        
+        static void Initialize();
+
+        static void Run();
+        static void Terminate();
+
+        static void ExecuteSignal(Signal signal, int windowIndex, int& destroyWindowTarget, bool& exitEditor);
+        static void ExecuteSignal(Signal signal);
+
+        static void RestoreBadConfig();
+        static void RenderCriticalError(std::string text, bool* p_open);
+        static void PushNotification(int duration, std::string text);
+
+        static ImVec2 GetNativeWindowSize();
+        static ImVec2 GetNativeWindowPos();
+
+        static void SetupImGuiStyle();
+        static int GetCacheIndex();
+
+        static void AddUIContent(UIActivity ui) {
+            AppCore::content.push_back(ui);
+        }
+
+        static bool ButtonCenteredOnLine(const char* label, float alignment = 0.5f);
+        static double GetTime();
+    };
+}
