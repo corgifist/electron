@@ -95,9 +95,7 @@ extern "C" {
             ImGui::PopStyleVar(3);
             bool openModal = false;
             static bool modalActive = true;
-            if (AppCore::isNativeWindow) {
-                DockspaceRenderTabBar(openModal);
-            }
+            DockspaceRenderTabBar(openModal);
             if (openModal) {
                 ImGui::OpenPopup(ELECTRON_GET_LOCALIZATION("ARE_YOU_SURE"));
                 modalActive = true;

@@ -16,16 +16,10 @@
 #include "shortcuts.h"
 #include "servers.h"
 #include "asset_core.h"
+#include "driver_core.h"
 
 
 namespace Electron {
-
-    class ElectronUI;
-    class AppCore;
-    class ProjectConfiguration;
-    class RenderPreview;
-    class Shortcuts;
-
     namespace UI {
         void Begin(const char* name, Signal signal, ImGuiWindowFlags flags);
         void End();
@@ -33,12 +27,9 @@ namespace Electron {
 
     // Initializes OpenGL and renders UI
     struct AppCore {
-        static GLFWwindow* displayHandle;
         static std::vector<UIActivity> content; // Array of windows
         static ImGuiContext* context; // Store main ImGui context for using in impl files
-        static std::string renderer, vendor, version; // GL Constants
         static bool projectOpened; // True if any project is opened
-        static bool isNativeWindow; // Always true (if config.json is not manually edited)
         static bool showBadConfigMessage;
         static bool ffmpegAvailable; // is FFMpeg available
 

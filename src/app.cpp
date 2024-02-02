@@ -9,14 +9,9 @@
 
 namespace Electron {
 
-    GLFWwindow* AppCore::displayHandle = nullptr;
     std::vector<UIActivity> AppCore::content{};
     ImGuiContext* AppCore::context = nullptr;
-    std::string AppCore::renderer;
-    std::string AppCore::vendor;
-    std::string AppCore::version;
     bool AppCore::projectOpened;
-    bool AppCore::isNativeWindow;
     bool AppCore::ffmpegAvailable;
     float AppCore::fontSize;
     bool AppCore::showBadConfigMessage;
@@ -50,14 +45,7 @@ namespace Electron {
         void End() { ImGui::End(); }
     }
 
-    static void electronGlfwError(int id, const char *description) {
-        print("GLFW_ERROR_ID: " << id);
-        print("GLFW_ERROR: " << description);
-    }
-
     void AppCore::Initialize() {
-        showBadConfigMessage = false;
-        ffmpegAvailable = false;
         if (system("ffmpeg -h >>/dev/null 2>>/dev/null") == 0 &&
             system("ffprobe -h >>/dev/null 2>>/dev/null") == 0) {
             ffmpegAvailable = true;
@@ -70,81 +58,16 @@ namespace Electron {
         }
 
         Cache::cacheIndex = JSON_AS_TYPE(Shared::configMap["CacheIndex"], int);
-
-        std::string sessionType = getEnvVar("XDG_SESSION_TYPE");
-        if (JSON_AS_TYPE(Shared::configMap["PreferX11"], bool) == true) {
-            sessionType = "x11";
-        }
-        int platformType =
-            sessionType == "x11" ? GLFW_PLATFORM_X11 : GLFW_PLATFORM_WAYLAND;
-        glfwInitHint(GLFW_PLATFORM, platformType);
-        print("using " << sessionType << " platform");
-        if (!glfwPlatformSupported(platformType)) {
-            print("requested platform (" << sessionType << ") is unavailable!");
-            glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
-        }
-
-        glfwSetErrorCallback(electronGlfwError);
-        if (!glfwInit()) {
-            throw std::runtime_error("cannot initialize glfw!");
-        }
-        int major, minor, rev;
-        glfwGetVersion(&major, &minor, &rev);
-        print("GLFW version: " << major << "." << minor << " " << rev);
-
         float uiScaling = JSON_AS_TYPE(Shared::configMap["UIScaling"], float);
-        AppCore::isNativeWindow =
-            (Shared::configMap["ViewportMethod"] == "native-window");
 
-        glfwDefaultWindowHints();
-        glfwWindowHint(GLFW_RESIZABLE, isNativeWindow);
-        glfwWindowHint(GLFW_VISIBLE, isNativeWindow);
+        DriverCore::Bootstrap();
 
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-        glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-
-        std::vector<int> maybeSize = {
-            JSON_AS_TYPE(Shared::configMap["LastWindowSize"].at(0), int),
-            JSON_AS_TYPE(Shared::configMap["LastWindowSize"].at(1), int)};
-        AppCore::displayHandle = glfwCreateWindow(
-            isNativeWindow ? maybeSize[0] : 8,
-            isNativeWindow ? maybeSize[1] : 8, "Electron", nullptr, nullptr);
-        if (AppCore::displayHandle == nullptr) {
-            throw std::runtime_error("cannot instantiate window!");
-        }
-
-        glfwMakeContextCurrent(AppCore::displayHandle);
-        glfwSwapInterval(1);
-
-        if (!gladLoadGLES2((GLADloadfunc)glfwGetProcAddress)) {
-            throw std::runtime_error(
-                "cannot load opengl es function pointers!");
-        }
-
-        glfwSetFramebufferSizeCallback(
-            AppCore::displayHandle,
-            [](GLFWwindow *display, int width, int height) {
-                glViewport(0, 0, width, height);
-            });
-
-        AppCore::renderer =
-            std::string((const char *)glGetString(GL_RENDERER));
-        AppCore::vendor = std::string((const char *)glGetString(GL_VENDOR));
-        AppCore::version =
-            std::string((const char *)glGetString(GL_VERSION));
-        DUMP_VAR(AppCore::renderer);
-        DUMP_VAR(AppCore::vendor);
-        DUMP_VAR(AppCore::version);
-
-        if (vendor.find("NVIDIA") != std::string::npos) {
+        if (DriverCore::renderer.vendor.find("NVIDIA") != std::string::npos) {
             Wavefront::x = 8;
             Wavefront::y = 4;
             Wavefront::z = 1;
             print("Applied NVIDIA Wavefront optimization");
-        } else if (vendor.find("AMD") != std::string::npos) {
+        } else if (DriverCore::renderer.vendor.find("AMD") != std::string::npos) {
             Wavefront::x = 8;
             Wavefront::y = 8;
             Wavefront::z = 1;
@@ -156,18 +79,11 @@ namespace Electron {
             print("Unknown vendor detected, switching to default wavefront");
         }
 
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        ImGuiIO &io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
-        io.ConfigWindowsMoveFromTitleBarOnly = true;
-        io.WantSaveIniSettings = true;
         AppCore::context = ImGui::GetCurrentContext();
 
         SetupImGuiStyle();
 
+        ImGuiIO& io = ImGui::GetIO();
         AppCore::fontSize = 16.0f * uiScaling;
         io.Fonts->AddFontFromMemoryCompressedTTF(
             ELECTRON_FONT_compressed_data, ELECTRON_FONT_compressed_size,
@@ -197,10 +113,6 @@ namespace Electron {
         io.Fonts->AddFontFromFileTTF("misc/fa.ttf",
                                      fontSize * 1.3f * 2.0f / 3.0f,
                                      &icons_config, icons_ranges);
-
-        ImGui_ImplGlfw_InitForOpenGL(AppCore::displayHandle, true);
-        ImGui_ImplOpenGL3_Init();
-        DUMP_VAR(io.BackendRendererName);
 
         Shared::localizationMap =
             json_t::parse(std::fstream("misc/localization_en.json"));
@@ -244,7 +156,7 @@ namespace Electron {
     }
 
     void AppCore::Run() {
-        while (!glfwWindowShouldClose(AppCore::displayHandle)) {
+        while (!DriverCore::ShouldClose()) {
             double firstTime = GetTime();
             AppCore::context = ImGui::GetCurrentContext();
 
@@ -302,14 +214,7 @@ namespace Electron {
                     Shared::selectedRenderLayer;
             }
 
-            glfwPollEvents();
-            glClearColor(0, 0, 0, 1);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
-
+            DriverCore::ImGuiNewFrame();
             int windowIndex = 0;
             int destroyWindowTarget = -1;
             if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_I)) {
@@ -462,15 +367,12 @@ namespace Electron {
             goto render_success;
 
         render_success:
-            ImGui::Render();
-            ImGui::EndFrame();
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            DriverCore::ImGuiRender();
+            DriverCore::SwapBuffers();
             if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
                 ImGui::UpdatePlatformWindows();
                 ImGui::RenderPlatformWindowsDefault();
             }
-            glfwMakeContextCurrent(AppCore::displayHandle);
-            glfwSwapBuffers(AppCore::displayHandle);
 
             if (projectOpened) {
                 json_t AssetCore = {};
@@ -506,7 +408,7 @@ namespace Electron {
                     " - " +
                     JSON_AS_TYPE(Shared::project.propertiesMap["ProjectName"],
                                  std::string);
-            glfwSetWindowTitle(AppCore::displayHandle, windowTitle.c_str());
+            DriverCore::SetTitle(windowTitle);
         }
     editor_end:
 
@@ -519,18 +421,10 @@ namespace Electron {
     }
 
     void AppCore::Terminate() {
-
         Servers::Destroy();
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
+        DriverCore::ImGuiShutdown();
         Servers::AsyncWriterRequest({{"action", "kill"}});
         Servers::AudioServerRequest({{"action", "kill"}});
-
-        glfwDestroyWindow(AppCore::displayHandle);
-        // no need for glfwTerminate() because OS automatically cleans up all
-        // resources missing termination call also fixes strange segfault at the
-        // end
     }
 
     void AppCore::ExecuteSignal(Signal signal, int windowIndex,
@@ -614,13 +508,13 @@ namespace Electron {
 
     ImVec2 AppCore::GetNativeWindowSize() {
         int width, height;
-        glfwGetWindowSize(AppCore::displayHandle, &width, &height);
+        DriverCore::GetDisplaySize(&width, &height);
         return ImVec2{(float)width, (float)height};
     }
 
     ImVec2 AppCore::GetNativeWindowPos() {
         int x, y;
-        glfwGetWindowPos(AppCore::displayHandle, &x, &y);
+        DriverCore::GetDisplayPos(&x, &y);;
         return ImVec2{(float)x, (float)y};
     }
 

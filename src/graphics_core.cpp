@@ -207,9 +207,9 @@ namespace Electron {
         std::vector<float> renderTimes(layers.size());
         int layerIndex = 0;
         for (auto &layer : layers) {
-            float first = glfwGetTime();
+            float first = DriverCore::GetTime();
             layer.Render();
-            renderTimes[layerIndex] = (glfwGetTime() - first);
+            renderTimes[layerIndex] = (DriverCore::GetTime() - first);
             layerIndex++;
         }
         return renderTimes;

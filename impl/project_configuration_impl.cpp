@@ -128,9 +128,6 @@ extern "C" {
 
                 ImGui::Separator();
                 ImGui::Spacing();
-                ImGui::Text("GL_RENDERER: %s", AppCore::renderer.c_str());
-                ImGui::Text("GL_VENDOR: %s", AppCore::vendor.c_str());
-                ImGui::Text("GL_VERSION: %s", AppCore::version.c_str());
                 
             ImGui::EndTabItem();
             }
