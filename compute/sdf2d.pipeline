@@ -6,36 +6,42 @@ layout(location = 1) in vec2 aUV;
 out vec2 vPos;
 out vec2 vUV;
 
-uniform mat4 uTransform;
-uniform mat4 uProjection;
+uniform mat4 uMatrix;
 
 void main() {
-    gl_Position = uProjection * uTransform * vec4(vec3(aPos, 0.0), 1.0);
+    gl_Position = uMatrix * vec4(vec3(aPos, 0.0), 1.0);
     vPos = aPos;
     vUV = aUV;
 }
 #fragment
 
+#define TEXTURE_POOL_SIZE 128
+
 layout(location = 0) out vec4 gColor;
 layout(location = 1) out vec4 gUV;
-layout(location = 2) out vec4 gDepth;
 
 in vec2 vPos;
 in vec2 vUV;
 
+uniform bool uSdfEnabled;
 uniform vec3 uColor;
-uniform int uCanTexture;
-uniform sampler2D uTexture;
+uniform bool uCanTexture;
 
 #define SDF_SHAPE_NONE 0
 #define SDF_SHAPE_CIRCLE 1
 #define SDF_SHAPE_ROUNDED_RECT 2
 #define SDF_SHAPE_TRIANGLE 3
 
-uniform int uSdfShape;
-
 uniform float uSdfCircleRadius;
 uniform vec2 uSize;
+uniform vec2 uUvOffset;
+
+uniform int uSdfShape;
+uniform int uTextureID;
+
+layout (binding = 0, std140) uniform texturePool {
+    sampler2D pool[TEXTURE_POOL_SIZE];
+};
 
 float sdfCircle(vec2 uv, float r) {
     return length(uv) - r;
@@ -58,10 +64,9 @@ float sdEquilateralTriangle(vec2 p,float r ) {
 
 void main() {
     gColor = vec4(uColor, 1.0);
-    if (uCanTexture == 1) {
-        gColor *= texture(uTexture, vUV);
-    }
-    if (uSdfShape != SDF_SHAPE_NONE) {
+    if (uCanTexture) 
+        gColor *= texture(pool[uTextureID], vUV + uUvOffset);
+    if (uSdfEnabled) {
         float d = 0.0;
         if (uSdfShape == SDF_SHAPE_CIRCLE) {
             d = sdfCircle(vUV - 0.5, uSdfCircleRadius);
@@ -76,6 +81,5 @@ void main() {
             gColor *= 0.0;
         }
     }
-    gUV = vec4(vUV, 0.0, 1.0);
-    gDepth = vec4(0.0, 0.0, 0.0, 0.0);
+    gUV = vec4(vUV + uUvOffset, 0.0, 1.0);
 }

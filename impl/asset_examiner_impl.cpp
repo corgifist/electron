@@ -68,7 +68,7 @@ extern "C" {
                 if (ImGui::BeginPopup("assetContextMenu")) {
                     ImGui::SeparatorText(asset.name.c_str());
                     if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_INFO, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_MORE_INFO"))))) {
-                        system(CSTR(string_format("xdg-open %s &", asset.path.c_str())));
+                        if (system(CSTR(string_format("xdg-open %s &", asset.path.c_str())))) {}
                     }
                     if (asset.type == TextureUnionType::Audio && asset.audioCacheCover != "") {
                         if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_FLOPPY_DISK, ELECTRON_GET_LOCALIZATION("IMPORT_COVER_AS_IMAGE"))))) {

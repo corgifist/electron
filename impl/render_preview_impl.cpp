@@ -125,6 +125,7 @@ extern "C" {
             std::vector<float> renderTimes{};
             GraphicsCore::RequestRenderBufferCleaningWithinRegion();
             renderTimes = GraphicsCore::RequestRenderWithinRegion();
+            GraphicsCore::PerformComposition();
 
             static float propertiesHeight = 50;
             static ImVec2 previousWindowPos = ImGui::GetWindowPos();
@@ -135,6 +136,9 @@ extern "C" {
                 windowSize = ImGui::GetContentRegionAvail();
                 imagePreviewDrag.Activate();
             
+                ImGui::SetCursorPos({0, 0});
+                ImGui::Text("%s: %i; %s: %i", ELECTRON_GET_LOCALIZATION("RENDER_CALLS"), Shared::renderCalls, ELECTRON_GET_LOCALIZATION("COMPOSITOR_CALLS"), Shared::compositorCalls);
+
                 float imageDragDistance;
 
                 if (imagePreviewDrag.GetDragDistance(imageDragDistance) && (previousWindowPos == wPos) && (previousWindowSize == wSize)) {
@@ -162,7 +166,6 @@ extern "C" {
                 GraphicsCore::ShaderSetUniform(Shared::channel_manipulator_compute, "uFactor", factor);
                 glBindVertexArray(Shared::fsVAO);
                 glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
-                rbo->Unbind();
                 
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - previewTextureSize.x / 2.0f, windowSize.y / 2.0f - previewTextureSize.y / 2.0f} + imageOffset);
@@ -202,19 +205,17 @@ extern "C" {
                     ImGui::TableNextColumn();
                     static std::string outputBufferTypes[] = {
                         ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_COLOR_BUFFER"),
-                        ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_UV_BUFFER"),
-                        ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_DEPTH_BUFFER")
+                        ELECTRON_GET_LOCALIZATION("RENDER_PREVIEW_UV_BUFFER")
                     };
                     static PreviewOutputBufferType rawBufferTypes[] = {
                         PreviewOutputBufferType_Color,
-                        PreviewOutputBufferType_UV,
-                        PreviewOutputBufferType_Depth
+                        PreviewOutputBufferType_UV
                     };
                     static int selectedOutputBufferType = 0;
                     ImGui::Text("%s", ICON_FA_IMAGES);
                     ImGui::SameLine();
                     if (ImGui::BeginCombo("##previewTextureType", CSTR(outputBufferTypes[selectedOutputBufferType]))) {
-                        for (int i = 0; i < 3; i++) {
+                        for (int i = 0; i < 2; i++) {
                             bool bufferTypeSelected = i == selectedOutputBufferType;
                             if (ImGui::Selectable(CSTR(outputBufferTypes[i]), bufferTypeSelected))
                                 selectedOutputBufferType = i;

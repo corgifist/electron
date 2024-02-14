@@ -11,23 +11,7 @@ namespace Electron {
     bool GraphicsCore::isPlaying;
     float GraphicsCore::renderFrame;
     int GraphicsCore::renderLength, GraphicsCore::renderFramerate;
-
-    RenderBuffer::RenderBuffer(int width, int height) {
-        this->colorBuffer = GraphicsCore::GenerateGPUTexture(width, height, 0);
-        this->uvBuffer = GraphicsCore::GenerateGPUTexture(width, height, 1);
-        this->depthBuffer = GraphicsCore::GenerateGPUTexture(width, height, 2);
-
-        this->width = width;
-        this->height = height;
-    }
-
-    RenderBuffer::~RenderBuffer() {}
-
-    void RenderBuffer::Destroy() {
-        PixelBuffer::DestroyGPUTexture(colorBuffer);
-        PixelBuffer::DestroyGPUTexture(uvBuffer);
-        PixelBuffer::DestroyGPUTexture(depthBuffer);
-    }
+    std::vector<PipelineFrameBuffer> GraphicsCore::compositorQueue;
 
     void GraphicsCore::Initialize() {
 
@@ -63,96 +47,6 @@ namespace Electron {
         return dylibRegistry;
     }
 
-    void GraphicsCore::ResizeRenderBuffer(int width, int height) {
-        GraphicsCore::renderBuffer.Destroy();
-        GraphicsCore::renderBuffer = PipelineFrameBuffer(width, height);
-    }
-
-    ResizableGPUTexture::ResizableGPUTexture(int width, int height) {
-        this->width = width;
-        this->height = height;
-        this->texture = GraphicsCore::GenerateGPUTexture(width, height, 0);
-    }
-
-    void ResizableGPUTexture::CheckForResize(RenderBuffer *pbo) {
-        if (width != pbo->width || height != pbo->height) {
-            this->width = pbo->width;
-            this->height = pbo->height;
-            PixelBuffer::DestroyGPUTexture(texture);
-            this->texture = GraphicsCore::GenerateGPUTexture(width, height, 0);
-        }
-    }
-
-    void ResizableGPUTexture::Destroy() { PixelBuffer::DestroyGPUTexture(texture); }
-
-    ResizableRenderBuffer::ResizableRenderBuffer(int width, int height) {
-        this->color = ResizableGPUTexture(width, height);
-        this->uv = ResizableGPUTexture(width, height);
-        this->depth = ResizableGPUTexture(width, height);
-    }
-
-    void ResizableRenderBuffer::CheckForResize(RenderBuffer *pbo) {
-        color.CheckForResize(pbo);
-        uv.CheckForResize(pbo);
-        depth.CheckForResize(pbo);
-    }
-
-    void ResizableRenderBuffer::Destroy() {
-        color.Destroy();
-        uv.Destroy();
-        depth.Destroy();
-    }
-
-    PipelineFrameBuffer::PipelineFrameBuffer(int width, int height) {
-        this->width = width;
-        this->height = height;
-        this->rbo = RenderBuffer(width, height);
-        glGenFramebuffers(1, &fbo);
-        Bind();
-
-        glBindTexture(GL_TEXTURE_2D, rbo.colorBuffer);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
-                            rbo.colorBuffer, 0);
-
-        glBindTexture(GL_TEXTURE_2D, rbo.uvBuffer);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D,
-                            rbo.uvBuffer, 0);
-
-        glBindTexture(GL_TEXTURE_2D, rbo.depthBuffer);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D,
-                            rbo.depthBuffer, 0);
-
-        glGenRenderbuffers(1, &stencil);
-        glBindRenderbuffer(GL_RENDERBUFFER, stencil);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
-                                GL_RENDERBUFFER, stencil);
-
-        GLuint attachments[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
-                                GL_COLOR_ATTACHMENT2};
-        glDrawBuffers(3, attachments);
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            throw std::runtime_error("framebuffer is not complete!");
-        }
-        Unbind();
-    }
-
-    void PipelineFrameBuffer::Bind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glViewport(0, 0, width, height);
-    }
-
-    void PipelineFrameBuffer::Unbind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, Shared::displaySize.x, Shared::displaySize.y);
-    }
-
-    void PipelineFrameBuffer::Destroy() {
-        rbo.Destroy();
-        glDeleteRenderbuffers(1, &stencil);
-        glDeleteFramebuffers(1, &fbo);
-    }
-
     RenderLayer *GraphicsCore::GetLayerByID(int id) {
         for (auto &layer : layers) {
             if (layer.id == id)
@@ -184,23 +78,19 @@ namespace Electron {
 
     void GraphicsCore::RequestTextureCollectionCleaning(PipelineFrameBuffer frb,
                                                         float multiplier) {
-
-        UseShader(Shared::basic_compute);
-
-        frb.Bind();
-        ShaderSetUniform(
-            Shared::basic_compute, "backgroundColor",
-            glm::vec3(
+        glm::vec4 backgroundColor = {
                 JSON_AS_TYPE(Shared::project.propertiesMap["BackgroundColor"].at(0),
                             float),
                 JSON_AS_TYPE(Shared::project.propertiesMap["BackgroundColor"].at(1),
                             float),
                 JSON_AS_TYPE(Shared::project.propertiesMap["BackgroundColor"].at(2),
-                            float)));
-        ShaderSetUniform(Shared::basic_compute, "multiplier", multiplier);
-        glBindVertexArray(Shared::fsVAO);
-        glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
-        frb.Unbind();
+                            float), multiplier
+        };
+        float blackPtr[] = {
+            0.0f, 0.0f, 0.0f, 1.0f
+        };
+        glClearTexImage(frb.rbo.colorBuffer, 0, GL_RGBA, GL_FLOAT, glm::value_ptr(backgroundColor));
+        glClearTexImage(frb.rbo.uvBuffer, 0, GL_RGBA, GL_FLOAT, blackPtr);
     }
 
     std::vector<float> GraphicsCore::RequestRenderWithinRegion() {
@@ -219,8 +109,6 @@ namespace Electron {
         switch (outputBufferType) {
         case PreviewOutputBufferType_Color:
             return renderBuffer.rbo.colorBuffer;
-        case PreviewOutputBufferType_Depth:
-            return renderBuffer.rbo.depthBuffer;
         case PreviewOutputBufferType_UV:
             return renderBuffer.rbo.uvBuffer;
         }
@@ -229,40 +117,50 @@ namespace Electron {
 
     GLuint GraphicsCore::GenerateVAO(std::vector<float> vertices,
                                     std::vector<float> uv) {
-        GLuint verticesVBO, uvVBO;
+
+        std::vector<float> unifiedData;
+        for (int i = 0; i < vertices.size(); i += 2) {
+            int vertexIndex = i;
+            unifiedData.push_back(vertices[vertexIndex + 0]);
+            unifiedData.push_back(vertices[vertexIndex + 1]);
+            unifiedData.push_back(uv[vertexIndex + 0]);
+            unifiedData.push_back(uv[vertexIndex + 1]);
+        }
+        GLuint unifiedVBO;
         GLuint vao;
-        glGenBuffers(1, &verticesVBO);
-        glGenBuffers(1, &uvVBO);
+        glCreateBuffers(1, &unifiedVBO);
 
-        glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
+        glCreateVertexArrays(1, &vao);
 
-        glBindBuffer(GL_ARRAY_BUFFER, verticesVBO);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat),
-                    vertices.data(), GL_STATIC_DRAW);
+        glNamedBufferStorage(unifiedVBO, unifiedData.size() * sizeof(GLfloat),
+                    unifiedData.data(), 0);
 
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat),
-                            (void *)0);
+        glEnableVertexArrayAttrib(vao, 0);
+        glVertexArrayAttribFormat(vao, 0, 2, GL_FLOAT, GL_FALSE, 0);
+        glVertexArrayAttribBinding(vao, 0, 0);
 
-        glBindBuffer(GL_ARRAY_BUFFER, uvVBO);
-        glBufferData(GL_ARRAY_BUFFER, uv.size() * sizeof(GLfloat), uv.data(),
-                    GL_STATIC_DRAW);
+        glEnableVertexArrayAttrib(vao, 1);
+        glVertexArrayAttribFormat(vao, 1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat));
+        glVertexArrayAttribBinding(vao, 1, 0);
 
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float),
-                            (void *)0);
+        glVertexArrayVertexBuffer(vao, 0, unifiedVBO, 0, 4 * sizeof(GLfloat));
 
         return vao;
+    }
+
+    void GraphicsCore::DrawArrays(GLuint vao, int size) {
+        Shared::renderCalls++;
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLES, 0, size);
     }
 
     GLuint GraphicsCore::CompileComputeShader(std::string path) {
         std::string computeShaderCode = read_file("compute/" + path);
         computeShaderCode =
             string_format(
-                "#version 310 es\nprecision highp float;\nlayout(local_size_x = "
+                "%s\nlayout(local_size_x = "
                 "%i, local_size_y = %i, local_size_z = %i) in;\n\n",
-                Wavefront::x, Wavefront::y, Wavefront::z) +
+                Shared::glslVersion.c_str(), Wavefront::x, Wavefront::y, Wavefront::z) +
             computeShaderCode;
         const char *c_code = computeShaderCode.c_str();
 
@@ -330,8 +228,8 @@ namespace Electron {
                 fragment += line + "\n";
         }
 
-        vertex = Shared::glslVersion + "\nprecision highp float;\n" + vertex;
-        fragment = Shared::glslVersion + "\nprecision highp float;\n" + fragment;
+        vertex = Shared::glslVersion + "\n" + vertex;
+        fragment = Shared::glslVersion + "\n" + fragment;
 
         const char *cVertex = vertex.c_str();
         const char *cFragment = fragment.c_str();
@@ -347,16 +245,18 @@ namespace Electron {
         char infoLog[512];
         glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
         if (!success) {
+            DUMP_VAR(vertex);
             glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-            throw std::runtime_error(infoLog);
+            throw std::runtime_error(std::string("(vertex shader ") + path + ")" + infoLog);
         }
 
         glShaderSource(fragmentShader, 1, &cFragment, NULL);
         glCompileShader(fragmentShader);
         glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
         if (!success) {
+            DUMP_VAR(fragment);
             glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-            throw std::runtime_error(infoLog);
+            throw std::runtime_error(std::string("(fragment shader ") + path + ") " + infoLog);
         }
 
         glAttachShader(program, vertexShader);
@@ -365,7 +265,7 @@ namespace Electron {
         glGetProgramiv(program, GL_LINK_STATUS, &success);
         if (!success) {
             glGetProgramInfoLog(program, 512, NULL, infoLog);
-            throw std::runtime_error(infoLog);
+            throw std::runtime_error(std::string("(shader program ") + path + ")" + infoLog);
         }
 
         glDeleteShader(vertexShader);
@@ -374,6 +274,15 @@ namespace Electron {
     }
 
     void GraphicsCore::UseShader(GLuint shader) { glUseProgram(shader); }
+
+    GLuint GraphicsCore::GenerateGPUTexture(int width, int height) {
+        return VRAM::GenerateGPUTexture(width, height);
+    }
+
+    void GraphicsCore::ResizeRenderBuffer(int width, int height) {
+        GraphicsCore::renderBuffer.Destroy();
+        GraphicsCore::renderBuffer = PipelineFrameBuffer(width, height);
+    }
 
     void GraphicsCore::DispatchComputeShader(int grid_x, int grid_y, int grid_z) {
         glDispatchCompute(std::ceil(grid_x / Wavefront::x),
@@ -385,29 +294,15 @@ namespace Electron {
         glMemoryBarrier(barrier);
     }
 
-    GLuint GraphicsCore::GenerateGPUTexture(int width, int height, int unit) {
-        unsigned int texture;
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA,
-                    GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                        PixelBuffer::filtering);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                        PixelBuffer::filtering);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
-                        GL_REPEAT); // set texture wrapping to GL_REPEAT (default
-                                    // wrapping method)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-        return texture;
-    }
-
     void GraphicsCore::BindGPUTexture(GLuint texture, GLuint shader, int unit,
                                     std::string uniform) {
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glUniform1i(glGetUniformLocation(shader, uniform.c_str()), unit);
+        glBindTextureUnit(unit, texture);
+        GraphicsCore::ShaderSetUniform(shader, uniform, unit);
+    }
+
+    void GraphicsCore::BindComputeGPUTexture(GLuint texture, GLuint unit, GLuint readStatus) {
+        glBindImageTexture(unit, texture, 0, GL_FALSE, 0, readStatus,
+                       GL_RGBA32F);
     }
 
     void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, int x,
@@ -451,6 +346,10 @@ namespace Electron {
                         glm::value_ptr(mat4));
     }
 
+    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, bool b) {
+        ShaderSetUniform(program, name, (int) b);
+    }
+
     GLuint GraphicsCore::GetUniformLocation(GLuint program, std::string name) {
         std::unordered_map<std::string, GLuint> programMap{};
         if (uniformCache.find(program) != uniformCache.end())
@@ -466,20 +365,54 @@ namespace Electron {
         return location;
     }
 
-    // Please use DefferCompositor Instead
     void GraphicsCore::CallCompositor(PipelineFrameBuffer frb) {
+        compositorQueue.push_back(frb);
+    }
 
+    void GraphicsCore::PerformComposition() {
         renderBuffer.Bind();
-        UseShader(Shared::compositor_compute);
-        BindGPUTexture(frb.rbo.colorBuffer, Shared::compositor_compute, 0,
-                    "lColor");
-        BindGPUTexture(frb.rbo.uvBuffer, Shared::compositor_compute, 1, "lUV");
-        BindGPUTexture(frb.rbo.depthBuffer, Shared::compositor_compute, 2,
-                    "lDepth");
-
         glBindVertexArray(Shared::fsVAO);
-        glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
-        renderBuffer.Unbind();
+        
+        static GLuint samplersBuffer = 0;
+        if (samplersBuffer == 0) {
+            glCreateBuffers(1, &samplersBuffer);
+            glNamedBufferStorage(samplersBuffer, SAMPLER_BUFFER_SIZE * 2 * sizeof(GLuint64), NULL, GL_DYNAMIC_STORAGE_BIT | PERSISTENT_FLAG);
+        }
+
+        int residentsCount = glm::min((size_t) SAMPLER_BUFFER_SIZE, compositorQueue.size());
+        static std::vector<GLuint64> handles;
+        static std::vector<int> ids;
+        bool bufferNeedsUpdate = false;
+        if (!ids.empty()) {
+            for (int i = 0; i < ids.size(); i++) {
+                if (ids[i] != compositorQueue[i].id) {
+                    bufferNeedsUpdate = true;
+                    break;
+                }
+            }
+        }
+        if (ids.empty() || bufferNeedsUpdate) {
+            handles.clear();
+            ids.clear();
+            for (int i = 0; i < residentsCount; i++) {
+                PipelineFrameBuffer& frb = compositorQueue[i];
+                ids.push_back(frb.id);
+                handles.push_back(frb.colorHandle);
+                handles.push_back(frb.uvHandle);
+            }
+            glNamedBufferSubData(samplersBuffer, 0, handles.size() * sizeof(GLuint64), handles.data());
+        }
+
+        UseShader(Shared::compositor_compute);
+
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, samplersBuffer);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, fsQuadVertices.size() / 2, residentsCount);
+
+        compositorQueue.erase(compositorQueue.begin(), compositorQueue.begin() + residentsCount);
+        Shared::compositorCalls++;
+        if (compositorQueue.size() != 0) {
+            PerformComposition();
+        }
     }
 
     void GraphicsCore::FireTimelineSeek() {

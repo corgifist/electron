@@ -5,14 +5,13 @@
 using namespace Electron;
 using namespace glm;
 
-#define SDF_2D_ACCEPT_THRESHOLD 0.0
+#define TEXTURE_POOL_SIZE 128
 
 extern "C" {
 
     ELECTRON_EXPORT std::string LayerName = "SDF2D";
     ELECTRON_EXPORT glm::vec4 LayerTimelineColor = {0.58, 0.576, 1, 1};
     GLuint sdf2d_compute = UNDEFINED;
-    GLuint sdf2d_vao = UNDEFINED;
 
     enum class SDFShape {
         None = 0,
@@ -39,6 +38,10 @@ extern "C" {
             GeneralizedPropertyType::Float,
             {0, 0}
         };
+        owner->properties["UvOffset"] = {
+            GeneralizedPropertyType::Vec2,
+            {0, 0, 0}
+        };
 
         owner->properties["TextureID"] = "";
         owner->properties["EnableTexturing"] = true;
@@ -51,7 +54,8 @@ extern "C" {
             {"Radius", ICON_FA_CIRCLE " Radius"},
             {"CircleRadius", ICON_FA_CIRCLE " Radius"},
             {"BoxRadius", ICON_FA_SQUARE " Radius"},
-            {"TriangleRadius", ICON_FA_SHAPES " Radius"}
+            {"TriangleRadius", ICON_FA_SHAPES " Radius"},
+            {"UvOffset", ICON_FA_ARROWS_LEFT_RIGHT " UV Offset"}
         };
         owner->internalData["TimelineSliders"] = {
             {"CircleRadius", 0, 2},
@@ -67,10 +71,6 @@ extern "C" {
         if (sdf2d_compute == UNDEFINED) {
             sdf2d_compute = GraphicsCore::CompilePipelineShader("sdf2d.pipeline");
         }
-
-        if (sdf2d_vao == UNDEFINED) {
-            sdf2d_vao = GraphicsCore::GenerateVAO(fsQuadVertices, fsQuadUV);
-        }
     }
 
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
@@ -83,33 +83,34 @@ extern "C" {
         }
         
         owner->anyData[0] = frb;
-        frb = std::any_cast<PipelineFrameBuffer>(owner->anyData[0]); // update sdf2d_fbo (fixes some small issues)
+
+        static std::unordered_map<int, GLuint64> handlePool{};
+        static std::vector<GLuint64> handles(TEXTURE_POOL_SIZE);
+        static int handleIndex = 0;
+
+        frb = std::any_cast<PipelineFrameBuffer>(owner->anyData[0]);
         GraphicsCore::RequestTextureCollectionCleaning(frb, 0.0f);
 
         auto position = vec2();
         auto size = vec2();
         auto color = vec3();
+        auto uvOffset = vec2();
         auto angle = 0.0f; {
             auto positionVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Position"]), std::vector<float>);
             auto sizeVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Size"]), std::vector<float>);
             auto colorVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Color"]), std::vector<float>);
-            auto angleFloat = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Angle"]), std::vector<float>);
+            auto angleFloat = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Angle"]).at(0), float);
+            auto uvOffsetVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["UvOffset"]), std::vector<float>);
             position = vec2(positionVector[0], positionVector[1]);
             size = vec2(sizeVector[0], sizeVector[1]); 
             color = vec3(colorVector[0], colorVector[1], colorVector[2]);
-            angle = angleFloat[0];
+            angle = angleFloat;
+            uvOffset = vec2(uvOffsetVector[0], uvOffsetVector[1]);
         }
 
         bool texturingEnabled = JSON_AS_TYPE(owner->properties["EnableTexturing"], bool);
         std::string textureID = JSON_AS_TYPE(owner->properties["TextureID"], std::string);
-        TextureUnion* asset = nullptr;
-        auto& assets = AssetCore::assets;
-        for (int i = 0; i < assets.size(); i++) {
-            if (intToHex(assets.at(i).id) == textureID) {
-                if (assets.at(i).IsTextureCompatible())
-                    asset = &assets.at(i);
-            }
-        }
+        TextureUnion* asset = AssetCore::GetAsset(textureID);
 
         bool canTexture = (asset != nullptr && texturingEnabled);
 
@@ -122,35 +123,76 @@ extern "C" {
         float aspect = (float) frb.width / (float) frb.height;
         mat4 projection = ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uColor", color);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uTransform", transform);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uProjection", projection);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uMatrix", projection * transform);
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfShape", JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int));
         GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSize", size);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uUvOffset", uvOffset);
         switch ((SDFShape) JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int)) {
-            case SDFShape::None: break;
+            case SDFShape::None: {
+                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfEnabled", false);
+                break;
+            };
             case SDFShape::Circle: {
-                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["CircleRadius"]), std::vector<float>)[0];
+                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["CircleRadius"]).at(0), float);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfEnable", true);
                 GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
                 break;
             }
             case SDFShape::RoundedRect: {
-                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["BoxRadius"]), std::vector<float>)[0];
+                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["BoxRadius"]).at(0), float);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfEnable", true);
                 GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
                 break;
             }
             case SDFShape::Triangle: {
-                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["TriangleRadius"]), std::vector<float>)[0];
+                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["TriangleRadius"]).at(0), float);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfEnable", true);
                 GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
                 break;
             }
         }
-        if (canTexture) {
-            GraphicsCore::BindGPUTexture(asset->pboGpuTexture, sdf2d_compute, 0, "uTexture");
+
+        static GLuint samplersBuffer = 0;
+        if (samplersBuffer == 0) {
+            glCreateBuffers(1, &samplersBuffer);
+            glNamedBufferStorage(samplersBuffer, TEXTURE_POOL_SIZE * sizeof(GLuint64), NULL, GL_DYNAMIC_STORAGE_BIT);
         }
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uCanTexture", (int) canTexture);
-        glBindVertexArray(sdf2d_vao);
-        glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
-        frb.Unbind();
+
+        if (canTexture) {
+            if (handlePool.find(asset->id) == handlePool.end()) {
+                handlePool[asset->id] = glGetTextureHandleARB(asset->pboGpuTexture);
+                if (!handlePool[asset->id]) {
+                    throw std::runtime_error("cannot get asset texture handle! (sdf2d)");
+                }
+            }
+
+            if (std::find(handles.begin(), handles.end(), handlePool[asset->id]) == handles.end()) {
+                if (handleIndex >= TEXTURE_POOL_SIZE) {
+                    glMakeTextureHandleNonResidentARB(handles[0]);
+                    handleIndex = 0;
+                    handles[handleIndex++] = handlePool[asset->id];
+                    glMakeTextureHandleResidentARB(handles[0]);
+                } else {
+                    if (handles[handleIndex] != 0) {
+                        glMakeTextureHandleNonResidentARB(handles[handleIndex]);
+                    }
+                    handles[handleIndex++] = handlePool[asset->id];
+                    glMakeTextureHandleResidentARB(handlePool[asset->id]);
+                }
+                glNamedBufferSubData(samplersBuffer, 0, TEXTURE_POOL_SIZE * sizeof(GLuint64), handles.data());
+            }
+
+            GLuint64 desiredHandle = handlePool[asset->id];
+            int uTextureID = 0;
+            for (int i = 0; i < handles.size(); i++) {
+                if (handles[i] == desiredHandle)
+                    uTextureID = i;
+            }
+            GraphicsCore::ShaderSetUniform(sdf2d_compute, "uTextureID", uTextureID);
+        }
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, samplersBuffer);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uCanTexture", canTexture);
+        GraphicsCore::DrawArrays(Shared::fsVAO, fsQuadVertices.size() * 0.5);
 
         GraphicsCore::CallCompositor(frb);
     }
@@ -173,6 +215,9 @@ extern "C" {
 
         json_t& angle = layer->properties["Angle"];
         layer->RenderProperty(GeneralizedPropertyType::Float, angle, "Angle");
+
+        json_t& uvOffset = layer->properties["UvOffset"];
+        layer->RenderProperty(GeneralizedPropertyType::Vec2, uvOffset, "UvOffset");
 
         static std::vector<std::string> shapesCollection = {
             ICON_FA_XMARK " None",
@@ -273,7 +318,7 @@ extern "C" {
 
     ELECTRON_EXPORT json_t LayerGetPreviewProperties(RenderLayer* layer) {
         json_t base = {
-            "Position", "Size", "Color", "Angle"
+            "Position", "Size", "Color", "Angle", "UvOffset"
         };
         switch ((SDFShape) JSON_AS_TYPE(layer->properties["SelectedSDFShape"], int)) {
             case SDFShape::Circle: {
@@ -290,5 +335,16 @@ extern "C" {
             }
         }
         return base;
+    }
+
+    ELECTRON_EXPORT void LayerMakeFramebufferResident(RenderLayer* layer, bool resident) {
+        PipelineFrameBuffer frb = std::any_cast<PipelineFrameBuffer>(layer->anyData[0]);
+        if (resident) frb.MakeResident();
+        else frb.MakeNonResident();
+        layer->anyData[0] = frb;
+    }
+
+    ELECTRON_EXPORT PipelineFrameBuffer LayerGetFramebuffer(RenderLayer* layer) {
+        return std::any_cast<PipelineFrameBuffer>(layer->anyData[0]);
     }
 }

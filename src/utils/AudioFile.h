@@ -326,6 +326,7 @@ AudioFile<T>::AudioFile()
     samples.resize (1);
     samples[0].resize (0);
     audioFileFormat = AudioFileFormat::NotLoaded;
+    samplesStartIndex = 0;
 }
 
 //=============================================================
@@ -651,8 +652,7 @@ bool AudioFile<T>::decodeWaveFile (std::vector<uint8_t>& fileData)
     int32_t dataChunkSize = fourBytesToInt (fileData, d + 4);
     
     int numSamples = dataChunkSize / (numChannels * bitDepth / 8);
-    int samplesStartIndex = indexOfDataChunk + 8;
-    this->samplesStartIndex = samplesStartIndex;
+    this->samplesStartIndex = indexOfDataChunk + 8;
     
     clearAudioBuffer();
     samples.resize (numChannels);
@@ -806,7 +806,7 @@ bool AudioFile<T>::decodeAiffFile (std::vector<uint8_t>& fileData)
     int numBytesPerSample = bitDepth / 8;
     int numBytesPerFrame = numBytesPerSample * numChannels;
     int totalNumAudioSampleBytes = numSamplesPerChannel * numBytesPerFrame;
-    int samplesStartIndex = s + 16 + (int)offset;
+    this->samplesStartIndex = s + 16 + (int)offset;
         
     // sanity check the data
     if ((soundDataChunkSize - 8) != totalNumAudioSampleBytes || totalNumAudioSampleBytes > static_cast<long>(fileData.size() - samplesStartIndex))

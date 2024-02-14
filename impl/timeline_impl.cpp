@@ -271,11 +271,15 @@ ELECTRON_EXPORT void UIRender() {
         if (visible) ImGui::PopStyleColor();
         ImGui::SameLine();
         std::string spinnerText = "";
-        if (JSON_AS_TYPE(layer->properties["ShowLoadingSpinner"], bool)) {
+        if (JSON_AS_TYPE(layer->internalData["ShowLoadingSpinner"], bool)) {
             spinnerText = ICON_FA_SPINNER " - ";
         }
+        std::string statusText = JSON_AS_TYPE(layer->internalData["StatusText"], std::string);
+        if (statusText != "") {
+            statusText = " - " + statusText;
+        }
         if (ImGui::CollapsingHeader(
-                (spinnerText + layer->layerUsername + "##" + std::to_string(i)).c_str())) {
+                (spinnerText + layer->layerUsername + statusText + "###" + layer->layerUsername +  std::to_string(i)).c_str())) {
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4);
             if (ImGui::IsItemHovered() &&
                 ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {
@@ -495,6 +499,7 @@ ELECTRON_EXPORT void UIRender() {
                       ImVec2(canvasSize.x - legendSize.x, canvasSize.y), false,
                       timelineFlags);
     windowMouseCoords = ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
+    ImVec2 timelineReservedMouseCoords = windowMouseCoords;
     bool previousVerticalBar = showVerticalScrollbar;
     bool previousHorizontalBar = showHorizontalScrollbar;
     showVerticalScrollbar = (windowMouseCoords.x - ImGui::GetScrollX() >= (ImGui::GetWindowSize().x - 20)) && windowMouseCoords.x - ImGui::GetScrollY() < ImGui::GetWindowSize().x + 5;
@@ -1043,7 +1048,7 @@ ELECTRON_EXPORT void UIRender() {
         anyPopupsOpen = true;
         ImGui::SeparatorText(string_format("%s %s", ICON_FA_TIMELINE, ELECTRON_GET_LOCALIZATION("TIMELINE_TITLE")).c_str());
         if (ImGui::BeginMenu(
-                ELECTRON_GET_LOCALIZATION("TIMELINE_ADD_LAYER"))) {
+                string_format("%s %s", ICON_FA_LAYER_GROUP, ELECTRON_GET_LOCALIZATION("TIMELINE_ADD_LAYER")).c_str())) {
             for (auto &entry : GraphicsCore::GetImplementationsRegistry()) {
                 Libraries::LoadLibrary("layers", entry);
                 
@@ -1054,6 +1059,11 @@ ELECTRON_EXPORT void UIRender() {
             }
             ImGui::EndMenu();
         }
+        if (ImGui::MenuItem(string_format("%s %s", ICON_FA_RULER, ELECTRON_GET_LOCALIZATION("JUMP_HERE")).c_str())) {
+            GraphicsCore::renderFrame = timelineReservedMouseCoords.x / pixelsPerFrame;
+        }
+        ImGui::Separator();
+        ImGui::Text("%s %i %s", ELECTRON_GET_LOCALIZATION("TOTAL"), (int) GraphicsCore::layers.size(), ELECTRON_GET_LOCALIZATION("LAYERS"));
         ImGui::EndPopup();
     }
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));

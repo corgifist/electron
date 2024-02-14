@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
         std::filesystem::create_directories("cache/");
     }
 
-    start_server("async_writer", 4040);
+    if (start_server("async_writer", 4040)) {}
 
     AppCore::Initialize();
     AppCore::ExecuteSignal(Signal::_SpawnDockspace);
@@ -74,6 +74,6 @@ int main(int argc, char *argv[]) {
     return 0;
 
 system_reloaded:
-    system(string_format("%s &", argv[0]).c_str());
+    if (system(string_format("%s &", argv[0]).c_str())) {}
     return 0;
 }

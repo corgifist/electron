@@ -44,5 +44,7 @@ namespace Electron {
         static std::string glslVersion;
 
         static float maxFramerate;
+
+        static int renderCalls, compositorCalls;
     };
 }

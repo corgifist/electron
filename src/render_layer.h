@@ -5,6 +5,7 @@
 #include "graphics_core.h"
 #include "asset_core.h"
 #include "ImGui/imgui.h"
+#include "vram.h"
 
 
 namespace Electron {
@@ -12,6 +13,8 @@ namespace Electron {
     class RenderLayer;
     typedef void (*Electron_LayerImplF)(RenderLayer*);
     typedef json_t (*Electron_PropertiesImplF)(RenderLayer*);
+    typedef PipelineFrameBuffer (*Electron_FramebufferImplF)(RenderLayer*);
+    typedef void (*Electron_MakeFramebufferResidentImplF)(RenderLayer*, bool);
 
     enum class GeneralizedPropertyType {
         Vec3, Vec2, Float, Color3
@@ -34,6 +37,8 @@ namespace Electron {
         Electron_LayerImplF propertiesProcedure;
         Electron_LayerImplF sortingProcedure;
         Electron_PropertiesImplF previewPropertiesProcedure;
+        Electron_FramebufferImplF framebufferProcedure;
+        Electron_MakeFramebufferResidentImplF residentProcedure;
         bool initialized;
         std::string layerPublicName;
         float renderTime;
@@ -66,10 +71,14 @@ namespace Electron {
 
         Electron_LayerImplF TryGetLayerImplF(std::string key);
         Electron_PropertiesImplF TryGetPropertiesImplF(std::string key);
+        Electron_FramebufferImplF TryGetFramebufferImplF(std::string key);
+        Electron_MakeFramebufferResidentImplF TryGetMakeFramebufferResidentImplF(std::string key);
 
         void Destroy();
     };
 
     void LayerImplPlaceholder(Electron::RenderLayer* layer);
     json_t LayerPropertiesImplPlaceholder(Electron::RenderLayer* layer);
+    PipelineFrameBuffer LayerFramebufferImplPlaceholder(RenderLayer* layer);
+    void LayerMakeFramebufferResidentPlaceholder(RenderLayer* layer, bool);
 }

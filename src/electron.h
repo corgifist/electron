@@ -34,7 +34,7 @@
 #include <boost/process.hpp>
 #include <utility>
 
-#include "utils/gles2.h"
+#include "utils/gl.h"
 #include "GLFW/glfw3.h"
 
 #include "ImGui/imgui.h"
@@ -288,7 +288,11 @@ namespace Electron {
     }
 
     template <typename T>
-    bool IsInBounds(const T& value, const T& low, const T& high) {
+    static bool IsInBounds(const T& value, const T& low, const T& high) {
         return !(value < low) && (value < high);
+    }
+
+    static double Lerp(double a, double b, double t) {
+        return a + t * (b - a);
     }
 }

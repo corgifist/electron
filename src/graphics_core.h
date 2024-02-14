@@ -6,7 +6,7 @@
 #include "async_ffmpeg.h"
 #include "cache.h"
 #include "shared.h"
-#include "utils/gles2.h"
+#include "utils/gl.h"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_stdlib.h"
 
@@ -14,8 +14,13 @@
 #include "render_layer.h"
 #include "driver_core.h"
 
+#include "vram.h"
+
 #define MAX_DEPTH 100000000
 #define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.ogg,.mp3,.wav,.*"
+
+#define SAMPLER_BUFFER_SIZE 1024
+
 
 static DylibRegistry dylibRegistry{};
 
@@ -49,61 +54,6 @@ namespace Electron {
         1, 1
     };
 
-    // A set of GPU textures that represents color/depth/uv buffers
-    class RenderBuffer {
-    public:
-        GLuint colorBuffer;
-        GLuint uvBuffer;
-        GLuint depthBuffer;
-        int width, height;
-
-        RenderBuffer(int width, int height);
-        RenderBuffer() {
-            this->width = 0;
-            this->height = 0;
-        };
-
-        void Destroy();
-
-        ~RenderBuffer();
-    };
-
-    // GPUTexture that adapts to preview buffer size changes
-    struct ResizableGPUTexture {
-        GLuint texture;
-        int width, height;
-
-        ResizableGPUTexture(int width, int height);
-        ResizableGPUTexture() {}
-
-        void CheckForResize(RenderBuffer* rbo);
-        void Destroy();
-    };
-
-    // RenderBuffer that adapts to preview buffer size changes
-    struct ResizableRenderBuffer {
-        ResizableGPUTexture color, uv, depth;
-
-        ResizableRenderBuffer(int width, int height);
-        ResizableRenderBuffer() {}
-
-        void CheckForResize(RenderBuffer* rbo);
-        void Destroy();
-    };
-
-    struct PipelineFrameBuffer {
-        GLuint fbo, stencil;
-        RenderBuffer rbo;
-        int width, height;
-
-        PipelineFrameBuffer(int width, int height);
-        PipelineFrameBuffer() {}
-
-        void Bind();
-        void Unbind();
-        void Destroy();
-    };
-
     typedef int(*Electron_CacheIndexT)();
     
     // Responsible of some GPU manipulations
@@ -113,6 +63,7 @@ namespace Electron {
         static std::vector<RenderLayer> layers;
         static bool isPlaying;
         static std::unordered_map<GLuint, std::unordered_map<std::string, GLuint>> uniformCache;
+        static std::vector<PipelineFrameBuffer> compositorQueue;
 
 
         static float renderFrame;
@@ -137,13 +88,15 @@ namespace Electron {
         static GLuint GetPreviewGPUTexture();
 
         static GLuint GenerateVAO(std::vector<float> vertices, std::vector<float> uv);
+        static void DrawArrays(GLuint vao, int size);
         static GLuint CompileComputeShader(std::string path);
         static GLuint CompilePipelineShader(std::string path);
         static void UseShader(GLuint shader);
         static void DispatchComputeShader(int grid_x, int grid_y, int grid_z);
         static void ComputeMemoryBarier(GLbitfield barrier);
-        static GLuint GenerateGPUTexture(int width, int height, int unit);
+        static GLuint GenerateGPUTexture(int width, int height);
         static void BindGPUTexture(GLuint texture, GLuint shader, int unit, std::string uniform);
+        static void BindComputeGPUTexture(GLuint texture, GLuint unit, GLuint readStatus);
         static void ShaderSetUniform(GLuint program, std::string name, int x, int y);
         static void ShaderSetUniform(GLuint program, std::string name, glm::vec3 vec);
         static void ShaderSetUniform(GLuint program, std::string name, float f);
@@ -152,6 +105,7 @@ namespace Electron {
         static void ShaderSetUniform(GLuint program, std::string name, glm::vec4 vec);
         static void ShaderSetUniform(GLuint program, std::string name, glm::mat3 mat3);
         static void ShaderSetUniform(GLuint program, std::string name, glm::mat4 mat4);
+        static void ShaderSetUniform(GLuint program, std::string name, bool b);
 
         static GLuint GetUniformLocation(GLuint program, std::string name);
 
@@ -159,6 +113,7 @@ namespace Electron {
         static void FirePlaybackChange();
 
         static void CallCompositor(PipelineFrameBuffer frb);
+        static void PerformComposition();
         
     };
 }

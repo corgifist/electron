@@ -36,7 +36,7 @@ void Shortcuts::Ctrl_W_E() {
 }
 
 void Shortcuts::Ctrl_E_C() {
-    system("rm -r cache");
-    system("mkdir cache");
+    if (system("rm -r cache")) {}
+    if (system("mkdir cache")) {}
 }
 } // namespace Electron

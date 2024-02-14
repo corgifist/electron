@@ -1,7 +1,7 @@
 #include "app.h"
 
-#define GLAD_GLES2_IMPLEMENTATION
-#include "utils/gles2.h"
+#define GLAD_GL_IMPLEMENTATION
+#include "utils/gl.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "utils/stb_image.h"
@@ -124,9 +124,8 @@ namespace Electron {
 
         GraphicsCore::FetchAllLayers();
 
-        // graphics.AddRenderLayer(RenderLayer("sdf2d_layer"));
         Shared::shadowTex = PixelBuffer("misc/shadow.png").BuildGPUTexture();
-        Shared::glslVersion = "#version 310 es";
+        Shared::glslVersion = "#version 460 core\n#extension GL_ARB_bindless_texture : require\n";
         GraphicsCore::PrecompileEssentialShaders();
     }
 
@@ -159,6 +158,8 @@ namespace Electron {
         while (!DriverCore::ShouldClose()) {
             double firstTime = GetTime();
             AppCore::context = ImGui::GetCurrentContext();
+            if (GraphicsCore::renderBuffer.resident)
+                GraphicsCore::renderBuffer.MakeNonResident();
 
             static bool asyncWriterDead = false;
             if (!Servers::AsyncWriterRequest({{"action", "alive"}}).alive &&
@@ -187,6 +188,9 @@ namespace Electron {
             Shared::displaySize = GetNativeWindowSize();
             Shared::configMap["LastWindowSize"] = {Shared::displaySize.x,
                                                    Shared::displaySize.y};
+            
+            Shared::renderCalls = 0;
+            Shared::compositorCalls = 0;
 
             if (projectOpened) {
                 Shared::configMap["LastProject"] = Shared::project.path;
@@ -349,6 +353,11 @@ namespace Electron {
             }
             /* Trigger LayerOnPropertiesChange Event */ {
                 for (auto &layer : GraphicsCore::layers) {
+                    json_t copyPreviousProperties = layer.previousProperties;
+                    json_t copyProperties = layer.properties;
+                    copyPreviousProperties.erase(copyPreviousProperties.find("InternalTimeShift"));
+                    copyProperties.erase(copyProperties.find("InternalTimeShift"));
+
                     if (layer.previousProperties != layer.properties) {
                         layer.onPropertiesChange(&layer);
                     }
@@ -369,10 +378,6 @@ namespace Electron {
         render_success:
             DriverCore::ImGuiRender();
             DriverCore::SwapBuffers();
-            if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-                ImGui::UpdatePlatformWindows();
-                ImGui::RenderPlatformWindowsDefault();
-            }
 
             if (projectOpened) {
                 json_t AssetCore = {};

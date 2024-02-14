@@ -10,7 +10,6 @@ void main() {
 
 layout(location = 0) out vec4 gColor;
 layout(location = 1) out vec4 gUV;
-layout(location = 2) out vec4 gDepth;
 
 uniform vec3 backgroundColor;
 uniform float multiplier;

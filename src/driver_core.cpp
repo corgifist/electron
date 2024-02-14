@@ -9,6 +9,19 @@ namespace Electron {
         print("DriverCore::GLFWCallback: " << description);
     }
 
+    static void GLAPIENTRY GLCallback( GLenum source,
+                 GLenum type,
+                 GLuint id,
+                 GLenum severity,
+                 GLsizei length,
+                 const GLchar* message,
+                 const void* userParam ) {
+        if (type != GL_DEBUG_TYPE_ERROR && type != GL_DEBUG_TYPE_PERFORMANCE) return;
+        fprintf( stderr, "%s\n",
+            message );
+    }   
+
+
     void DriverCore::Bootstrap() {
         print("bootstraping graphics api rn!!!");
         std::string sessionType = getEnvVar("XDG_SESSION_TYPE");
@@ -35,11 +48,9 @@ namespace Electron {
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-        glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
         std::vector<int> maybeSize = {
             JSON_AS_TYPE(Shared::configMap["LastWindowSize"].at(0), int),
             JSON_AS_TYPE(Shared::configMap["LastWindowSize"].at(1), int)};
@@ -48,8 +59,7 @@ namespace Electron {
             maybeSize[1], "Electron", nullptr, nullptr);
 
         glfwMakeContextCurrent(displayHandle);
-        glfwSwapInterval(1);
-        if (!gladLoadGLES2((GLADloadfunc)glfwGetProcAddress)) {
+        if (!gladLoadGL((GLADloadfunc) glfwGetProcAddress)) {
             throw std::runtime_error(
                 "cannot load opengl es function pointers!");
         }
@@ -67,15 +77,27 @@ namespace Electron {
         io.ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
         io.ConfigWindowsMoveFromTitleBarOnly = true;
         io.WantSaveIniSettings = true;
+        io.IniFilename = "misc/imgui.ini";
 
         ImGui_ImplGlfw_InitForOpenGL(displayHandle, true);
         ImGui_ImplOpenGL3_Init();
         DUMP_VAR(ImGui::GetIO().BackendRendererName);
 
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+        glEnable(GL_DITHER);
+        glEnable(GL_DEBUG_OUTPUT);
+        glDebugMessageCallback(GLCallback, 0);
+        glClearColor(0, 0, 0, 1);
+
         renderer.displayHandle = (void*) displayHandle;
-        renderer.vendor = "NVIDIA";
-        renderer.version = "1.0";
-        renderer.renderer = "OpenGL ES";
+        renderer.vendor = (const char*) glGetString(GL_VENDOR);
+        renderer.version = (const char*) glGetString(GL_VERSION);
+        renderer.renderer = (const char*) glGetString(GL_RENDERER);
+
+        DUMP_VAR(renderer.vendor);
+        DUMP_VAR(renderer.version);
+        DUMP_VAR(renderer.renderer);
     }
 
     bool DriverCore::ShouldClose() {
@@ -83,13 +105,11 @@ namespace Electron {
     }
 
     void DriverCore::SwapBuffers() {
-        glfwMakeContextCurrent((GLFWwindow*) renderer.displayHandle);
         glfwSwapBuffers((GLFWwindow*) renderer.displayHandle);
     }
 
     void DriverCore::ImGuiNewFrame() {
-        glfwPollEvents();
-        glClearColor(0, 0, 0, 1);
+        glfwWaitEvents();
         glClear(GL_COLOR_BUFFER_BIT);
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -98,6 +118,7 @@ namespace Electron {
     }
 
     void DriverCore::ImGuiRender() {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         ImGui::Render();
         ImGui::EndFrame();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

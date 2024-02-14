@@ -8,7 +8,8 @@ namespace Electron {
         this->previousProperties = {};
         this->properties["InternalTimeShift"] = 0;
         this->properties["PropertyAlias"] = {};
-        this->properties["ShowLoadingSpinner"] = false;
+        this->internalData["ShowLoadingSpinner"] = false;
+        this->internalData["StatusText"] = "";
         // print("Loading dylib " + layerLibrary);
 
         this->beginFrame = GraphicsCore::renderFrame;
@@ -40,6 +41,8 @@ namespace Electron {
         this->initializationProcedure = TryGetLayerImplF("LayerInitialize");
         this->sortingProcedure = TryGetLayerImplF("LayerSortKeyframes");
         this->onPropertiesChange = TryGetLayerImplF("LayerOnPropertiesChange");
+        this->framebufferProcedure = TryGetFramebufferImplF("LayerGetFramebuffer");
+        this->residentProcedure = TryGetMakeFramebufferResidentImplF("LayerMakeFramebufferResident");
         this->previewPropertiesProcedure =
             TryGetPropertiesImplF("LayerGetPreviewProperties");
         this->layerPublicName =
@@ -59,7 +62,11 @@ namespace Electron {
             timeShift = JSON_AS_TYPE(properties["InternalTimeShift"], float);
         }
         float oldRenderFrame = GraphicsCore::renderFrame;
-        if (IsInBounds(GraphicsCore::renderFrame, beginFrame, endFrame)) {
+        bool inBounds = IsInBounds(GraphicsCore::renderFrame, beginFrame, endFrame);
+        if (residentProcedure != LayerMakeFramebufferResidentPlaceholder) {
+            residentProcedure(this, inBounds);
+        }
+        if (inBounds) {
             GraphicsCore::renderFrame += timeShift;
             layerProcedure(this);
             GraphicsCore::renderFrame = oldRenderFrame;
@@ -354,6 +361,9 @@ namespace Electron {
                                                         ICON_FA_MAGNIFYING_GLASS,
                                                         "Search filter")
                                                 .c_str());
+                if (ImGui::Selectable(string_format("%s %s", ICON_FA_XMARK, ELECTRON_GET_LOCALIZATION("NONE")).c_str())) {
+                    textureID = "";
+                }
                 for (auto &asset : assets) {
                     std::string icon = asset.GetIcon();
                     if (searchFilter != "" &&
@@ -490,6 +500,24 @@ namespace Electron {
         }
     }
 
+    Electron_FramebufferImplF RenderLayer::TryGetFramebufferImplF(std::string key) {
+        try {
+            return Libraries::GetFunction<PipelineFrameBuffer(RenderLayer *)>(layerLibrary, key);
+        } catch (internalDylib::symbol_error err) {
+            return LayerFramebufferImplPlaceholder;
+        }
+    }
+
+    Electron_MakeFramebufferResidentImplF RenderLayer::TryGetMakeFramebufferResidentImplF(std::string key) {
+        try {
+            return Libraries::GetFunction<void(RenderLayer*, bool)>(layerLibrary, key);
+        } catch (internalDylib::symbol_error err) {
+            return LayerMakeFramebufferResidentPlaceholder;
+        }
+    }
+
     void LayerImplPlaceholder(RenderLayer *layer) {}
     json_t LayerPropertiesImplPlaceholder(RenderLayer *layer) { return {}; }
+    PipelineFrameBuffer LayerFramebufferImplPlaceholder(RenderLayer* layer) { return {}; }
+    void LayerMakeFramebufferResidentPlaceholder(RenderLayer* layer, bool) {}
 } // namespace Electron

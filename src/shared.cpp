@@ -39,4 +39,7 @@ namespace Electron {
 
     std::string Shared::glslVersion = "#version 460"; // use standard OpenGL by default
     float Shared::maxFramerate = 60;
+
+    int Shared::renderCalls = 0;
+    int Shared::compositorCalls = 0;
 }
