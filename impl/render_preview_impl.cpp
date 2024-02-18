@@ -155,15 +155,17 @@ extern "C" {
                 }
 
                 rbo->Bind();
-                GraphicsCore::UseShader(Shared::channel_manipulator_compute);
-                GraphicsCore::BindGPUTexture(rbo->rbo.colorBuffer, Shared::channel_manipulator_compute, 0, "uColor");
-                GraphicsCore::BindGPUTexture(rbo->rbo.uvBuffer, Shared::channel_manipulator_compute, 1, "uUV");
+                GraphicsCore::UseShader(GL_FRAGMENT_SHADER_BIT, GraphicsCore::channel.fragment);
+                static glm::mat4 identity = glm::mat4(1);
+                GraphicsCore::ShaderSetUniform(GraphicsCore::basic.vertex, "uMatrix", identity);
+                GraphicsCore::BindGPUTexture(rbo->rbo.colorBuffer, GraphicsCore::channel.fragment, 0, "uColor");
+                GraphicsCore::BindGPUTexture(rbo->rbo.uvBuffer, GraphicsCore::channel.fragment, 1, "uUV");
                 glm::vec4 factor{};
                 if (selectedChannel == 0) factor = {1, 0, 0, 1};
                 if (selectedChannel == 1) factor = {0, 1, 0, 1};
                 if (selectedChannel == 2) factor = {0, 0, 1, 1};
                 if (selectedChannel == 3) factor = {1, 1, 1, 1};
-                GraphicsCore::ShaderSetUniform(Shared::channel_manipulator_compute, "uFactor", factor);
+                GraphicsCore::ShaderSetUniform(GraphicsCore::channel.fragment, "uFactor", factor);
                 glBindVertexArray(Shared::fsVAO);
                 glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
                 

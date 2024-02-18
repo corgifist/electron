@@ -61,7 +61,10 @@ namespace Electron {
         static int counter;
 
         PipelineFrameBuffer(int width, int height);
-        PipelineFrameBuffer() {}
+        PipelineFrameBuffer(GLuint color, GLuint uv);
+        PipelineFrameBuffer() {
+            this->id = 0;
+        }
 
         void Bind();
         void Unbind();

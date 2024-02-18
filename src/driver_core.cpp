@@ -84,11 +84,10 @@ namespace Electron {
         DUMP_VAR(ImGui::GetIO().BackendRendererName);
 
         glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glEnable(GL_DITHER);
         glEnable(GL_DEBUG_OUTPUT);
         glDebugMessageCallback(GLCallback, 0);
-        glClearColor(0, 0, 0, 1);
 
         renderer.displayHandle = (void*) displayHandle;
         renderer.vendor = (const char*) glGetString(GL_VENDOR);
@@ -98,6 +97,12 @@ namespace Electron {
         DUMP_VAR(renderer.vendor);
         DUMP_VAR(renderer.version);
         DUMP_VAR(renderer.renderer);
+        print("OpenGL Extensions:");
+        int extensionsCount;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &extensionsCount);
+        for (int i = 0; i < extensionsCount; i++) {
+            print("\t" << glGetStringi(GL_EXTENSIONS, i));
+        }
     }
 
     bool DriverCore::ShouldClose() {
@@ -110,7 +115,6 @@ namespace Electron {
 
     void DriverCore::ImGuiNewFrame() {
         glfwWaitEvents();
-        glClear(GL_COLOR_BUFFER_BIT);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -119,6 +123,10 @@ namespace Electron {
 
     void DriverCore::ImGuiRender() {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        float blackPtr[] = {
+            0, 0, 0, 1
+        };
+        glClearBufferfv(GL_COLOR, 0, blackPtr);
         ImGui::Render();
         ImGui::EndFrame();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

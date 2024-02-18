@@ -9,7 +9,7 @@ namespace Electron {
         glCreateTextures(GL_TEXTURE_2D, 1, &texture);
         glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
         glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER,
-                        GL_LINEAR);
+                        GL_LINEAR_MIPMAP_LINEAR);
         glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER,
                         GL_LINEAR);
         glGenerateTextureMipmap(texture);
@@ -17,7 +17,7 @@ namespace Electron {
         return texture;
     }
 
-    int PipelineFrameBuffer::counter = 0;
+    int PipelineFrameBuffer::counter = 1;
 
     RenderBuffer::RenderBuffer(int width, int height) {
         this->colorBuffer = VRAM::GenerateGPUTexture(width, height);
@@ -96,6 +96,21 @@ namespace Electron {
             throw std::runtime_error("cannot get texture handle for uv buffer!");
         }
         MakeResident();
+    }
+
+    PipelineFrameBuffer::PipelineFrameBuffer(GLuint color, GLuint uv) {
+        this->rbo.colorBuffer = color;
+        this->rbo.uvBuffer = uv;
+        this->resident = false;
+        this->id = counter++;
+        this->colorHandle = glGetTextureHandleARB(rbo.colorBuffer);
+        if (!colorHandle) {
+            throw std::runtime_error("cannot get texture handle for color buffer");
+        }
+        this->uvHandle = glGetTextureHandleARB(rbo.uvBuffer);
+        if (!uvHandle) {
+            throw std::runtime_error("cannot get texture handle for uv buffer!");
+        }
     }
 
     void PipelineFrameBuffer::Bind() {

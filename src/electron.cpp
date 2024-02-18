@@ -12,7 +12,6 @@ using namespace Electron;
 
 int main(int argc, char *argv[]) {
     bool disableBackwards = false;
-    setenv("ANGLE_DEFAULT_PLATFORM", "vulkan", 0); 
     backward::SignalHandling* sh = nullptr;
     if (argc > 1) {
         std::string serverType = "";
@@ -52,7 +51,7 @@ int main(int argc, char *argv[]) {
         std::filesystem::create_directories("cache/");
     }
 
-    if (start_server("async_writer", 4040)) {}
+    // if (start_server("async_writer", 4040)) {}
 
     AppCore::Initialize();
     AppCore::ExecuteSignal(Signal::_SpawnDockspace);

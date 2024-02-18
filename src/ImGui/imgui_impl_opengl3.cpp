@@ -306,7 +306,7 @@ bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
     bd->GlProfileIsES3 = true;
 #endif
 
-    bd->UseBufferSubData = false;
+    bd->UseBufferSubData = true;
     /*
     // Query vendor to enable glBufferSubData kludge
 #ifdef _WIN32

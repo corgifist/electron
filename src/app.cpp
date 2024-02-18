@@ -62,6 +62,9 @@ namespace Electron {
 
         DriverCore::Bootstrap();
 
+        GraphicsCore::Initialize();
+        GraphicsCore::ResizeRenderBuffer(128, 128);
+
         if (DriverCore::renderer.vendor.find("NVIDIA") != std::string::npos) {
             Wavefront::x = 8;
             Wavefront::y = 4;
@@ -118,9 +121,6 @@ namespace Electron {
             json_t::parse(std::fstream("misc/localization_en.json"));
 
         Servers::Initialize();
-
-        GraphicsCore::Initialize();
-        GraphicsCore::ResizeRenderBuffer(128, 128);
 
         GraphicsCore::FetchAllLayers();
 
@@ -217,7 +217,7 @@ namespace Electron {
                 Shared::project.propertiesMap["LastSelectedLayer"] =
                     Shared::selectedRenderLayer;
             }
-
+        
             DriverCore::ImGuiNewFrame();
             int windowIndex = 0;
             int destroyWindowTarget = -1;

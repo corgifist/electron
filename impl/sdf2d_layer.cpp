@@ -11,7 +11,7 @@ extern "C" {
 
     ELECTRON_EXPORT std::string LayerName = "SDF2D";
     ELECTRON_EXPORT glm::vec4 LayerTimelineColor = {0.58, 0.576, 1, 1};
-    GLuint sdf2d_compute = UNDEFINED;
+    static PipelineShader sdf2d_compute;
 
     enum class SDFShape {
         None = 0,
@@ -68,8 +68,8 @@ extern "C" {
         owner->anyData.resize(1);
         owner->anyData[0] = PipelineFrameBuffer(GraphicsCore::renderBuffer.width, GraphicsCore::renderBuffer.height);
 
-        if (sdf2d_compute == UNDEFINED) {
-            sdf2d_compute = GraphicsCore::CompilePipelineShader("sdf2d.pipeline");
+        if (sdf2d_compute.fragment == 0) {
+            sdf2d_compute = GraphicsCore::CompilePipelineShader("sdf2d.pipeline", ShaderType::Fragment);
         }
     }
 
@@ -115,39 +115,39 @@ extern "C" {
         bool canTexture = (asset != nullptr && texturingEnabled);
 
         frb.Bind();
-        GraphicsCore::UseShader(sdf2d_compute);
+        GraphicsCore::UseShader(GL_FRAGMENT_SHADER_BIT, sdf2d_compute.fragment);
         mat4 transform = glm::identity<mat4>();
         transform = glm::scale(transform, vec3(size, 1.0f));
         transform = glm::rotate(transform, glm::radians(angle), vec3(0, 0, 1));
         transform = glm::translate(transform, vec3(position, 0.0f));
         float aspect = (float) frb.width / (float) frb.height;
         mat4 projection = ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uColor", color);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uMatrix", projection * transform);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfShape", JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int));
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSize", size);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uUvOffset", uvOffset);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uColor", color);
+        GraphicsCore::ShaderSetUniform(GraphicsCore::basic.vertex, "uMatrix", projection * transform);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfShape", JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int));
+        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSize", size);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uUvOffset", uvOffset);
         switch ((SDFShape) JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int)) {
             case SDFShape::None: {
-                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfEnabled", false);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnabled", false);
                 break;
             };
             case SDFShape::Circle: {
                 float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["CircleRadius"]).at(0), float);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfEnable", true);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnable", true);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
                 break;
             }
             case SDFShape::RoundedRect: {
                 float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["BoxRadius"]).at(0), float);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfEnable", true);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnable", true);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
                 break;
             }
             case SDFShape::Triangle: {
                 float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["TriangleRadius"]).at(0), float);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfEnable", true);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute, "uSdfCircleRadius", radius);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnable", true);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
                 break;
             }
         }
@@ -155,7 +155,7 @@ extern "C" {
         static GLuint samplersBuffer = 0;
         if (samplersBuffer == 0) {
             glCreateBuffers(1, &samplersBuffer);
-            glNamedBufferStorage(samplersBuffer, TEXTURE_POOL_SIZE * sizeof(GLuint64), NULL, GL_DYNAMIC_STORAGE_BIT);
+            glNamedBufferStorage(samplersBuffer, TEXTURE_POOL_SIZE * sizeof(GLuint64), NULL, GL_DYNAMIC_STORAGE_BIT | PERSISTENT_FLAG);
         }
 
         if (canTexture) {
@@ -179,7 +179,7 @@ extern "C" {
                     handles[handleIndex++] = handlePool[asset->id];
                     glMakeTextureHandleResidentARB(handlePool[asset->id]);
                 }
-                glNamedBufferSubData(samplersBuffer, 0, TEXTURE_POOL_SIZE * sizeof(GLuint64), handles.data());
+                glNamedBufferSubData(samplersBuffer, (handleIndex - 1) * sizeof(GLuint64), sizeof(GLuint64), handles.data() + (handleIndex - 1));
             }
 
             GLuint64 desiredHandle = handlePool[asset->id];
@@ -188,10 +188,10 @@ extern "C" {
                 if (handles[i] == desiredHandle)
                     uTextureID = i;
             }
-            GraphicsCore::ShaderSetUniform(sdf2d_compute, "uTextureID", uTextureID);
+            GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uTextureID", uTextureID);
         }
-        glBindBufferBase(GL_UNIFORM_BUFFER, 0, samplersBuffer);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute, "uCanTexture", canTexture);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, samplersBuffer);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uCanTexture", canTexture);
         GraphicsCore::DrawArrays(Shared::fsVAO, fsQuadVertices.size() * 0.5);
 
         GraphicsCore::CallCompositor(frb);

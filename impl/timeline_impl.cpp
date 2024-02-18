@@ -79,7 +79,13 @@ static void TimelineRenderLayerPopup(int i,
     ImGui::PopStyleVar(2);
     if (ImGui::BeginPopup(string_format("TimelineLayerPopup%i", i).c_str())) {
         firePopupsFlag = true;
+        auto fbo = layer->framebufferProcedure(layer);
         ImGui::SeparatorText(layer->layerUsername.c_str());
+        if (fbo.id != 0 && ImGui::BeginMenu(string_format("%s %s", ICON_FA_IMAGES, ELECTRON_GET_LOCALIZATION("INSPECT_BUFFERS")).c_str())) {
+            ImGui::Image((ImTextureID) (uint64_t) fbo.rbo.colorBuffer, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
+            ImGui::Image((ImTextureID) (uint64_t) fbo.rbo.uvBuffer, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
+            ImGui::EndMenu();
+        }
         if (ImGui::MenuItem(string_format("%s %s", ICON_FA_COPY,
                                           ELECTRON_GET_LOCALIZATION(
                                               "GENERIC_COPY"))

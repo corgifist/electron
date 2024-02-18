@@ -12,6 +12,12 @@ namespace Electron {
     float GraphicsCore::renderFrame;
     int GraphicsCore::renderLength, GraphicsCore::renderFramerate;
     std::vector<PipelineFrameBuffer> GraphicsCore::compositorQueue;
+    GLuint GraphicsCore::pipeline;
+    PipelineShader GraphicsCore::basic;
+    PipelineShader GraphicsCore::compositor;
+    PipelineShader GraphicsCore::channel;
+
+
 
     void GraphicsCore::Initialize() {
 
@@ -23,12 +29,16 @@ namespace Electron {
     }
 
     void GraphicsCore::PrecompileEssentialShaders() {
-        Shared::basic_compute = CompilePipelineShader("basic.pipeline");
-        Shared::compositor_compute =
-            CompilePipelineShader("compositor_forward.pipeline");
-        Shared::channel_manipulator_compute =
-            CompilePipelineShader("channel_manipulator.pipeline");
+        basic = CompilePipelineShader("basic.pipeline", ShaderType::Vertex);
+        compositor =
+            CompilePipelineShader("compositor_forward.pipeline", ShaderType::Fragment);
+        channel =
+            CompilePipelineShader("channel_manipulator.pipeline", ShaderType::Fragment);
         Shared::fsVAO = GenerateVAO(fsQuadVertices, fsQuadUV);
+
+        glGenProgramPipelines(1, &pipeline);
+        glBindProgramPipeline(pipeline);
+        UseShader(GL_VERTEX_SHADER_BIT, basic.vertex);
     }
 
     void GraphicsCore::FetchAllLayers() {
@@ -151,7 +161,7 @@ namespace Electron {
     void GraphicsCore::DrawArrays(GLuint vao, int size) {
         Shared::renderCalls++;
         glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, size);
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 0, size, 1, 0);
     }
 
     GLuint GraphicsCore::CompileComputeShader(std::string path) {
@@ -210,12 +220,13 @@ namespace Electron {
         return computeProgram;
     }
 
-    GLuint GraphicsCore::CompilePipelineShader(std::string path) {
+    PipelineShader GraphicsCore::CompilePipelineShader(std::string path, ShaderType type) {
+        PipelineShader shader;
         path = "compute/" + path;
         std::string vertex = "";
         std::string fragment = "";
         std::vector<std::string> lines = split_string(read_file(path), "\n");
-        int appendState = 0; // 0 - vertex shader, 1 - fragment shader
+        int appendState = -1; // 0 - vertex shader, 1 - fragment shader
         for (auto &line : lines) {
             if (line.find("#vertex") != std::string::npos)
                 appendState = 0;
@@ -234,53 +245,55 @@ namespace Electron {
         const char *cVertex = vertex.c_str();
         const char *cFragment = fragment.c_str();
 
-        GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-        GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        GLuint program = glCreateProgram();
-
-        glShaderSource(vertexShader, 1, &cVertex, NULL);
-        glCompileShader(vertexShader);
-
-        int success;
-        char infoLog[512];
-        glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-        if (!success) {
-            DUMP_VAR(vertex);
-            glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-            throw std::runtime_error(std::string("(vertex shader ") + path + ")" + infoLog);
+        if (type == ShaderType::Vertex || type == ShaderType::VertexFragment) {
+            shader.vertex = glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &cVertex);
+            std::vector<char> log(512);
+            GLsizei length;
+            glGetProgramInfoLog(shader.vertex, 512, &length, log.data());
+            if (length != 0) {
+                DUMP_VAR(vertex);
+                throw std::runtime_error(std::string(log.data()));
+            }
         }
 
-        glShaderSource(fragmentShader, 1, &cFragment, NULL);
-        glCompileShader(fragmentShader);
-        glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-        if (!success) {
-            DUMP_VAR(fragment);
-            glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-            throw std::runtime_error(std::string("(fragment shader ") + path + ") " + infoLog);
+        if (type == ShaderType::Fragment || type == ShaderType::VertexFragment) {
+            shader.fragment = glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, &cFragment);
+            std::vector<char> log(512);
+            GLsizei length;
+            glGetProgramInfoLog(shader.fragment, 512, &length, log.data());
+            if (length != 0) {
+                DUMP_VAR(fragment);
+                throw std::runtime_error(std::string(log.data()));
+            }
         }
 
-        glAttachShader(program, vertexShader);
-        glAttachShader(program, fragmentShader);
-        glLinkProgram(program);
-        glGetProgramiv(program, GL_LINK_STATUS, &success);
-        if (!success) {
-            glGetProgramInfoLog(program, 512, NULL, infoLog);
-            throw std::runtime_error(std::string("(shader program ") + path + ")" + infoLog);
-        }
-
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-        return program;
+        return shader;
     }
 
-    void GraphicsCore::UseShader(GLuint shader) { glUseProgram(shader); }
+    void GraphicsCore::UseShader(GLbitfield stage, GLuint shader) {
+        static GLuint vertexProgram = 0;
+        static GLuint fragmentProgram = 0;
+        if (stage == GL_VERTEX_SHADER_BIT) {
+            if (vertexProgram != shader) {
+                glUseProgramStages(pipeline, stage, shader);
+                vertexProgram = shader;
+            }
+        } else {
+            if (fragmentProgram != shader) {
+                glUseProgramStages(pipeline, stage, shader);
+                fragmentProgram = shader;
+            }
+        }
+
+    }
 
     GLuint GraphicsCore::GenerateGPUTexture(int width, int height) {
         return VRAM::GenerateGPUTexture(width, height);
     }
 
     void GraphicsCore::ResizeRenderBuffer(int width, int height) {
-        GraphicsCore::renderBuffer.Destroy();
+        if (renderBuffer.id != 0) 
+            GraphicsCore::renderBuffer.Destroy();
         GraphicsCore::renderBuffer = PipelineFrameBuffer(width, height);
     }
 
@@ -302,47 +315,46 @@ namespace Electron {
 
     void GraphicsCore::BindComputeGPUTexture(GLuint texture, GLuint unit, GLuint readStatus) {
         glBindImageTexture(unit, texture, 0, GL_FALSE, 0, readStatus,
-                       GL_RGBA32F);
+                       GL_RGBA8);
     }
 
     void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, int x,
                                         int y) {
-        glUniform2i(GetUniformLocation(program, name), x, y);
+        glProgramUniform2i(program, GetUniformLocation(program, name), x, y);
     }
 
     void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                         glm::vec3 vec) {
-        glUniform3f(GetUniformLocation(program, name), vec.x, vec.y, vec.z);
+        glProgramUniform3f(program, GetUniformLocation(program, name), vec.x, vec.y, vec.z);
     }
 
     void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, float f) {
-        glUniform1f(GetUniformLocation(program, name), f);
+        glProgramUniform1f(program, GetUniformLocation(program, name), f);
     }
 
     void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                         glm::vec2 vec) {
-        glUniform2f(GetUniformLocation(program, name), vec.x, vec.y);
+        glProgramUniform2f(program, GetUniformLocation(program, name), vec.x, vec.y);
     }
 
     void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, int x) {
-        glUniform1i(GetUniformLocation(program, name), x);
+        glProgramUniform1i(program, GetUniformLocation(program, name), x);
     }
 
     void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                         glm::vec4 vec) {
-        glUniform4f(GetUniformLocation(program, name), vec.x, vec.y, vec.z, vec.w);
-        ;
+        glProgramUniform4f(program, GetUniformLocation(program, name), vec.x, vec.y, vec.z, vec.w);
     }
 
     void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                         glm::mat3 mat3) {
-        glUniformMatrix3fv(GetUniformLocation(program, name), 1, GL_FALSE,
+        glProgramUniformMatrix3fv(program, GetUniformLocation(program, name), 1, GL_FALSE,
                         glm::value_ptr(mat3));
     }
 
     void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
                                         glm::mat4 mat4) {
-        glUniformMatrix4fv(GetUniformLocation(program, name), 1, GL_FALSE,
+        glProgramUniformMatrix4fv(program, GetUniformLocation(program, name), 1, GL_FALSE,
                         glm::value_ptr(mat4));
     }
 
@@ -370,6 +382,7 @@ namespace Electron {
     }
 
     void GraphicsCore::PerformComposition() {
+        if (compositorQueue.size() == 0) return;
         renderBuffer.Bind();
         glBindVertexArray(Shared::fsVAO);
         
@@ -403,10 +416,12 @@ namespace Electron {
             glNamedBufferSubData(samplersBuffer, 0, handles.size() * sizeof(GLuint64), handles.data());
         }
 
-        UseShader(Shared::compositor_compute);
+        static glm::mat4 identity = glm::mat4(1);
+        UseShader(GL_FRAGMENT_SHADER_BIT, compositor.fragment);
+        ShaderSetUniform(basic.vertex, "uMatrix", identity);
 
-        glBindBufferBase(GL_UNIFORM_BUFFER, 0, samplersBuffer);
-        glDrawArraysInstanced(GL_TRIANGLES, 0, fsQuadVertices.size() / 2, residentsCount);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, samplersBuffer);
+        glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 0, fsQuadVertices.size() / 2, residentsCount, 0);
 
         compositorQueue.erase(compositorQueue.begin(), compositorQueue.begin() + residentsCount);
         Shared::compositorCalls++;

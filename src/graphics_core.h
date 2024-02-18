@@ -54,7 +54,18 @@ namespace Electron {
         1, 1
     };
 
-    typedef int(*Electron_CacheIndexT)();
+    struct PipelineShader {
+        GLuint vertex, fragment, compute;
+        PipelineShader() {
+            this->vertex = 0;
+            this->fragment = 0;
+            this->compute = 0;
+        }
+    };
+
+    enum class ShaderType {
+        Vertex, Fragment, Compute, VertexFragment
+    };
     
     // Responsible of some GPU manipulations
     struct GraphicsCore {
@@ -64,6 +75,9 @@ namespace Electron {
         static bool isPlaying;
         static std::unordered_map<GLuint, std::unordered_map<std::string, GLuint>> uniformCache;
         static std::vector<PipelineFrameBuffer> compositorQueue;
+        static GLuint pipeline;
+
+        static PipelineShader basic, compositor, channel;
 
 
         static float renderFrame;
@@ -90,8 +104,8 @@ namespace Electron {
         static GLuint GenerateVAO(std::vector<float> vertices, std::vector<float> uv);
         static void DrawArrays(GLuint vao, int size);
         static GLuint CompileComputeShader(std::string path);
-        static GLuint CompilePipelineShader(std::string path);
-        static void UseShader(GLuint shader);
+        static PipelineShader CompilePipelineShader(std::string path, ShaderType type = ShaderType::VertexFragment);
+        static void UseShader(GLenum bitfield, GLuint shader);
         static void DispatchComputeShader(int grid_x, int grid_y, int grid_z);
         static void ComputeMemoryBarier(GLbitfield barrier);
         static GLuint GenerateGPUTexture(int width, int height);

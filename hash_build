@@ -21,7 +21,9 @@ object_add_link_options(m64)
 impl_target_file = null
 
 object_add_compile_options(fPIC)
-object_add_compile_options(g) # include debug symbols
+object_add_compile_options("O3")
+object_add_compile_options(g)
+object_add_compile_options("ffast-math")
 object_add_compile_options(Werror)
 object_add_compile_options("Wno-unused")
 object_add_compile_options("I /usr/include/")

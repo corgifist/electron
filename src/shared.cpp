@@ -21,10 +21,6 @@ namespace Electron {
     int Wavefront::y = 0;
     int Wavefront::z = 0;
 
-    GLuint Shared::basic_compute = -1;
-    GLuint Shared::compositor_compute = -1;
-    GLuint Shared::channel_manipulator_compute = -1;
-
     GLuint Shared::shadowTex = 0;
 
     int Shared::assetSelected = -128;
