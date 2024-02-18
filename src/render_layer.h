@@ -36,6 +36,7 @@ namespace Electron {
         Electron_LayerImplF initializationProcedure;
         Electron_LayerImplF propertiesProcedure;
         Electron_LayerImplF sortingProcedure;
+        Electron_LayerImplF menuProcedure;
         Electron_PropertiesImplF previewPropertiesProcedure;
         Electron_FramebufferImplF framebufferProcedure;
         Electron_MakeFramebufferResidentImplF residentProcedure;

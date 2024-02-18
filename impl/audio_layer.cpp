@@ -8,8 +8,8 @@ using namespace glm;
 
 #define TIMESHIFT(layer) (JSON_AS_TYPE(layer->properties["InternalTimeShift"], float))
 
-#define BASS_BOOST_MIN_VALUE -0.2f
-#define BASS_BOOST_MAX_VALUE -0.1f
+#define BASS_BOOST_MIN_VALUE -0.5f
+#define BASS_BOOST_MAX_VALUE 0.0f
 
 extern "C" {
 
@@ -89,7 +89,7 @@ extern "C" {
         owner->internalData["TimelineSliders"] = {
             {"Volume", 0.0f, 100.0f},
             {"Panning", -0.5f, 0.5f},
-            {"BassBoost", -20.0f, 200.0f}
+            {"BassBoost", 0.0f, 200.0f}
         };
         owner->properties["PropertyAlias"] = {
             {"Volume", ICON_FA_VOLUME_HIGH " Volume"},
@@ -102,11 +102,12 @@ extern "C" {
         owner->internalData["PreviousInBounds"] = false;
         owner->internalData["AudioBufferPtr"] = 0;
 
-        owner->anyData.resize(4);
+        owner->anyData.resize(5);
         owner->anyData[0] = -1; // audio handle
         owner->anyData[1] = false; // playing
         owner->anyData[2] = (AsyncFFMpegOperation*) nullptr;
         owner->anyData[3] = (std::thread*) nullptr;
+        owner->anyData[4] = (bool*) nullptr;
     }
 
 
@@ -139,12 +140,16 @@ extern "C" {
             layer->properties["OverrideAudioPath"] = "cache/" + std::to_string(Cache::GetCacheIndex()) + ".wav";
         }
         std::thread* filterJob = std::any_cast<std::thread*>(layer->anyData[3]);
+        bool* terminationFlag = std::any_cast<bool*>(layer->anyData[4]);
         if (filterJob != nullptr) {
+            *terminationFlag = true;
             filterJob->join();
             delete filterJob;
+            delete terminationFlag;
         }
+        terminationFlag = new bool();
         filterJob = new std::thread(
-            [](RenderLayer* layer, TextureUnion* asset) {
+            [](RenderLayer* layer, TextureUnion* asset, bool* terminationFlag) {
                 if (asset == nullptr) return;
                 layer->internalData["ShowLoadingSpinner"] = true;
                 std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
@@ -162,7 +167,7 @@ extern "C" {
                 std::vector<std::thread> channelProcessors{};
                 for (int channel = 0; channel < copyBuffer.getNumChannels(); channel++) {
                     channelProcessors.push_back(std::thread(
-                        [](int channel, json_t volumeKeyframes, json_t panningKeyframes, json_t bassBoostKeyframes, AudioFile<float>* copyBuffer) {
+                        [](int channel, json_t volumeKeyframes, json_t panningKeyframes, json_t bassBoostKeyframes, AudioFile<float>* copyBuffer, bool* terminationFlag) {
                             FloatInterpolator interpolator(volumeKeyframes);
                             FloatInterpolator panningInterpolator(panningKeyframes);
                             FloatInterpolator bassInterpolator(bassBoostKeyframes);
@@ -172,6 +177,9 @@ extern "C" {
                             float* samples = copyBuffer->samples[channel].data();
                             float panValue = channel == 0 ? -0.5f : 0.5f;
                             for (uint64_t sample = 0; sample < samplesPerChannel; sample++) {
+                                if (*terminationFlag) {
+                                    return;
+                                }
                                 float second = sample * bakedMultiplier;
                                 samples[sample] *= interpolator.GetValue(second) * 0.01f; // Volume 
                                 if (IsInBounds(samples[sample], BASS_BOOST_MIN_VALUE, BASS_BOOST_MAX_VALUE)) {
@@ -180,18 +188,22 @@ extern "C" {
                                 samples[sample] *= std::clamp((panningInterpolator.GetValue(second) + panValue) / panValue, 0.0f, 1.0f); // Panning
                             }
                         }
-                    , channel, volumeKeyframes, panningKeyframes, bassBoostKeyframes, &copyBuffer));
+                    , channel, volumeKeyframes, panningKeyframes, bassBoostKeyframes, &copyBuffer, terminationFlag));
                 }
 
                 for (auto& thread : channelProcessors) {
                     thread.join();
                 }
+                if (*terminationFlag) {
+                    return;
+                }
 
                 ReloadAudioHandle(layer, asset, &copyBuffer);
                 layer->internalData["ShowLoadingSpinner"] = false;
-            }, layer, asset
+            }, layer, asset, terminationFlag
         );
         layer->anyData[3] = filterJob;
+        layer->anyData[4] = terminationFlag;
     }
 
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
@@ -240,10 +252,19 @@ extern "C" {
         json_t& bass = layer->properties["BassBoost"];
         layer->RenderProperty(GeneralizedPropertyType::Float, bass, "BassBoost");
 
-        AudioFile<float>* audioBuffer = (AudioFile<float>*) JSON_AS_TYPE(layer->internalData["AudioBufferPtr"], unsigned long);
+        AudioFile<float>* audioBuffer = nullptr;
+        if (asset != nullptr) {
+            std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
+            audioBuffer = (AudioFile<float>*) JSON_AS_TYPE(
+                Servers::AudioServerRequest({
+                    {"action", "audio_buffer_ptr"},
+                    {"path", audioPath}
+                })["ptr"], unsigned long
+            );
+        }
         int previewAudioChannel = JSON_AS_TYPE(layer->properties["PreviewAudioChannel"], int);
         int nextAudioChannel = previewAudioChannel;
-        if (asset != nullptr && audioBuffer != nullptr) {
+        if (asset != nullptr && audioBuffer) {
             AudioMetadata metadata = std::get<AudioMetadata>(asset->as);
             nextAudioChannel = previewAudioChannel + 1;
             if (nextAudioChannel >= audioBuffer->getNumChannels()) {
@@ -252,15 +273,15 @@ extern "C" {
             ImGui::Separator();
             int precision = 100;
             static std::vector<float> waveform(precision);
-            double elapsedTime = (double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer)) / GraphicsCore::renderFramerate;
-            uint64_t beginSample = metadata.sampleRate * elapsedTime;
-            uint64_t endSample = beginSample + audioBuffer->getSampleRate();
-            uint64_t sampleStep = metadata.sampleRate / precision;
-            endSample = glm::clamp(endSample, (uint64_t) 0, (uint64_t) metadata.audioLength * (uint64_t) metadata.sampleRate);
-            int averageIndex = 0;
-            uint64_t samplesCount = audioBuffer->getNumSamplesPerChannel();
-            float* samples = audioBuffer->samples[previewAudioChannel].data();
-            if (audioBuffer->getNumChannels() > 0) {
+            if (audioBuffer->audioFileFormat != AudioFileFormat::NotLoaded && audioBuffer->getNumSamplesPerChannel() > 0) {
+                double elapsedTime = (double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer)) / GraphicsCore::renderFramerate;
+                uint64_t beginSample = metadata.sampleRate * elapsedTime;
+                uint64_t endSample = beginSample + audioBuffer->getSampleRate();
+                uint64_t sampleStep = metadata.sampleRate / precision;
+                endSample = glm::clamp(endSample, (uint64_t) 0, (uint64_t) metadata.audioLength * (uint64_t) metadata.sampleRate);
+                int averageIndex = 0;
+                uint64_t samplesCount = audioBuffer->getNumSamplesPerChannel();
+                float* samples = audioBuffer->samples[previewAudioChannel].data();
                 waveform = std::vector<float>(precision);
                 for (uint64_t sample = beginSample; sample < endSample; sample += sampleStep) {
                     float averageSample = 0;
@@ -375,6 +396,31 @@ extern "C" {
                 {"handle", std::any_cast<int>(layer->anyData[0])},
                 {"seek", std::max(0.0, ((double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer))) / Shared::maxFramerate)}
             });
+        }
+    }
+
+    ELECTRON_EXPORT void LayerRenderMenu(RenderLayer* layer) {
+        std::string audioSID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
+        TextureUnion* asset = AssetCore::GetAsset(audioSID);
+        AudioFile<float>* audioBuffer = nullptr;
+        if (asset != nullptr) {
+            std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
+            audioBuffer = (AudioFile<float>*) JSON_AS_TYPE(
+                Servers::AudioServerRequest({
+                    {"action", "audio_buffer_ptr"},
+                    {"path", audioPath}
+                })["ptr"], unsigned long
+            );
+        }
+        ImGui::SetCurrentContext(AppCore::context);
+        if (audioBuffer && ImGui::BeginMenu(ICON_FA_FILE_AUDIO " Save To WAV File")) {
+            ImGui::SeparatorText(ICON_FA_FILE_EXPORT " WAV Export");
+            static std::string path = "export.wav";
+            ImGui::InputText("##wav_export", &path);
+            if (AppCore::ButtonCenteredOnLine(ICON_FA_FLOPPY_DISK " Save")) {
+                audioBuffer->save(path);
+            }
+            ImGui::EndMenu();
         }
     }
 

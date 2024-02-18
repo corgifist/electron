@@ -43,6 +43,7 @@ namespace Electron {
         this->onPropertiesChange = TryGetLayerImplF("LayerOnPropertiesChange");
         this->framebufferProcedure = TryGetFramebufferImplF("LayerGetFramebuffer");
         this->residentProcedure = TryGetMakeFramebufferResidentImplF("LayerMakeFramebufferResident");
+        this->menuProcedure = TryGetLayerImplF("LayerRenderMenu");
         this->previewPropertiesProcedure =
             TryGetPropertiesImplF("LayerGetPreviewProperties");
         this->layerPublicName =

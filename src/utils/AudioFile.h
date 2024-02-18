@@ -81,7 +81,7 @@ template <class T>
 class AudioFile
 {
 public:
-    
+    AudioFileFormat audioFileFormat;
     //=============================================================
     typedef std::vector<std::vector<T> > AudioBuffer;
     
@@ -221,7 +221,6 @@ private:
     void reportError (std::string errorMessage);
     
     //=============================================================
-    AudioFileFormat audioFileFormat;
     uint32_t sampleRate;
     int bitDepth;
     bool logErrorsToConsole {true};

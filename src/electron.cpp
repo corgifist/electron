@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
         std::filesystem::create_directories("cache/");
     }
 
-    // if (start_server("async_writer", 4040)) {}
+    if (start_server("async_writer", 4040)) {}
 
     AppCore::Initialize();
     AppCore::ExecuteSignal(Signal::_SpawnDockspace);

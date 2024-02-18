@@ -111,6 +111,11 @@ extern "C" {
         bool texturingEnabled = JSON_AS_TYPE(owner->properties["EnableTexturing"], bool);
         std::string textureID = JSON_AS_TYPE(owner->properties["TextureID"], std::string);
         TextureUnion* asset = AssetCore::GetAsset(textureID);
+        if (asset != nullptr) {
+            owner->internalData["StatusText"] = asset->name;
+        } else {
+            owner->internalData["StatusText"] = "";
+        }
 
         bool canTexture = (asset != nullptr && texturingEnabled);
 

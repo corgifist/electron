@@ -1,20 +1,23 @@
 #vertex
 
-layout (location = 0) in vec2 aPos;
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+layout(location = 0) in vec2 aPos;
+layout(location = 1) in vec2 aUV;
+
+out vec2 vPos;
+out vec2 vUV;
+
+uniform mat4 uMatrix;
+
+flat out int vInstance;
 
 void main() {
-    gl_Position = vec4(aPos, 0.0, 1.0);
-}
-
-#fragment
-
-layout(location = 0) out vec4 gColor;
-layout(location = 1) out vec4 gUV;
-
-uniform vec3 backgroundColor;
-uniform float multiplier;
-
-void main() {
-    gColor = vec4(backgroundColor, 1.0) * multiplier;
-    gUV = vec4(vec3(0.0), 1.0) * multiplier;
+    gl_Position = uMatrix * vec4(aPos, 0.0, 1.0);
+    vPos = aPos;
+    vUV = aUV;
+    vInstance = gl_InstanceID;
 }

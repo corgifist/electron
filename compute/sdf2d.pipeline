@@ -1,27 +1,12 @@
-#vertex
-
-layout(location = 0) in vec2 aPos;
-layout(location = 1) in vec2 aUV;
-
-out vec2 vPos;
-out vec2 vUV;
-
-uniform mat4 uMatrix;
-
-void main() {
-    gl_Position = uMatrix * vec4(vec3(aPos, 0.0), 1.0);
-    vPos = aPos;
-    vUV = aUV;
-}
 #fragment
-
-#define TEXTURE_POOL_SIZE 128
 
 layout(location = 0) out vec4 gColor;
 layout(location = 1) out vec4 gUV;
 
 in vec2 vPos;
 in vec2 vUV;
+
+flat in int vInstance;
 
 uniform bool uSdfEnabled;
 uniform vec3 uColor;
@@ -39,8 +24,8 @@ uniform vec2 uUvOffset;
 uniform int uSdfShape;
 uniform int uTextureID;
 
-layout (binding = 0, std140) uniform texturePool {
-    sampler2D pool[TEXTURE_POOL_SIZE];
+layout (binding = 0, std430) readonly buffer texturePool {
+    sampler2D pool[];
 };
 
 float sdfCircle(vec2 uv, float r) {
@@ -80,6 +65,7 @@ void main() {
         if (d > 0.0) {
             gColor *= 0.0;
         }
+        gColor *= max(-sign(d), 1.0);
     }
     gUV = vec4(vUV + uUvOffset, 0.0, 1.0);
 }

@@ -81,6 +81,7 @@ static void TimelineRenderLayerPopup(int i,
         firePopupsFlag = true;
         auto fbo = layer->framebufferProcedure(layer);
         ImGui::SeparatorText(layer->layerUsername.c_str());
+        layer->menuProcedure(layer);
         if (fbo.id != 0 && ImGui::BeginMenu(string_format("%s %s", ICON_FA_IMAGES, ELECTRON_GET_LOCALIZATION("INSPECT_BUFFERS")).c_str())) {
             ImGui::Image((ImTextureID) (uint64_t) fbo.rbo.colorBuffer, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
             ImGui::Image((ImTextureID) (uint64_t) fbo.rbo.uvBuffer, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
@@ -826,8 +827,8 @@ ELECTRON_EXPORT void UIRender() {
 
             Shared::selectedRenderLayer = layer->id;
         }
-        if (ImGui::GetIO().KeyCtrl)
-            bool dragged = TimelineRenderDragNDrop(i);
+        ImGui::PopStyleColor();
+        bool dragged = TimelineRenderDragNDrop(i);
 
         if (ImGui::IsItemHovered()) {
             anyLayerHovered = true;
@@ -986,7 +987,6 @@ ELECTRON_EXPORT void UIRender() {
                 ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
             }
 
-        ImGui::PopStyleColor();
         layerSeparatorTargets.push_back(layerOffsetY);
         layerPreviewHeights.push_back(RectBounds(
             ImVec2(0, layerOffsetY + layerSizeY),
