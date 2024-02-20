@@ -38,4 +38,9 @@ namespace Electron {
 
     int Shared::renderCalls = 0;
     int Shared::compositorCalls = 0;
+
+    std::string Shared::defaultImageLayer = "sdf2d_layer";
+    std::string Shared::defaultAudioLayer = "audio_layer";
+
+    std::string Shared::assetManagerDragDropType;
 }

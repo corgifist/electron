@@ -139,19 +139,19 @@ extern "C" {
             };
             case SDFShape::Circle: {
                 float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["CircleRadius"]).at(0), float);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnable", true);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnabled", true);
                 GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
                 break;
             }
             case SDFShape::RoundedRect: {
                 float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["BoxRadius"]).at(0), float);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnable", true);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnabled", true);
                 GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
                 break;
             }
             case SDFShape::Triangle: {
                 float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["TriangleRadius"]).at(0), float);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnable", true);
+                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnabled", true);
                 GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
                 break;
             }

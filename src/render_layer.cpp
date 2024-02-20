@@ -21,7 +21,6 @@ namespace Electron {
 
         initializationProcedure(this);
         this->initialized = true;
-        this->previousProperties = properties;
 
         this->layerUsername = layerPublicName + " Layer";
         this->id = seedrand();

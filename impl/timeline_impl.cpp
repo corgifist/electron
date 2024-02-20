@@ -2,6 +2,7 @@
 #include "utils/drag_utils.h"
 #include "editor_core.h"
 #define LEGEND_LAYER_DRAG_DROP "LEGEND_LAYER_DRAG_DROP"
+#define ASSET_DRAG_PAYLOAD "ASSET_DRAG_PAYLOAD"
 
 using namespace Electron;
 
@@ -132,7 +133,7 @@ static void TimelienRenderDragNDropTarget(int &i) {
     if (ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(
                 LEGEND_LAYER_DRAG_DROP,
-                ImGuiDragDropFlags_SourceNoDisableHover)) {
+                ImGuiDragDropFlags_SourceNoDisableHover | ImGuiDragDropFlags_AcceptNoDrawDefaultRect)) {
             int from = *((int *)payload->Data);
             int to = i;
             std::swap(GraphicsCore::layers[from],
@@ -147,6 +148,14 @@ static bool TimelineRenderDragNDrop(int &i) {
     if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceNoDisableHover)) {
         ImGui::SetDragDropPayload(LEGEND_LAYER_DRAG_DROP, &i, sizeof(i));
         dragging = true;
+        RenderLayer& layer = GraphicsCore::layers[i];
+        float layerSizeY =
+            22 * JSON_AS_TYPE(Shared::configMap["UIScaling"], float);
+        ImVec4 layerColor = ImVec4{layer.layerColor.r, layer.layerColor.g,
+                layer.layerColor.b, 0.7f};
+        ImGui::PushStyleColor(ImGuiCol_Button, layerColor);
+            ImGui::Button(layer.layerUsername.c_str(), ImVec2(GraphicsCore::renderFramerate + 10 * pixelsPerFrame, layerSizeY));
+        ImGui::PopStyleColor();
         ImGui::EndDragDropSource();
     }
     TimelienRenderDragNDropTarget(i);
@@ -202,6 +211,7 @@ ELECTRON_EXPORT void UIRender() {
     ImDrawList *drawList = ImGui::GetWindowDrawList();
     ImVec2 windowMouseCoords =
         ImGui::GetIO().MousePos - ImGui::GetCursorScreenPos();
+    ImVec2 originalMouseCoords = windowMouseCoords;
     pixelsPerFrame = glm::clamp(pixelsPerFrame, 0.5f, 20.0f);
     if (percentagePRF >= 0) {
         pixelsPerFrame = ImLerp(beginPRF, targetPRF, percentagePRF);
@@ -828,7 +838,7 @@ ELECTRON_EXPORT void UIRender() {
             Shared::selectedRenderLayer = layer->id;
         }
         ImGui::PopStyleColor();
-        bool dragged = TimelineRenderDragNDrop(i);
+        TimelineRenderDragNDrop(i);
 
         if (ImGui::IsItemHovered()) {
             anyLayerHovered = true;
@@ -1118,7 +1128,38 @@ ELECTRON_EXPORT void UIRender() {
         multipleDragSelectedLayers.clear();
         Shared::selectedRenderLayer = -1;
     }  
+    ImVec2 scroll = {ImGui::GetScrollX(), ImGui::GetScrollY()};
     ImGui::EndChild();
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+            ASSET_DRAG_PAYLOAD, ImGuiDragDropFlags_AcceptNoPreviewTooltip)) {
+                int assetIndex = *((int*) payload->Data);
+                TextureUnion& asset = AssetCore::assets[assetIndex];
+                switch (asset.type) {
+                    case TextureUnionType::Texture: {
+                        RenderLayer imageLayer(Shared::defaultImageLayer);
+                        imageLayer.properties["TextureID"] = intToHex(asset.id);
+                        GraphicsCore::AddRenderLayer(imageLayer);
+                        break;
+                    }
+                    case TextureUnionType::Audio: {
+                        RenderLayer audioLayer(Shared::defaultAudioLayer);
+                        audioLayer.properties["AudioID"] = intToHex(asset.id);
+                        GraphicsCore::AddRenderLayer(audioLayer);
+                        break;
+                    }
+                }
+            }
+            ImGui::SetCursorPos(originalMouseCoords);
+            std::string library = Shared::assetManagerDragDropType;
+            Libraries::LoadLibrary("layers", library);
+            auto colorVector = Libraries::GetVariable<glm::vec4>(library, "LayerTimelineColor");
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(colorVector.r, colorVector.g, colorVector.b, colorVector.a));
+                if (!anyLayerHovered) 
+                    ImGui::Button(ELECTRON_GET_LOCALIZATION(library == Shared::defaultImageLayer ? "IMAGE_LAYER": "AUDIO_LAYER"), ImVec2(GraphicsCore::renderFramerate * 1.2f * pixelsPerFrame, layerSizeY));
+            ImGui::PopStyleColor();
+        ImGui::EndDragDropTarget();
+    }
 
     ImVec2 oldCursor = ImGui::GetCursorPos();
 

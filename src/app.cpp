@@ -355,8 +355,6 @@ namespace Electron {
                 for (auto &layer : GraphicsCore::layers) {
                     json_t copyPreviousProperties = layer.previousProperties;
                     json_t copyProperties = layer.properties;
-                    copyPreviousProperties.erase(copyPreviousProperties.find("InternalTimeShift"));
-                    copyProperties.erase(copyProperties.find("InternalTimeShift"));
 
                     if (layer.previousProperties != layer.properties) {
                         layer.onPropertiesChange(&layer);

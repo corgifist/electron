@@ -3,6 +3,7 @@
 #include "ImGui/ImGuiFileDialog.h"
 #include "utils/drag_utils.h"
 #define CSTR(x) ((x).c_str())
+#define ASSET_DRAG_PAYLOAD "ASSET_DRAG_PAYLOAD"
 
 using namespace Electron;
 
@@ -140,6 +141,28 @@ extern "C" {
                                         Shared::assetSelected = assetIndex;
                                     }
                                 }
+                            }
+                            ImGuiDragDropFlags targetFlags = ImGuiDragDropFlags_AcceptNoPreviewTooltip;
+                            ImGuiDragDropFlags sourceFlags = 0;
+                            if (ImGui::BeginDragDropTarget()) {
+                                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                                    ASSET_DRAG_PAYLOAD, targetFlags)) {
+                                        int from = *((int*) payload->Data);
+                                        int to = assetIndex;
+                                        std::swap(AssetCore::assets[from], AssetCore::assets[to]);
+                                    }
+                                ImGui::EndDragDropTarget();
+                            }
+
+                            if (ImGui::BeginDragDropSource(sourceFlags)) {
+                                ImGui::SetDragDropPayload(ASSET_DRAG_PAYLOAD, &assetIndex, sizeof(assetIndex));
+                                if (asset.IsTextureCompatible()) {
+                                    ImGui::Image((ImTextureID) (uint64_t) asset.pboGpuTexture, FitRectInRect(ImVec2(128, 128), ImVec2(128, 128)));
+                                }
+                                ImGui::Text("%s %s", asset.GetIcon().c_str(), asset.name.c_str());
+                                Shared::assetManagerDragDropType = asset.type == TextureUnionType::Texture ? 
+                                                                        Shared::defaultImageLayer : Shared::defaultAudioLayer;
+                                ImGui::EndDragDropSource();
                             }
 
                             if (ImGui::IsItemHovered(0) && ImGui::GetIO().MouseDown[ImGuiMouseButton_Right]) {

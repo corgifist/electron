@@ -123,5 +123,18 @@
     "OPENGLES_BACKEND_MESSAGE": "Your OpenGL ES implementation is not officially supported\n  Please Use ANGLE OpenGL ES!",
     "AUDIO_FILTERING_IN_PROGRESS": "Audio Filtering In Progress",
     "GENERIC_CUT": "Cut",
-    "LAYER_TIME_SHIFT": "Layer Time Offset"
+    "LAYER_TIME_SHIFT": "Layer Time Offset",
+    "GENERIC_OVERSHOOT": "Overshoot",
+    "GENERIC_DISABLE": "Disable",
+    "NEXT_AUDIO_CHANNEL": "Next Audio Channel",
+    "JUMP_HERE": "Jump Here",
+    "NONE": "None",
+    "TOTAL": "Total",
+    "LAYERS": "Layers",
+    "RENDER_CALLS": "Render Calls",
+    "COMPOSITOR_CALLS": "Compositor Calls",
+    "AVERAGE_RENDER_TIME": "Average Render Time",
+    "INSPECT_BUFFERS": "Inspect Buffers",
+    "IMAGE_LAYER": "Image Layer",
+    "AUDIO_LAYER": "Audio Layer"
 }

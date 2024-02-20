@@ -45,5 +45,8 @@ namespace Electron {
         static float maxFramerate;
 
         static int renderCalls, compositorCalls;
+
+        static std::string defaultImageLayer, defaultAudioLayer;
+        static std::string assetManagerDragDropType;
     };
 }

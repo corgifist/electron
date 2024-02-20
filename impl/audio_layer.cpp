@@ -70,6 +70,8 @@ extern "C" {
         0.831, 0.569, 0.286, 1
     };
 
+    std::mutex uploadMutex;
+
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
         owner->properties["Volume"] = {
             GeneralizedPropertyType::Float,
@@ -102,6 +104,8 @@ extern "C" {
         owner->internalData["PreviousInBounds"] = false;
         owner->internalData["AudioBufferPtr"] = 0;
 
+        owner->properties["OverrideAudioPath"] = string_format("cache/%i.wav", Cache::GetCacheIndex());
+
         owner->anyData.resize(5);
         owner->anyData[0] = -1; // audio handle
         owner->anyData[1] = false; // playing
@@ -113,16 +117,14 @@ extern "C" {
 
     void ReloadAudioHandle(RenderLayer* layer, TextureUnion* asset, AudioFile<float>* buffer) {
         if (asset == nullptr || asset->type != TextureUnionType::Audio) return;
+        if (layer->anyData.size() != 5) return;
         if (std::any_cast<int>(layer->anyData[0]) != -1) {
             Servers::AudioServerRequest({
                 {"action", "stop_sample"},
                 {"handle", std::any_cast<int>(layer->anyData[0])}
             });
         }
-        std::string audioPath = asset->path;
-        if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
-            audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
-        }
+        std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
         Servers::AudioServerRequest({
             {"action", "destroy_sample"},
             {"path", audioPath}
@@ -151,6 +153,7 @@ extern "C" {
         filterJob = new std::thread(
             [](RenderLayer* layer, TextureUnion* asset, bool* terminationFlag) {
                 if (asset == nullptr) return;
+                std::lock_guard<std::mutex> uploadGuard(uploadMutex);
                 layer->internalData["ShowLoadingSpinner"] = true;
                 std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
                 AudioFile<float>* originalBuffer = (AudioFile<float>*) JSON_AS_TYPE(
@@ -199,7 +202,6 @@ extern "C" {
                 }
 
                 ReloadAudioHandle(layer, asset, &copyBuffer);
-                layer->internalData["ShowLoadingSpinner"] = false;
             }, layer, asset, terminationFlag
         );
         layer->anyData[3] = filterJob;
@@ -224,23 +226,6 @@ extern "C" {
         if (audioSID != "" && asset == nullptr) {
             layer->properties["AudioID"] = "";
             layer->anyData[0] = -1;
-        }
-        if (JSON_AS_TYPE(previousAudioID, std::string) != JSON_AS_TYPE(audioID, std::string)) {
-            if (asset != nullptr) {
-                AudioMetadata metadata = std::get<AudioMetadata>(asset->as);
-                layer->endFrame = layer->beginFrame + (metadata.audioLength * GraphicsCore::renderFramerate);
-                Servers::AudioServerRequest({
-                    {"action", "stop_sample"},
-                    {"handle", std::any_cast<int>(layer->anyData[0])}
-                });
-                Servers::AudioServerRequest({
-                    {"action", "destroy_sample"},
-                    {"path", JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string)}
-                });
-                layer->anyData[0] = -1;
-                layer->properties["OverrideAudioPath"] = "";
-                return;
-            }
         }
 
         json_t& volume = layer->properties["Volume"];
@@ -382,6 +367,21 @@ extern "C" {
 
     ELECTRON_EXPORT void LayerOnPropertiesChange(RenderLayer* layer) {
         std::string audioID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
+        TextureUnion* asset = AssetCore::GetAsset(audioID);
+        if (asset != nullptr) {
+            AudioMetadata metadata = std::get<AudioMetadata>(asset->as);
+            layer->endFrame = layer->beginFrame + (metadata.audioLength * GraphicsCore::renderFramerate);
+            Servers::AudioServerRequest({
+                {"action", "stop_sample"},
+                {"handle", std::any_cast<int>(layer->anyData[0])}
+            });
+            Servers::AudioServerRequest({
+                {"action", "destroy_sample"},
+                {"path", JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string)}
+            });
+            layer->anyData[0] = -1;
+            layer->properties["OverrideAudioPath"] = "";
+        }
         if (audioID != "") 
             AudioLayerProcessAsset(layer, AssetCore::GetAsset(audioID));
     }
