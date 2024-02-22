@@ -3,7 +3,7 @@
 
 Advantages over other editors:
 * Electron is Modular. Every part of editor (e.g. editor windows, audio backends, layers/effects) can be replaced/modified!
-* Electron is Compatible to all OpenGLES 3.2 devices (mobiles/PC's). 
+* Electron is Compatible to all OpenGL 4.6 Devices. 
 * Electron is Light. Editor and it's Subsystems altogether Barely Consumes 100 MB of RAM
 * [WIP] Unique Render techniques (Render Targets, Layer Links and Snapshots) 
 
