@@ -22,12 +22,7 @@ uniform vec2 uSize;
 uniform vec2 uUvOffset;
 
 uniform int uSdfShape;
-uniform int uTextureID;
-
-layout (binding = 0, std430) readonly buffer texturePool {
-    sampler2D pool[];
-};
-
+uniform sampler2D uTexture;
 float sdfCircle(vec2 uv, float r) {
     return length(uv) - r;
 }
@@ -50,7 +45,7 @@ float sdEquilateralTriangle(vec2 p,float r ) {
 void main() {
     gColor = vec4(uColor, 1.0);
     if (uCanTexture) 
-        gColor *= texture(pool[uTextureID], vUV + uUvOffset);
+        gColor *= texture(uTexture, vUV + uUvOffset);
     if (uSdfEnabled) {
         float d = 0.0;
         if (uSdfShape == SDF_SHAPE_CIRCLE) {
@@ -65,7 +60,6 @@ void main() {
         if (d > 0.0) {
             gColor *= 0.0;
         }
-        gColor *= max(-sign(d), 1.0);
     }
     gUV = vec4(vUV + uUvOffset, 0.0, 1.0);
 }
