@@ -25,4 +25,4 @@ Read `HashBuild/README.md` to get more info about HashBuild
 
 
 ## Screenshot Library
-![Screenshot 1](gallery/Image1.png "")
+![Screenshot 1](gallery/Image2.png "")
