@@ -112,6 +112,7 @@ namespace Electron {
             renderTimes[layerIndex] = (DriverCore::GetTime() - first);
             layerIndex++;
         }
+        PerformComposition();
         return renderTimes;
     }
 
@@ -161,7 +162,7 @@ namespace Electron {
     void GraphicsCore::DrawArrays(GLuint vao, int size) {
         Shared::renderCalls++;
         glBindVertexArray(vao);
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 0, size, 1, 0);
+        glDrawArrays(GL_TRIANGLES, 0, size);
     }
 
     GLuint GraphicsCore::CompileComputeShader(std::string path) {
@@ -271,20 +272,7 @@ namespace Electron {
     }
 
     void GraphicsCore::UseShader(GLbitfield stage, GLuint shader) {
-        static GLuint vertexProgram = 0;
-        static GLuint fragmentProgram = 0;
-        if (stage == GL_VERTEX_SHADER_BIT) {
-            if (vertexProgram != shader) {
-                glUseProgramStages(pipeline, stage, shader);
-                vertexProgram = shader;
-            }
-        } else {
-            if (fragmentProgram != shader) {
-                glUseProgramStages(pipeline, stage, shader);
-                fragmentProgram = shader;
-            }
-        }
-
+        glUseProgramStages(pipeline, stage, shader);
     }
 
     GLuint GraphicsCore::GenerateGPUTexture(int width, int height) {

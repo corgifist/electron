@@ -43,6 +43,7 @@ namespace Electron {
         this->framebufferProcedure = TryGetFramebufferImplF("LayerGetFramebuffer");
         this->residentProcedure = TryGetMakeFramebufferResidentImplF("LayerMakeFramebufferResident");
         this->menuProcedure = TryGetLayerImplF("LayerRenderMenu");
+        this->timelineRenderProcedure = TryGetTimelineRenderImplF("LayerTimelineRender");
         this->previewPropertiesProcedure =
             TryGetPropertiesImplF("LayerGetPreviewProperties");
         this->layerPublicName =
@@ -321,7 +322,7 @@ namespace Electron {
             } else if (!selectedAssetCompatible) {
                 ImGui::Text(
                     "%s %s",
-                    ("Asset with ID '" + textureID + "' is not compatible to")
+                    ("Asset with ID '" + textureID + "' cannot be used as ")
                         .c_str(),
                     AssetCore::StringFromTextureUnionType(type).c_str());
             } else {
@@ -336,18 +337,22 @@ namespace Electron {
                 ImGui::OpenPopup(
                     string_format("SelectAssetPopup%s", label.c_str()).c_str());
             }
+            ImGui::SetItemTooltip("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION("HOVER_FOR_CONTEXT_MENU"));
             if (ImGui::IsItemHovered() &&
                 ImGui::GetIO().MouseDown[ImGuiMouseButton_Right] &&
                 textureAsset != nullptr) {
                 ImGui::OpenPopup("AssetActionsPopup");
             }
             if (ImGui::BeginPopup("AssetActionsPopup")) {
-                ImGui::SeparatorText(textureAsset->name.c_str());
+                ImGui::SeparatorText(string_format("%s %s", textureAsset->GetIcon().c_str(), textureAsset->name.c_str()).c_str());
                 if (ImGui::MenuItem(string_format("%s %s", ICON_FA_FOLDER,
                                                 "Reveal in Asset Manager")
                                         .c_str(),
                                     "")) {
-                    Shared::selectedRenderLayer = textureAsset->id;
+                    Shared::assetSelected = textureAsset->id;
+                }
+                if (ImGui::MenuItem(string_format("%s %s", ICON_FA_FOLDER, ELECTRON_GET_LOCALIZATION("USE_SELECTED_ASSET")).c_str())) {
+                    textureID = intToHex(AssetCore::assets[Shared::assetSelected].id);
                 }
                 ImGui::EndPopup();
             }
@@ -516,8 +521,17 @@ namespace Electron {
         }
     }
 
+    Electron_TimelineRenderImplF RenderLayer::TryGetTimelineRenderImplF(std::string key) {
+        try {
+            return Libraries::GetFunction<void(RenderLayer*, TimelineLayerRenderDesc)>(layerLibrary, key);
+        } catch (internalDylib::symbol_error err) {
+            return LayerTimelineRenderPlaceholder;
+        }
+    }
+
     void LayerImplPlaceholder(RenderLayer *layer) {}
     json_t LayerPropertiesImplPlaceholder(RenderLayer *layer) { return {}; }
     PipelineFrameBuffer LayerFramebufferImplPlaceholder(RenderLayer* layer) { return {}; }
     void LayerMakeFramebufferResidentPlaceholder(RenderLayer* layer, bool) {}
+    void LayerTimelineRenderPlaceholder(RenderLayer*, TimelineLayerRenderDesc desc) {}
 } // namespace Electron

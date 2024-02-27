@@ -10,19 +10,26 @@
 
 namespace Electron {
     
+    struct TimelineLayerRenderDesc {
+        ImVec2 position, size, legendOffset;
+        float layerSizeY, pixelsPerFrame;
+
+        TimelineLayerRenderDesc() {}
+    };
+
     class RenderLayer;
     typedef void (*Electron_LayerImplF)(RenderLayer*);
     typedef json_t (*Electron_PropertiesImplF)(RenderLayer*);
     typedef PipelineFrameBuffer (*Electron_FramebufferImplF)(RenderLayer*);
     typedef void (*Electron_MakeFramebufferResidentImplF)(RenderLayer*, bool);
+    typedef void (*Electron_TimelineRenderImplF)(RenderLayer*, TimelineLayerRenderDesc);
 
     enum class GeneralizedPropertyType {
         Vec3, Vec2, Float, Color3
     };
 
     // Rendering unit of electron
-    class RenderLayer {
-    public:
+    struct RenderLayer {
         float beginFrame, endFrame, frameOffset; // Timing data
         std::string layerLibrary; // Name of implementation library (e.g. libsdf2d.so)
         json_t previousProperties; // Storing previous properties for LayerOnPropertiesChange event
@@ -40,6 +47,7 @@ namespace Electron {
         Electron_PropertiesImplF previewPropertiesProcedure;
         Electron_FramebufferImplF framebufferProcedure;
         Electron_MakeFramebufferResidentImplF residentProcedure;
+        Electron_TimelineRenderImplF timelineRenderProcedure;
         bool initialized;
         std::string layerPublicName;
         float renderTime;
@@ -48,6 +56,7 @@ namespace Electron {
         std::string layerUsername; // Layer name given by user
         int id;
         bool visible;
+        void* userData;
 
 
         RenderLayer(std::string layerLibrary); 
@@ -74,6 +83,7 @@ namespace Electron {
         Electron_PropertiesImplF TryGetPropertiesImplF(std::string key);
         Electron_FramebufferImplF TryGetFramebufferImplF(std::string key);
         Electron_MakeFramebufferResidentImplF TryGetMakeFramebufferResidentImplF(std::string key);
+        Electron_TimelineRenderImplF TryGetTimelineRenderImplF(std::string key);
 
         void Destroy();
     };
@@ -82,4 +92,5 @@ namespace Electron {
     json_t LayerPropertiesImplPlaceholder(Electron::RenderLayer* layer);
     PipelineFrameBuffer LayerFramebufferImplPlaceholder(RenderLayer* layer);
     void LayerMakeFramebufferResidentPlaceholder(RenderLayer* layer, bool);
+    void LayerTimelineRenderPlaceholder(RenderLayer*, TimelineLayerRenderDesc desc);
 }

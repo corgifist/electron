@@ -79,7 +79,6 @@ namespace Electron {
 
         static PipelineShader basic, compositor, channel;
 
-
         static float renderFrame;
         static int renderLength, renderFramerate;
         

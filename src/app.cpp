@@ -411,6 +411,7 @@ namespace Electron {
                     " - " +
                     JSON_AS_TYPE(Shared::project.propertiesMap["ProjectName"],
                                  std::string);
+            windowTitle += " - " + std::to_string((int) (1000 / (Shared::deltaTime * 1000))) + " FPS";
             DriverCore::SetTitle(windowTitle);
         }
     editor_end:

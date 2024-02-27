@@ -125,7 +125,6 @@ extern "C" {
             std::vector<float> renderTimes{};
             GraphicsCore::RequestRenderBufferCleaningWithinRegion();
             renderTimes = GraphicsCore::RequestRenderWithinRegion();
-            GraphicsCore::PerformComposition();
 
             static float propertiesHeight = 50;
             static ImVec2 previousWindowPos = ImGui::GetWindowPos();

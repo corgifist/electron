@@ -20,7 +20,13 @@ namespace Electron {
         AudioMetadata() {}
     };
 
-    using InternalTextureUnion = std::variant<PixelBuffer, AudioMetadata>;
+    struct PixelBufferMetadata {
+        int width, height, channels;
+
+        PixelBufferMetadata() {}
+    };
+
+    using InternalTextureUnion = std::variant<PixelBufferMetadata, AudioMetadata>;
 
     // Represents Texture/Audio/Video asset
     struct TextureUnion {
@@ -49,7 +55,7 @@ namespace Electron {
 
         // Can be interpreted as texture
         bool IsTextureCompatible() {
-            return type == TextureUnionType::Texture;
+            return type == TextureUnionType::Texture || type == TextureUnionType::Audio;
         }
 
         void RebuildAssetData();

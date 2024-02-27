@@ -20,6 +20,12 @@ extern "C" {
         Triangle = 3
     };
 
+    struct SDF2DUserData {
+        PipelineFrameBuffer frb;
+
+        SDF2DUserData() {}
+    };
+
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
         owner->properties["Position"] = {
             GeneralizedPropertyType::Vec2,
@@ -65,8 +71,7 @@ extern "C" {
 
         owner->properties["SelectedSDFShape"] = 0;
 
-        owner->anyData.resize(1);
-        owner->anyData[0] = PipelineFrameBuffer(GraphicsCore::renderBuffer.width, GraphicsCore::renderBuffer.height);
+        owner->userData = new SDF2DUserData();
 
         if (sdf2d_compute.fragment == 0) {
             sdf2d_compute = GraphicsCore::CompilePipelineShader("sdf2d.pipeline", ShaderType::Fragment);
@@ -76,35 +81,31 @@ extern "C" {
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
         PipelineFrameBuffer* pbo = &GraphicsCore::renderBuffer;
 
-        PipelineFrameBuffer frb = std::any_cast<PipelineFrameBuffer>(owner->anyData[0]);
+        SDF2DUserData* userData = (SDF2DUserData*) owner->userData;
+        PipelineFrameBuffer frb = userData->frb;
         if (frb.width != pbo->width || frb.height != pbo->height) {
             frb.Destroy();
             frb = PipelineFrameBuffer(pbo->width, pbo->height);
         }
         
-        owner->anyData[0] = frb;
+        userData->frb = frb;
 
-        static std::unordered_map<int, GLuint64> handlePool{};
-        static std::vector<GLuint64> handles(TEXTURE_POOL_SIZE);
-        static int handleIndex = 0;
-
-        frb = std::any_cast<PipelineFrameBuffer>(owner->anyData[0]);
         GraphicsCore::RequestTextureCollectionCleaning(frb, 0.0f);
 
         auto position = vec2();
-        auto size = vec2();
-        auto color = vec3();
+        auto size = vec2(0.5f);
+        auto color = vec3(1.0f);
         auto uvOffset = vec2();
         auto angle = 0.0f; {
-            auto positionVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Position"]), std::vector<float>);
-            auto sizeVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Size"]), std::vector<float>);
-            auto colorVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Color"]), std::vector<float>);
-            auto angleFloat = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["Angle"]).at(0), float);
-            auto uvOffsetVector = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["UvOffset"]), std::vector<float>);
+            auto positionVector = owner->InterpolateProperty(owner->properties["Position"]);
+            auto sizeVector = owner->InterpolateProperty(owner->properties["Size"]);
+            auto colorVector = owner->InterpolateProperty(owner->properties["Color"]);
+            auto angleFloat = owner->InterpolateProperty(owner->properties["Angle"]);
+            auto uvOffsetVector = owner->InterpolateProperty(owner->properties["UvOffset"]);
             position = vec2(positionVector[0], positionVector[1]);
             size = vec2(sizeVector[0], sizeVector[1]); 
             color = vec3(colorVector[0], colorVector[1], colorVector[2]);
-            angle = angleFloat;
+            angle = angleFloat[0];
             uvOffset = vec2(uvOffsetVector[0], uvOffsetVector[1]);
         }
 
@@ -127,8 +128,8 @@ extern "C" {
         transform = glm::translate(transform, vec3(position, 0.0f));
         float aspect = (float) frb.width / (float) frb.height;
         mat4 projection = ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uColor", color);
         GraphicsCore::ShaderSetUniform(GraphicsCore::basic.vertex, "uMatrix", projection * transform);
+        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uColor", color);
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfShape", JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int));
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSize", size);
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uUvOffset", uvOffset);
@@ -156,13 +157,15 @@ extern "C" {
                 break;
             }
         }
-
-        static GLuint samplersBuffer = 0;
+        /* static GLuint samplersBuffer = 0;
         if (samplersBuffer == 0) {
             glCreateBuffers(1, &samplersBuffer);
             glNamedBufferStorage(samplersBuffer, TEXTURE_POOL_SIZE * sizeof(GLuint64), NULL, GL_DYNAMIC_STORAGE_BIT | PERSISTENT_FLAG);
         }
 
+        static std::unordered_map<int, GLuint64> handlePool{};
+        static std::vector<GLuint64> handles(TEXTURE_POOL_SIZE);
+        static int handleIndex = 0;
         if (canTexture) {
             if (handlePool.find(asset->id) == handlePool.end()) {
                 handlePool[asset->id] = glGetTextureHandleARB(asset->pboGpuTexture);
@@ -195,7 +198,10 @@ extern "C" {
             }
             GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uTextureID", uTextureID);
         }
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, samplersBuffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, samplersBuffer);*/ 
+        if (canTexture) {
+            GraphicsCore::BindGPUTexture(asset->pboGpuTexture, sdf2d_compute.fragment, 0, "uTexture");
+        }
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uCanTexture", canTexture);
         GraphicsCore::DrawArrays(Shared::fsVAO, fsQuadVertices.size() * 0.5);
 
@@ -317,8 +323,10 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {
-        PipelineFrameBuffer rbo = std::any_cast<PipelineFrameBuffer>(layer->anyData[0]);
-        rbo.Destroy();
+        SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
+        PipelineFrameBuffer frb = userData->frb;
+        frb.Destroy();
+        delete userData;
     }
 
     ELECTRON_EXPORT json_t LayerGetPreviewProperties(RenderLayer* layer) {
@@ -343,13 +351,40 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerMakeFramebufferResident(RenderLayer* layer, bool resident) {
-        PipelineFrameBuffer frb = std::any_cast<PipelineFrameBuffer>(layer->anyData[0]);
+        SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
+        PipelineFrameBuffer frb = userData->frb;
         if (resident) frb.MakeResident();
         else frb.MakeNonResident();
-        layer->anyData[0] = frb;
+        userData->frb = frb;
+    }
+
+    ELECTRON_EXPORT void LayerTimelineRender(RenderLayer* layer, TimelineLayerRenderDesc desc) {
+        TextureUnion* asset = AssetCore::GetAsset(JSON_AS_TYPE(layer->properties["TextureID"], std::string));
+        if (!asset) return;
+        ImVec2 previewSize = {desc.layerSizeY, desc.layerSizeY};
+        glm::vec2 assetDimensions = asset->GetDimensions();
+        ImVec2 rectSize = FitRectInRect(previewSize, ImVec2{assetDimensions.x, assetDimensions.y});
+        ImVec2 upperLeft = ImGui::GetCursorScreenPos();
+        ImVec2 bottomRight = ImGui::GetCursorScreenPos();
+        bottomRight +=  ImVec2{rectSize.x, rectSize.y};
+        ImVec2 dragSize = ImVec2((layer->endFrame - layer->beginFrame) * desc.pixelsPerFrame / 10, desc.layerSizeY);
+        dragSize.x = glm::clamp(dragSize.x, 1.0f, 30.0f);
+        upperLeft.x += dragSize.x;
+        bottomRight.x += dragSize.x;
+        float dragBounds = desc.legendOffset.x + ((layer->endFrame * desc.pixelsPerFrame) - dragSize.x) - ImGui::GetScrollX();
+        if (upperLeft.x < desc.legendOffset.x) {
+            upperLeft.x = desc.legendOffset.x;
+            bottomRight.x = upperLeft.x + rectSize.x;
+        }
+        upperLeft.x = glm::min(upperLeft.x, dragBounds);
+        bottomRight.x = glm::min(bottomRight.x, dragBounds);
+        ImTextureID texID = (ImTextureID) (uint64_t) asset->pboGpuTexture;
+        ImGui::GetWindowDrawList()->AddImage(texID, upperLeft, bottomRight);
     }
 
     ELECTRON_EXPORT PipelineFrameBuffer LayerGetFramebuffer(RenderLayer* layer) {
-        return std::any_cast<PipelineFrameBuffer>(layer->anyData[0]);
+        SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
+        PipelineFrameBuffer frb = userData->frb;
+        return frb;
     }
 }

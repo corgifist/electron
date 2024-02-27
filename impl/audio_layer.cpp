@@ -65,6 +65,14 @@ extern "C" {
         }
     };
 
+    struct AudioLayerUserData {
+        int64_t audioHandle;
+        std::thread* filterJob;
+        bool* terminationFlag;
+
+        AudioLayerUserData() {}
+    };
+
     ELECTRON_EXPORT std::string LayerName = "Audio";
     ELECTRON_EXPORT glm::vec4 LayerTimelineColor = {
         0.831, 0.569, 0.286, 1
@@ -106,22 +114,21 @@ extern "C" {
 
         owner->properties["OverrideAudioPath"] = string_format("cache/%i.wav", Cache::GetCacheIndex());
 
-        owner->anyData.resize(5);
-        owner->anyData[0] = -1; // audio handle
-        owner->anyData[1] = false; // playing
-        owner->anyData[2] = (AsyncFFMpegOperation*) nullptr;
-        owner->anyData[3] = (std::thread*) nullptr;
-        owner->anyData[4] = (bool*) nullptr;
+        owner->userData = new AudioLayerUserData();
+        AudioLayerUserData* userData = (AudioLayerUserData*) owner->userData;
+        userData->audioHandle = 0;
+        userData->terminationFlag = nullptr;
+        userData->filterJob = nullptr;
     }
 
 
     void ReloadAudioHandle(RenderLayer* layer, TextureUnion* asset, AudioFile<float>* buffer) {
+        AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
         if (asset == nullptr || asset->type != TextureUnionType::Audio) return;
-        if (layer->anyData.size() != 5) return;
-        if (std::any_cast<int>(layer->anyData[0]) != -1) {
+        if (userData->audioHandle != -1) {
             Servers::AudioServerRequest({
                 {"action", "stop_sample"},
-                {"handle", std::any_cast<int>(layer->anyData[0])}
+                {"handle", userData->audioHandle}
             });
         }
         std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
@@ -138,19 +145,18 @@ extern "C" {
     }
 
     void AudioLayerProcessAsset(RenderLayer* layer, TextureUnion* asset) {
+        AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
         if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) == "") {
             layer->properties["OverrideAudioPath"] = "cache/" + std::to_string(Cache::GetCacheIndex()) + ".wav";
         }
-        std::thread* filterJob = std::any_cast<std::thread*>(layer->anyData[3]);
-        bool* terminationFlag = std::any_cast<bool*>(layer->anyData[4]);
-        if (filterJob != nullptr) {
-            *terminationFlag = true;
-            filterJob->join();
-            delete filterJob;
-            delete terminationFlag;
+        if (userData->filterJob != nullptr) {
+            *userData->terminationFlag = true;
+            userData->filterJob->join();
+            delete userData->filterJob;
+            delete userData->terminationFlag;
         }
-        terminationFlag = new bool();
-        filterJob = new std::thread(
+        userData->terminationFlag = new bool();
+        userData->filterJob = new std::thread(
             [](RenderLayer* layer, TextureUnion* asset, bool* terminationFlag) {
                 if (asset == nullptr) return;
                 std::lock_guard<std::mutex> uploadGuard(uploadMutex);
@@ -202,14 +208,12 @@ extern "C" {
                 }
 
                 ReloadAudioHandle(layer, asset, &copyBuffer);
-            }, layer, asset, terminationFlag
+            }, layer, asset, userData->terminationFlag
         );
-        layer->anyData[3] = filterJob;
-        layer->anyData[4] = terminationFlag;
     }
 
     ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
-        bool playing = std::any_cast<bool>(owner->anyData[1]);
+        AudioLayerUserData* userData = (AudioLayerUserData*) owner->userData;
         std::string audioID = JSON_AS_TYPE(owner->properties["AudioID"], std::string);
         TextureUnion* asset = AssetCore::GetAsset(audioID);
         if (asset != nullptr)
@@ -217,6 +221,7 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
+        AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
         json_t previousAudioID = layer->properties["AudioID"];
         json_t& audioID = layer->properties["AudioID"];
         layer->RenderAssetProperty(audioID, "Audio", TextureUnionType::Audio);
@@ -225,7 +230,7 @@ extern "C" {
 
         if (audioSID != "" && asset == nullptr) {
             layer->properties["AudioID"] = "";
-            layer->anyData[0] = -1;
+            userData->audioHandle = -1;
         }
 
         json_t& volume = layer->properties["Volume"];
@@ -290,22 +295,23 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {
+        AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
         json_t& volume = layer->properties["Volume"];
         layer->SortKeyframes(volume);
-        if (std::any_cast<int>(layer->anyData[0]) != -1) {
+        if (userData->audioHandle != -1) {
             Servers::AudioServerRequest({
                 {"action", "pause_sample"},
-                {"handle", std::any_cast<int>(layer->anyData[0])},
+                {"handle", userData->audioHandle},
                 {"pause", !(GraphicsCore::isPlaying && IsInBounds(GraphicsCore::renderFrame, layer->beginFrame, layer->endFrame) && layer->visible)}
             });
         }        
         bool inBounds = IsInBounds(GraphicsCore::renderFrame, layer->beginFrame, layer->endFrame);
         if (JSON_AS_TYPE(layer->internalData["PreviousInBounds"], bool) != inBounds) {
-            if (std::any_cast<int>(layer->anyData[0]) != -1) {
+            if (userData->audioHandle != -1) {
                 double elapsedTime = (double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer)) / GraphicsCore::renderFramerate;
                 Servers::AudioServerRequest({
                     {"action", "seek_sample"},
-                    {"handle", std::any_cast<int>(layer->anyData[0])},
+                    {"handle", userData->audioHandle},
                     {"seek", elapsedTime}
                 });
             }
@@ -328,7 +334,7 @@ extern "C" {
                 std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
                 double elapsedTime = (double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer)) / GraphicsCore::renderFramerate;
                 elapsedTime = std::min(elapsedTime, (double) std::get<AudioMetadata>(asset->as).audioLength);
-                layer->anyData[0] = JSON_AS_TYPE(
+                userData->audioHandle = JSON_AS_TYPE(
                     Servers::AudioServerRequest({
                         {"action", "play_sample"},
                         {"path", audioPath}
@@ -336,7 +342,7 @@ extern "C" {
                 );
                 Servers::AudioServerRequest({
                     {"action", "seek_sample"},
-                    {"handle", std::any_cast<int>(layer->anyData[0])},
+                    {"handle", userData->audioHandle},
                     {"seek", elapsedTime}
                 });
                 layer->internalData["AudioBufferPtr"] = JSON_AS_TYPE(
@@ -351,21 +357,26 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {
+        AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
         if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
             std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
             Servers::AudioServerRequest({
                 {"action", "destroy_sample"},
                 {"path", audioPath}
             });
-            std::thread* filterJob = std::any_cast<std::thread*>(layer->anyData[3]);
-            if (filterJob != nullptr) {
-                filterJob->join();
+            if (userData->filterJob != nullptr) {
+                userData->filterJob->join();
             }
-            delete filterJob;
+            if (userData->terminationFlag != nullptr) {
+                delete userData->terminationFlag;
+            }
+            delete userData->filterJob;
         }
+        delete userData;
     }
 
     ELECTRON_EXPORT void LayerOnPropertiesChange(RenderLayer* layer) {
+        AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
         std::string audioID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
         TextureUnion* asset = AssetCore::GetAsset(audioID);
         if (asset != nullptr) {
@@ -373,13 +384,13 @@ extern "C" {
             layer->endFrame = layer->beginFrame + (metadata.audioLength * GraphicsCore::renderFramerate);
             Servers::AudioServerRequest({
                 {"action", "stop_sample"},
-                {"handle", std::any_cast<int>(layer->anyData[0])}
+                {"handle", userData->audioHandle}
             });
             Servers::AudioServerRequest({
                 {"action", "destroy_sample"},
                 {"path", JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string)}
             });
-            layer->anyData[0] = -1;
+            userData->audioHandle = -1;
             layer->properties["OverrideAudioPath"] = "";
         }
         if (audioID != "") 
@@ -390,10 +401,11 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerOnTimelineSeek(RenderLayer* layer) {
-        if (std::any_cast<int>(layer->anyData[0]) != -1) {
+        AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
+        if (userData->audioHandle != -1) {
             Servers::AudioServerRequest({
                 {"action", "seek_sample"},
-                {"handle", std::any_cast<int>(layer->anyData[0])},
+                {"handle", userData->audioHandle},
                 {"seek", std::max(0.0, ((double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer))) / Shared::maxFramerate)}
             });
         }

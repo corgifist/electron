@@ -48,7 +48,6 @@ namespace Electron {
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
         std::vector<int> maybeSize = {
@@ -59,6 +58,7 @@ namespace Electron {
             maybeSize[1], "Electron", nullptr, nullptr);
 
         glfwMakeContextCurrent(displayHandle);
+        glfwSwapInterval(0);
         if (!gladLoadGL((GLADloadfunc) glfwGetProcAddress)) {
             throw std::runtime_error(
                 "cannot load opengl es function pointers!");
@@ -86,8 +86,8 @@ namespace Electron {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glEnable(GL_DITHER);
-        glEnable(GL_DEBUG_OUTPUT);
-        glDebugMessageCallback(GLCallback, 0);
+        // glEnable(GL_DEBUG_OUTPUT);
+        // glDebugMessageCallback(GLCallback, 0);
 
         renderer.displayHandle = (void*) displayHandle;
         renderer.vendor = (const char*) glGetString(GL_VENDOR);
@@ -110,6 +110,7 @@ namespace Electron {
     }
 
     void DriverCore::SwapBuffers() {
+        Shared::frameID++;
         glfwSwapBuffers((GLFWwindow*) renderer.displayHandle);
     }
 

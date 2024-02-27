@@ -9,7 +9,7 @@ namespace Electron {
         glCreateTextures(GL_TEXTURE_2D, 1, &texture);
         glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
         glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER,
-                        GL_LINEAR_MIPMAP_LINEAR);
+                        GL_LINEAR);
         glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER,
                         GL_LINEAR);
         glGenerateTextureMipmap(texture);

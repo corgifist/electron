@@ -154,6 +154,7 @@ extern "C" {
                                 ImGui::EndDragDropTarget();
                             }
 
+
                             if (ImGui::BeginDragDropSource(sourceFlags)) {
                                 ImGui::SetDragDropPayload(ASSET_DRAG_PAYLOAD, &assetIndex, sizeof(assetIndex));
                                 if (asset.IsTextureCompatible()) {
@@ -170,7 +171,7 @@ extern "C" {
                             }
 
                             if (ImGui::BeginPopup(string_format("AssetPopup%i", asset.id).c_str(), 0)) {
-                                ImGui::SeparatorText(CSTR(asset.name));
+                                ImGui::SeparatorText(string_format("%s %s", asset.GetIcon().c_str(), asset.name.c_str()).c_str());
                                 if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_EXAMINE_ASSET"))), nullptr, false, UICounters::AssetExaminerCounter != 1)) {
                                     AppCore::ExecuteSignal(Signal::_SpawnAssetExaminer);
                                 }

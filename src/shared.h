@@ -46,6 +46,8 @@ namespace Electron {
 
         static int renderCalls, compositorCalls;
 
+        static uint64_t frameID;
+
         static std::string defaultImageLayer, defaultAudioLayer;
         static std::string assetManagerDragDropType;
     };

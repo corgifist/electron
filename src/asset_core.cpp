@@ -22,7 +22,6 @@ namespace Electron {
             type = TextureUnionType::Texture;
             GenerateUVTexture();
             PixelBuffer::DestroyGPUTexture(pboGpuTexture);
-            pboGpuTexture = std::get<PixelBuffer>(as).BuildGPUTexture();
             return;
         } else
             invalid = false;
@@ -35,7 +34,7 @@ namespace Electron {
     glm::vec2 TextureUnion::GetDimensions() {
     switch (type) {
     case TextureUnionType::Texture: {
-        PixelBuffer pbo = std::get<PixelBuffer>(as);
+        PixelBufferMetadata pbo = std::get<PixelBufferMetadata>(as);
         return {pbo.width, pbo.height};
     }
     case TextureUnionType::Audio: {
@@ -49,8 +48,12 @@ namespace Electron {
 
 void TextureUnion::GenerateUVTexture() {
     type = TextureUnionType::Texture;
-    as = PixelBuffer(256, 256);
-    PixelBuffer &buffer = std::get<PixelBuffer>(as);
+    PixelBufferMetadata metadata;
+    metadata.width = 256;
+    metadata.height = 256;
+    metadata.channels = 4;
+    as = metadata;
+    PixelBuffer buffer(256, 256);
     for (int x = 0; x < buffer.width; x++) {
         for (int y = 0; y < buffer.height; y++) {
             buffer.SetPixel(x, y,
@@ -58,6 +61,7 @@ void TextureUnion::GenerateUVTexture() {
                                   (float)y / (float)buffer.height, 0, 1));
         }
     }
+    pboGpuTexture = buffer.BuildGPUTexture();
 }
 
 std::string TextureUnion::GetIcon() {
@@ -125,7 +129,13 @@ void AssetCore::LoadFromProject(json_t project) {
         assetUnion.result.audioCacheCover = audioCoverPath;
         assetUnion.result.coverResolution = audioCoverResolution;
         if (assetUnion.result.type == TextureUnionType::Audio && audioCoverPath != "") {
-            assetUnion.result.pboGpuTexture = PixelBuffer(audioCoverPath).BuildGPUTexture();
+            PixelBuffer pbo(audioCoverPath);
+            PixelBufferMetadata metadata;
+            metadata.width = pbo.width;
+            metadata.height = pbo.height;
+            metadata.channels = 4;
+            assetUnion.result.as = metadata;
+            assetUnion.result.pboGpuTexture = pbo.BuildGPUTexture();
         }
         if (assetUnion.result.type == TextureUnionType::Audio) 
             assetUnion.result.as = AudioMetadata(json_t::parse(ffprobeJsonData));
@@ -137,13 +147,7 @@ void AssetCore::LoadFromProject(json_t project) {
 
         print("[" << JSON_AS_TYPE(assetDescription["Type"], std::string)
                   << "] Loaded " << resourcePath);
-        } catch (std::runtime_error ex) {
-            FaultyAssetDescription desc;
-            desc.name = internalName;
-            desc.type = type;
-            desc.path = resourcePath;
-            faultyAssets.push_back(desc);
-        } catch (json_t::type_error json_error) {
+        } catch (...) {
             FaultyAssetDescription desc;
             desc.name = internalName;
             desc.type = type;
@@ -183,9 +187,14 @@ AssetCore::LoadAssetFromPath(std::string path) {
     if (!invalid) {
         switch (targetAssetType) {
         case TextureUnionType::Texture: {
-            assetUnion.as = PixelBuffer(path);
+            PixelBuffer pbo(path);
+            PixelBufferMetadata metadata;
+            metadata.width = pbo.width;
+            metadata.height = pbo.height;
+            metadata.channels = 4;
+            assetUnion.as = metadata;
             assetUnion.pboGpuTexture =
-                std::get<PixelBuffer>(assetUnion.as).BuildGPUTexture();
+                pbo.BuildGPUTexture();
             break;
         }
         case TextureUnionType::Audio: {
@@ -201,8 +210,6 @@ AssetCore::LoadAssetFromPath(std::string path) {
         assetUnion.type = TextureUnionType::Texture;
         assetUnion.strType = "Image";
         assetUnion.GenerateUVTexture();
-        assetUnion.pboGpuTexture =
-            std::get<PixelBuffer>(assetUnion.as).BuildGPUTexture();
     }
 
     AssetLoadInfo result{};
@@ -297,8 +304,9 @@ std::string AssetCore::ImportAsset(std::string path) {
 }
 
 TextureUnion* AssetCore::GetAsset(std::string id) {
+    int valueID = hexToInt(id);
     for (int i = 0; i < assets.size(); i++) {
-        if (intToHex(assets.at(i).id) == id) {
+        if (assets[i].id == valueID) {
                 return &assets.at(i);
         }
     }
