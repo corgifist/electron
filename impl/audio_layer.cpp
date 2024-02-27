@@ -11,6 +11,8 @@ using namespace glm;
 #define BASS_BOOST_MIN_VALUE -0.5f
 #define BASS_BOOST_MAX_VALUE 0.0f
 
+#define AVERAGE_WAVEFORM_PRECISION 50
+
 extern "C" {
 
     // provides full control of interpolation pipeline
@@ -69,6 +71,7 @@ extern "C" {
         int64_t audioHandle;
         std::thread* filterJob;
         bool* terminationFlag;
+        std::vector<float> averageWaveforms;
 
         AudioLayerUserData() {}
     };
@@ -157,7 +160,7 @@ extern "C" {
         }
         userData->terminationFlag = new bool();
         userData->filterJob = new std::thread(
-            [](RenderLayer* layer, TextureUnion* asset, bool* terminationFlag) {
+            [](RenderLayer* layer, TextureUnion* asset, bool* terminationFlag, AudioLayerUserData* userData) {
                 if (asset == nullptr) return;
                 std::lock_guard<std::mutex> uploadGuard(uploadMutex);
                 layer->internalData["ShowLoadingSpinner"] = true;
@@ -207,8 +210,23 @@ extern "C" {
                     return;
                 }
 
+                userData->averageWaveforms.resize(glm::ceil(copyBuffer.getNumSamplesPerChannel() / AVERAGE_WAVEFORM_PRECISION));
+                uint64_t sampleStep = copyBuffer.getSampleRate() / AVERAGE_WAVEFORM_PRECISION;
+                int averageIndex = 0;
+                for (uint64_t sample = 0; sample < copyBuffer.getNumSamplesPerChannel(); sample += sampleStep) {
+                    if (averageIndex >= copyBuffer.getNumSamplesPerChannel() / AVERAGE_WAVEFORM_PRECISION) break;
+                    if (*terminationFlag) return;
+                    float averageAccumulator = 0;
+                    int subsampleIndex = 0;
+                    for (uint64_t subSample = sample; subSample < sample + sampleStep; subSample++) {
+                        averageAccumulator = (averageAccumulator + glm::abs(copyBuffer.samples[0][glm::clamp(subSample, (uint64_t) 0, (uint64_t) copyBuffer.getNumSamplesPerChannel() - (uint64_t) 1)])) / 2.0f;
+                        subsampleIndex++;
+                    }
+                    userData->averageWaveforms[averageIndex++] = averageAccumulator; 
+                }
+
                 ReloadAudioHandle(layer, asset, &copyBuffer);
-            }, layer, asset, userData->terminationFlag
+            }, layer, asset, userData->terminationFlag, userData
         );
     }
 
@@ -433,6 +451,47 @@ extern "C" {
                 audioBuffer->save(path);
             }
             ImGui::EndMenu();
+        }
+    }
+
+    ELECTRON_EXPORT void LayerTimelineRender(RenderLayer* layer, TimelineLayerRenderDesc desc) {
+        AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
+        std::string audioSID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
+        TextureUnion* asset = AssetCore::GetAsset(audioSID);
+        AudioFile<float>* audioBuffer = nullptr;
+        if (asset != nullptr) {
+            std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
+            audioBuffer = (AudioFile<float>*) JSON_AS_TYPE(
+                Servers::AudioServerRequest({
+                    {"action", "audio_buffer_ptr"},
+                    {"path", audioPath}
+                })["ptr"], unsigned long
+            );
+        }
+        if (!audioBuffer) return;
+        if (userData->averageWaveforms.size() == 0) return;
+        ImVec2 originalCursor = ImGui::GetCursorScreenPos();
+        ImVec2 dragSize = ImVec2((layer->endFrame - layer->beginFrame) * desc.pixelsPerFrame / 10, desc.layerSizeY);
+        dragSize.x = glm::clamp(dragSize.x, 1.0f, 30.0f);
+        float pixelAdvance = (GraphicsCore::renderFramerate / AVERAGE_WAVEFORM_PRECISION) * desc.pixelsPerFrame;
+        glm::vec4 waveformColor = LayerTimelineColor * 0.7f;
+        waveformColor.w = 1.0f;
+        for (int i = 0; i < userData->averageWaveforms.size(); i++) {
+            if (originalCursor.x < desc.legendOffset.x) {
+                originalCursor.x += pixelAdvance;
+                continue;
+            }
+            if (originalCursor.x > ImGui::GetWindowSize().x + desc.legendOffset.x) break;
+            float average = glm::abs(userData->averageWaveforms[i]);
+            float averageInPixels = average * desc.layerSizeY;
+            float invertedAverageInPixels = desc.layerSizeY - averageInPixels;
+            ImVec2 bottomRight = originalCursor;
+            bottomRight.y += desc.layerSizeY;
+            bottomRight.x += pixelAdvance;
+            ImVec2 upperLeft = originalCursor;
+            upperLeft.y += invertedAverageInPixels;
+            ImGui::GetWindowDrawList()->AddRectFilled(upperLeft, bottomRight, ImGui::GetColorU32(ImVec4{waveformColor.r, waveformColor.g, waveformColor.b, waveformColor.a}));
+            originalCursor.x += pixelAdvance;
         }
     }
 

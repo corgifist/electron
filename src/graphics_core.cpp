@@ -74,8 +74,7 @@ namespace Electron {
             index++;
         }
 
-        throw std::runtime_error(string_format("cannot find layer with id %i", id));
-        return index;
+        return -1;
     }
 
     void GraphicsCore::AddRenderLayer(RenderLayer layer) {
