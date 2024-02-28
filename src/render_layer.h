@@ -21,7 +21,6 @@ namespace Electron {
     typedef void (*Electron_LayerImplF)(RenderLayer*);
     typedef json_t (*Electron_PropertiesImplF)(RenderLayer*);
     typedef PipelineFrameBuffer (*Electron_FramebufferImplF)(RenderLayer*);
-    typedef void (*Electron_MakeFramebufferResidentImplF)(RenderLayer*, bool);
     typedef void (*Electron_TimelineRenderImplF)(RenderLayer*, TimelineLayerRenderDesc);
 
     enum class GeneralizedPropertyType {
@@ -46,7 +45,6 @@ namespace Electron {
         Electron_LayerImplF menuProcedure;
         Electron_PropertiesImplF previewPropertiesProcedure;
         Electron_FramebufferImplF framebufferProcedure;
-        Electron_MakeFramebufferResidentImplF residentProcedure;
         Electron_TimelineRenderImplF timelineRenderProcedure;
         bool initialized;
         std::string layerPublicName;
@@ -82,7 +80,6 @@ namespace Electron {
         Electron_LayerImplF TryGetLayerImplF(std::string key);
         Electron_PropertiesImplF TryGetPropertiesImplF(std::string key);
         Electron_FramebufferImplF TryGetFramebufferImplF(std::string key);
-        Electron_MakeFramebufferResidentImplF TryGetMakeFramebufferResidentImplF(std::string key);
         Electron_TimelineRenderImplF TryGetTimelineRenderImplF(std::string key);
 
         void Destroy();
@@ -91,6 +88,5 @@ namespace Electron {
     void LayerImplPlaceholder(Electron::RenderLayer* layer);
     json_t LayerPropertiesImplPlaceholder(Electron::RenderLayer* layer);
     PipelineFrameBuffer LayerFramebufferImplPlaceholder(RenderLayer* layer);
-    void LayerMakeFramebufferResidentPlaceholder(RenderLayer* layer, bool);
     void LayerTimelineRenderPlaceholder(RenderLayer*, TimelineLayerRenderDesc desc);
 }

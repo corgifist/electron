@@ -65,6 +65,8 @@ extern "C" {
     std::vector<std::thread> threadRegistry;
     std::set<std::string> loadedRegistry;
 
+    std::mutex wavRegistryMutex;
+
     void JoinThreads() {
         for (auto& thread : threadRegistry) {
             thread.join();
@@ -148,6 +150,7 @@ extern "C" {
                             }
                             bundle.data.loadFromMemory(audioBytes);
                         }
+                        const std::lock_guard<std::mutex> wavRegistryGuard(wavRegistryMutex);
                         sampleRate = bundle.data.getSampleRate();
                         numChannels = bundle.data.getNumChannels();
                         samplesStartIndex = bundle.data.samplesStartIndex;
@@ -163,6 +166,7 @@ extern "C" {
             }
         }
         if (action == "load_raw_buffer") {
+            const std::lock_guard<std::mutex> wavRegistryGuard(wavRegistryMutex);
             std::string path = JSON_AS_TYPE(body["path"], std::string);
             if (wavRegistry.find(path) != wavRegistry.end()) {
                 wavRegistry[path].Destroy();

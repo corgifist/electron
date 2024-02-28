@@ -1,0 +1,20 @@
+#fragment
+
+layout(location = 0) out vec4 gColor;
+layout(location = 1) out vec4 gUV;
+
+in vec2 vPos;
+in vec2 vUV;
+
+uniform sampler2D uColor;
+uniform sampler2D uUV;
+
+uniform vec2 uDisplaySize;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / uDisplaySize;
+
+    gColor = texture(uColor, uv);
+    gUV = texture(uUV, uv);
+    if (gColor.a == 0.0) discard;
+}

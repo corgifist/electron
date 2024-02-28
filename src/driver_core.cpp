@@ -101,6 +101,7 @@ namespace Electron {
         int extensionsCount;
         glGetIntegerv(GL_NUM_EXTENSIONS, &extensionsCount);
         for (int i = 0; i < extensionsCount; i++) {
+            std::string extension = (const char*) glGetStringi(GL_EXTENSIONS, i);
             print("\t" << glGetStringi(GL_EXTENSIONS, i));
         }
     }

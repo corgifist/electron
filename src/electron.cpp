@@ -13,6 +13,7 @@ using namespace Electron;
 int main(int argc, char *argv[]) {
     bool disableBackwards = false;
     backward::SignalHandling* sh = nullptr;
+    bool overrideForward = false;
     if (argc > 1) {
         std::string serverType = "";
         int port = 80;
@@ -32,6 +33,8 @@ int main(int argc, char *argv[]) {
                 useServer = true;
             } else if (arg == "--disable-backwards") {
                 disableBackwards = true;
+            } else if (arg == "--override-forward") {
+                overrideForward = true;
             }
         }
         if (useServer) {

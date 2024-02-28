@@ -31,7 +31,7 @@ namespace Electron {
     void GraphicsCore::PrecompileEssentialShaders() {
         basic = CompilePipelineShader("basic.pipeline", ShaderType::Vertex);
         compositor =
-            CompilePipelineShader("compositor_forward.pipeline", ShaderType::Fragment);
+            CompilePipelineShader("compositor.pipeline", ShaderType::Fragment);
         channel =
             CompilePipelineShader("channel_manipulator.pipeline", ShaderType::Fragment);
         Shared::fsVAO = GenerateVAO(fsQuadVertices, fsQuadUV);
@@ -368,53 +368,29 @@ namespace Electron {
         compositorQueue.push_back(frb);
     }
 
-    void GraphicsCore::PerformComposition() {
-        if (compositorQueue.size() == 0) return;
-        renderBuffer.Bind();
+    void GraphicsCore::PerformForwardComposition() {
         glBindVertexArray(Shared::fsVAO);
-        
-        static GLuint samplersBuffer = 0;
-        if (samplersBuffer == 0) {
-            glCreateBuffers(1, &samplersBuffer);
-            glNamedBufferStorage(samplersBuffer, SAMPLER_BUFFER_SIZE * 2 * sizeof(GLuint64), NULL, GL_DYNAMIC_STORAGE_BIT | PERSISTENT_FLAG);
-        }
 
-        int residentsCount = glm::min((size_t) SAMPLER_BUFFER_SIZE, compositorQueue.size());
-        static std::vector<GLuint64> handles;
-        static std::vector<int> ids;
-        bool bufferNeedsUpdate = false;
-        if (!ids.empty()) {
-            for (int i = 0; i < ids.size(); i++) {
-                if (ids[i] != compositorQueue[i].id) {
-                    bufferNeedsUpdate = true;
-                    break;
-                }
-            }
-        }
-        if (ids.empty() || bufferNeedsUpdate) {
-            handles.clear();
-            ids.clear();
-            for (int i = 0; i < residentsCount; i++) {
-                PipelineFrameBuffer& frb = compositorQueue[i];
-                ids.push_back(frb.id);
-                handles.push_back(frb.colorHandle);
-                handles.push_back(frb.uvHandle);
-            }
-            glNamedBufferSubData(samplersBuffer, 0, handles.size() * sizeof(GLuint64), handles.data());
-        }
-
-        static glm::mat4 identity = glm::mat4(1);
+        glm::mat4 identity = glm::identity<glm::mat4>();
+        renderBuffer.Bind();
+        UseShader(GL_VERTEX_SHADER_BIT, basic.vertex);
         UseShader(GL_FRAGMENT_SHADER_BIT, compositor.fragment);
         ShaderSetUniform(basic.vertex, "uMatrix", identity);
+        ShaderSetUniform(compositor.fragment, "uDisplaySize", glm::vec2(renderBuffer.width, renderBuffer.height));
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, samplersBuffer);
-        glDrawArraysInstancedBaseInstance(GL_TRIANGLES, 0, fsQuadVertices.size() / 2, residentsCount, 0);
+        for (auto& buffer : compositorQueue) {
+            BindGPUTexture(buffer.rbo.colorBuffer, compositor.fragment, 0, "uColor");
+            BindGPUTexture(buffer.rbo.uvBuffer, compositor.fragment, 1, "uUV");
 
-        compositorQueue.erase(compositorQueue.begin(), compositorQueue.begin() + residentsCount);
-        Shared::compositorCalls++;
-        if (compositorQueue.size() != 0) {
-            PerformComposition();
+            glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2);
+            Shared::compositorCalls++;
         }
+        renderBuffer.Unbind();
+        compositorQueue.clear();
+    }
+
+    void GraphicsCore::PerformComposition() {
+        PerformForwardComposition();
     }
 
     void GraphicsCore::FireTimelineSeek() {

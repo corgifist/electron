@@ -41,7 +41,6 @@ namespace Electron {
         this->sortingProcedure = TryGetLayerImplF("LayerSortKeyframes");
         this->onPropertiesChange = TryGetLayerImplF("LayerOnPropertiesChange");
         this->framebufferProcedure = TryGetFramebufferImplF("LayerGetFramebuffer");
-        this->residentProcedure = TryGetMakeFramebufferResidentImplF("LayerMakeFramebufferResident");
         this->menuProcedure = TryGetLayerImplF("LayerRenderMenu");
         this->timelineRenderProcedure = TryGetTimelineRenderImplF("LayerTimelineRender");
         this->previewPropertiesProcedure =
@@ -64,9 +63,6 @@ namespace Electron {
         }
         float oldRenderFrame = GraphicsCore::renderFrame;
         bool inBounds = IsInBounds(GraphicsCore::renderFrame, beginFrame, endFrame);
-        if (residentProcedure != LayerMakeFramebufferResidentPlaceholder) {
-            residentProcedure(this, inBounds);
-        }
         if (inBounds) {
             GraphicsCore::renderFrame += timeShift;
             layerProcedure(this);
@@ -513,14 +509,6 @@ namespace Electron {
         }
     }
 
-    Electron_MakeFramebufferResidentImplF RenderLayer::TryGetMakeFramebufferResidentImplF(std::string key) {
-        try {
-            return Libraries::GetFunction<void(RenderLayer*, bool)>(layerLibrary, key);
-        } catch (internalDylib::symbol_error err) {
-            return LayerMakeFramebufferResidentPlaceholder;
-        }
-    }
-
     Electron_TimelineRenderImplF RenderLayer::TryGetTimelineRenderImplF(std::string key) {
         try {
             return Libraries::GetFunction<void(RenderLayer*, TimelineLayerRenderDesc)>(layerLibrary, key);
@@ -532,6 +520,5 @@ namespace Electron {
     void LayerImplPlaceholder(RenderLayer *layer) {}
     json_t LayerPropertiesImplPlaceholder(RenderLayer *layer) { return {}; }
     PipelineFrameBuffer LayerFramebufferImplPlaceholder(RenderLayer* layer) { return {}; }
-    void LayerMakeFramebufferResidentPlaceholder(RenderLayer* layer, bool) {}
     void LayerTimelineRenderPlaceholder(RenderLayer*, TimelineLayerRenderDesc desc) {}
 } // namespace Electron

@@ -126,6 +126,7 @@ namespace Electron {
         static void FirePlaybackChange();
 
         static void CallCompositor(PipelineFrameBuffer frb);
+        static void PerformForwardComposition();
         static void PerformComposition();
         
     };

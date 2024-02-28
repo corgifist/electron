@@ -6,7 +6,7 @@
 
 namespace Electron {
     enum class TextureUnionType {
-        Texture, Audio
+        Texture, Audio, Video
     };
 
     // Holds ffprobe's result
@@ -38,7 +38,6 @@ namespace Electron {
         std::string audioCacheCover;
         std::string ffprobeData, ffprobeJsonData;
         GLuint pboGpuTexture;
-        GLuint previousPboGpuTexture;
         bool invalid;
         float previewScale;
         glm::vec2 coverResolution;

@@ -71,7 +71,6 @@ namespace Electron {
         this->height = height;
         this->id = counter++;
         this->rbo = RenderBuffer(width, height);
-        this->resident = false;
         glCreateFramebuffers(1, &fbo);
 
         glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0, rbo.colorBuffer, 0);
@@ -86,31 +85,12 @@ namespace Electron {
         if (glCheckNamedFramebufferStatus(fbo, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             throw std::runtime_error("framebuffer is not complete!");
         }
-
-        this->colorHandle = glGetTextureHandleARB(rbo.colorBuffer);
-        if (!colorHandle) {
-            throw std::runtime_error("cannot get texture handle for color buffer");
-        }
-        this->uvHandle = glGetTextureHandleARB(rbo.uvBuffer);
-        if (!uvHandle) {
-            throw std::runtime_error("cannot get texture handle for uv buffer!");
-        }
-        MakeResident();
     }
 
     PipelineFrameBuffer::PipelineFrameBuffer(GLuint color, GLuint uv) {
         this->rbo.colorBuffer = color;
         this->rbo.uvBuffer = uv;
-        this->resident = false;
         this->id = counter++;
-        this->colorHandle = glGetTextureHandleARB(rbo.colorBuffer);
-        if (!colorHandle) {
-            throw std::runtime_error("cannot get texture handle for color buffer");
-        }
-        this->uvHandle = glGetTextureHandleARB(rbo.uvBuffer);
-        if (!uvHandle) {
-            throw std::runtime_error("cannot get texture handle for uv buffer!");
-        }
     }
 
     void PipelineFrameBuffer::Bind() {
@@ -124,23 +104,8 @@ namespace Electron {
     }
 
     void PipelineFrameBuffer::Destroy() {
-        if (resident) MakeNonResident();
         rbo.Destroy();
         glDeleteRenderbuffers(1, &stencil);
         glDeleteFramebuffers(1, &fbo);
-    }
-
-    void PipelineFrameBuffer::MakeResident() {
-        if (resident) return;
-        glMakeTextureHandleResidentARB(colorHandle);
-        glMakeTextureHandleResidentARB(uvHandle);
-        resident = true;
-    }
-
-    void PipelineFrameBuffer::MakeNonResident() {
-        if (!resident) return;
-        glMakeTextureHandleNonResidentARB(colorHandle);
-        glMakeTextureHandleNonResidentARB(uvHandle);
-        resident = false;
     }
 }

@@ -121,11 +121,10 @@ namespace Electron {
             json_t::parse(std::fstream("misc/localization_en.json"));
 
         Servers::Initialize();
-
         GraphicsCore::FetchAllLayers();
 
         Shared::shadowTex = PixelBuffer("misc/shadow.png").BuildGPUTexture();
-        Shared::glslVersion = "#version 460 core\n#extension GL_ARB_bindless_texture : require\n";
+        Shared::glslVersion = "#version 460 core\n";
         GraphicsCore::PrecompileEssentialShaders();
     }
 
@@ -158,8 +157,6 @@ namespace Electron {
         while (!DriverCore::ShouldClose()) {
             double firstTime = GetTime();
             AppCore::context = ImGui::GetCurrentContext();
-            if (GraphicsCore::renderBuffer.resident)
-                GraphicsCore::renderBuffer.MakeNonResident();
 
             static bool asyncWriterDead = false;
             if (!Servers::AsyncWriterRequest({{"action", "alive"}}).alive &&

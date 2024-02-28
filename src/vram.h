@@ -54,9 +54,7 @@ namespace Electron {
     struct PipelineFrameBuffer {
         GLuint fbo, stencil;
         RenderBuffer rbo;
-        GLuint64 colorHandle, uvHandle;
         int width, height;
-        bool resident;
         int id;
         static int counter;
 
@@ -69,9 +67,6 @@ namespace Electron {
         void Bind();
         void Unbind();
         void Destroy();
-
-        void MakeResident();
-        void MakeNonResident();
     };
 
 }

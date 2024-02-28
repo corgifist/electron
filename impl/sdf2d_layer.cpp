@@ -157,48 +157,7 @@ extern "C" {
                 break;
             }
         }
-        /* static GLuint samplersBuffer = 0;
-        if (samplersBuffer == 0) {
-            glCreateBuffers(1, &samplersBuffer);
-            glNamedBufferStorage(samplersBuffer, TEXTURE_POOL_SIZE * sizeof(GLuint64), NULL, GL_DYNAMIC_STORAGE_BIT | PERSISTENT_FLAG);
-        }
-
-        static std::unordered_map<int, GLuint64> handlePool{};
-        static std::vector<GLuint64> handles(TEXTURE_POOL_SIZE);
-        static int handleIndex = 0;
-        if (canTexture) {
-            if (handlePool.find(asset->id) == handlePool.end()) {
-                handlePool[asset->id] = glGetTextureHandleARB(asset->pboGpuTexture);
-                if (!handlePool[asset->id]) {
-                    throw std::runtime_error("cannot get asset texture handle! (sdf2d)");
-                }
-            }
-
-            if (std::find(handles.begin(), handles.end(), handlePool[asset->id]) == handles.end()) {
-                if (handleIndex >= TEXTURE_POOL_SIZE) {
-                    glMakeTextureHandleNonResidentARB(handles[0]);
-                    handleIndex = 0;
-                    handles[handleIndex++] = handlePool[asset->id];
-                    glMakeTextureHandleResidentARB(handles[0]);
-                } else {
-                    if (handles[handleIndex] != 0) {
-                        glMakeTextureHandleNonResidentARB(handles[handleIndex]);
-                    }
-                    handles[handleIndex++] = handlePool[asset->id];
-                    glMakeTextureHandleResidentARB(handlePool[asset->id]);
-                }
-                glNamedBufferSubData(samplersBuffer, (handleIndex - 1) * sizeof(GLuint64), sizeof(GLuint64), handles.data() + (handleIndex - 1));
-            }
-
-            GLuint64 desiredHandle = handlePool[asset->id];
-            int uTextureID = 0;
-            for (int i = 0; i < handles.size(); i++) {
-                if (handles[i] == desiredHandle)
-                    uTextureID = i;
-            }
-            GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uTextureID", uTextureID);
-        }
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, samplersBuffer);*/ 
+        
         if (canTexture) {
             GraphicsCore::BindGPUTexture(asset->pboGpuTexture, sdf2d_compute.fragment, 0, "uTexture");
         }
@@ -348,14 +307,6 @@ extern "C" {
             }
         }
         return base;
-    }
-
-    ELECTRON_EXPORT void LayerMakeFramebufferResident(RenderLayer* layer, bool resident) {
-        SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
-        PipelineFrameBuffer frb = userData->frb;
-        if (resident) frb.MakeResident();
-        else frb.MakeNonResident();
-        userData->frb = frb;
     }
 
     ELECTRON_EXPORT void LayerTimelineRender(RenderLayer* layer, TimelineLayerRenderDesc desc) {
