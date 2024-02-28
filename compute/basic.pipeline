@@ -1,0 +1,23 @@
+#vertex
+
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+layout(location = 0) in vec2 aPos;
+layout(location = 1) in vec2 aUV;
+
+out vec2 vPos;
+out vec2 vUV;
+
+uniform mat4 uMatrix;
+
+flat out int vInstance;
+
+void main() {
+    gl_Position = uMatrix * vec4(aPos, 0.0, 1.0);
+    vPos = aPos;
+    vUV = aUV;
+    vInstance = gl_InstanceID;
+}

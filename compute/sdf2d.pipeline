@@ -1,0 +1,65 @@
+#fragment
+
+layout(location = 0) out vec4 gColor;
+layout(location = 1) out vec4 gUV;
+
+in vec2 vPos;
+in vec2 vUV;
+
+flat in int vInstance;
+
+uniform bool uSdfEnabled;
+uniform vec3 uColor;
+uniform bool uCanTexture;
+
+#define SDF_SHAPE_NONE 0
+#define SDF_SHAPE_CIRCLE 1
+#define SDF_SHAPE_ROUNDED_RECT 2
+#define SDF_SHAPE_TRIANGLE 3
+
+uniform float uSdfCircleRadius;
+uniform vec2 uSize;
+uniform vec2 uUvOffset;
+
+uniform int uSdfShape;
+uniform sampler2D uTexture;
+float sdfCircle(vec2 uv, float r) {
+    return length(uv) - r;
+}
+
+float sdfRoundedBox(vec2 position, vec2 halfSize, float cornerRadius) {
+   position = abs(position) - halfSize + cornerRadius;
+   return length(max(position, 0.0)) + min(max(position.x, position.y), 0.0) - cornerRadius;
+}
+
+float sdEquilateralTriangle(vec2 p,float r ) {
+    const float k = sqrt(3.0);
+    p.x = abs(p.x) - r;
+    p.y = p.y + r/k;
+    if( p.x+k*p.y>0.0 ) p = vec2(p.x-k*p.y,-k*p.x-p.y)/2.0;
+    p.x -= clamp( p.x, -2.0*r, 0.0 );
+    return -length(p)*sign(p.y);
+}
+
+
+void main() {
+    gColor = vec4(uColor, 1.0);
+    if (uCanTexture) 
+        gColor *= texture(uTexture, vUV + uUvOffset);
+    if (uSdfEnabled) {
+        float d = 0.0;
+        if (uSdfShape == SDF_SHAPE_CIRCLE) {
+            d = sdfCircle(vUV - 0.5, uSdfCircleRadius);
+        }
+        if (uSdfShape == SDF_SHAPE_ROUNDED_RECT) {
+            d = sdfRoundedBox(vUV - 0.5, uSize, uSdfCircleRadius);
+        }
+        if (uSdfShape == SDF_SHAPE_TRIANGLE) {
+            d = sdEquilateralTriangle(vec2(vUV.x, 1.0 - vUV.y) - 0.5, uSdfCircleRadius);
+        }
+        if (d > 0.0) {
+            gColor *= 0.0;
+        }
+    }
+    gUV = vec4(vUV + uUvOffset, 0.0, 1.0);
+}
