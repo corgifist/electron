@@ -29,14 +29,12 @@ namespace Electron {
         static ProjectMap project;
         static json_t localizationMap, configMap;
 
-        static GLuint shadowTex;
-
         static int assetSelected;
         static std::string importErrorMessage;
 
         static float deltaTime;
 
-        static GLuint fsVAO;
+        static GPUExtendedHandle fsVAO;
 
         static ImVec2 displayPos, displaySize;
 

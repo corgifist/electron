@@ -84,7 +84,7 @@ extern "C" {
         SDF2DUserData* userData = (SDF2DUserData*) owner->userData;
         PipelineFrameBuffer frb = userData->frb;
         if (frb.width != pbo->width || frb.height != pbo->height) {
-            frb.Destroy();
+            if (frb.id) frb.Destroy();
             frb = PipelineFrameBuffer(pbo->width, pbo->height);
         }
         
@@ -121,7 +121,7 @@ extern "C" {
         bool canTexture = (asset != nullptr && texturingEnabled);
 
         frb.Bind();
-        GraphicsCore::UseShader(GL_FRAGMENT_SHADER_BIT, sdf2d_compute.fragment);
+        GraphicsCore::UseShader(ShaderType::Fragment, sdf2d_compute.fragment);
         mat4 transform = glm::identity<mat4>();
         transform = glm::scale(transform, vec3(size, 1.0f));
         transform = glm::rotate(transform, glm::radians(angle), vec3(0, 0, 1));

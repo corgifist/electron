@@ -52,7 +52,6 @@ namespace Electron {
 
     GLuint PixelBuffer::BuildGPUTexture() {
         GLuint id;
-        glCreateTextures(GL_TEXTURE_2D, 1, &id);
         std::vector<GLubyte> textureConversion(this->width * this->height * 4);
         for (int x = 0; x < this->width; x++) {
             for (int y = 0; y < this->height; y++) {
@@ -65,11 +64,7 @@ namespace Electron {
             }
         }
 
-        glTextureStorage2D(id, 1, GL_RGBA8, width, height);
-        glTextureSubImage2D(id, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, textureConversion.data());
-        glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glGenerateTextureMipmap(id);
+        id = DriverCore::ImportGPUTexture(textureConversion.data(), width, height, 4);
 
         return id;
     }
@@ -83,6 +78,6 @@ namespace Electron {
     }
 
     void PixelBuffer::DestroyGPUTexture(GLuint texture) {
-        glDeleteTextures(1, &texture);
+        DriverCore::DestroyGPUTexture(texture);
     }
 } // namespace Electron

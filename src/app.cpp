@@ -122,8 +122,7 @@ namespace Electron {
 
         Servers::Initialize();
         GraphicsCore::FetchAllLayers();
-
-        Shared::shadowTex = PixelBuffer("misc/shadow.png").BuildGPUTexture();
+        
         Shared::glslVersion = "#version 460 core\n";
         GraphicsCore::PrecompileEssentialShaders();
     }

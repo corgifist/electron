@@ -154,7 +154,7 @@ extern "C" {
                 }
 
                 rbo->Bind();
-                GraphicsCore::UseShader(GL_FRAGMENT_SHADER_BIT, GraphicsCore::channel.fragment);
+                GraphicsCore::UseShader(ShaderType::Fragment, GraphicsCore::channel.fragment);
                 static glm::mat4 identity = glm::mat4(1);
                 GraphicsCore::ShaderSetUniform(GraphicsCore::basic.vertex, "uMatrix", identity);
                 GraphicsCore::BindGPUTexture(rbo->rbo.colorBuffer, GraphicsCore::channel.fragment, 0, "uColor");

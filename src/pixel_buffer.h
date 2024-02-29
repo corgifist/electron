@@ -3,6 +3,7 @@
 #include "electron.h"
 #include "utils/stb_image.h"
 #include "shared.h"
+#include "driver_core.h"
 
 namespace Electron {
 
@@ -35,7 +36,7 @@ namespace Electron {
 
         void FillColor(Pixel pixel);
 
-        GLuint BuildGPUTexture();
+        GPUHandle BuildGPUTexture();
 
         static void DestroyGPUTexture(GLuint texture);
     };

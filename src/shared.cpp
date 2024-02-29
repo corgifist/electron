@@ -21,14 +21,12 @@ namespace Electron {
     int Wavefront::y = 0;
     int Wavefront::z = 0;
 
-    GLuint Shared::shadowTex = 0;
-
     int Shared::assetSelected = -128;
     std::string Shared::importErrorMessage = "";
 
     float Shared::deltaTime = 0.0f;
 
-    GLuint Shared::fsVAO = UNDEFINED;
+    GPUExtendedHandle Shared::fsVAO = UNDEFINED;
 
     ImVec2 Shared::displayPos{};
     ImVec2 Shared::displaySize{};

@@ -1,20 +1,21 @@
 #pragma once
 #include "electron.h"
 #include "pixel_buffer.h"
+#include "driver_core.h"
 
 #define PERSISTENT_FLAG GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT
 
 namespace Electron {
 
     struct VRAM {
-        static GLuint GenerateGPUTexture(int width, int height);
+        static GPUHandle GenerateGPUTexture(int width, int height);
     };
 
     // A set of GPU textures that represents color/depth/uv buffers
     class RenderBuffer {
     public:
-        GLuint colorBuffer;
-        GLuint uvBuffer;
+        GPUHandle colorBuffer;
+        GPUHandle uvBuffer;
         int width, height;
 
         RenderBuffer(int width, int height);
@@ -30,7 +31,7 @@ namespace Electron {
 
     // GPUTexture that adapts to preview buffer size changes
     struct ResizableGPUTexture {
-        GLuint texture;
+        GPUHandle texture;
         int width, height;
 
         ResizableGPUTexture(int width, int height);
@@ -52,14 +53,14 @@ namespace Electron {
     };
 
     struct PipelineFrameBuffer {
-        GLuint fbo, stencil;
+        GPUExtendedHandle fbo;
         RenderBuffer rbo;
         int width, height;
         int id;
         static int counter;
 
         PipelineFrameBuffer(int width, int height);
-        PipelineFrameBuffer(GLuint color, GLuint uv);
+        PipelineFrameBuffer(GPUHandle color, GPUHandle uv);
         PipelineFrameBuffer() {
             this->id = 0;
         }

@@ -2,19 +2,8 @@
 
 namespace Electron {
 
-    GLuint VRAM::GenerateGPUTexture(int width, int height) {
-        GLuint texture;
-        if (width < 1 || height < 1)
-            throw std::runtime_error("malformed texture dimensions");
-        glCreateTextures(GL_TEXTURE_2D, 1, &texture);
-        glTextureStorage2D(texture, 1, GL_RGBA8, width, height);
-        glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER,
-                        GL_LINEAR);
-        glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER,
-                        GL_LINEAR);
-        glGenerateTextureMipmap(texture);
-
-        return texture;
+    GPUHandle VRAM::GenerateGPUTexture(int width, int height) {
+        return DriverCore::GenerateGPUTexture(width, height);
     }
 
     int PipelineFrameBuffer::counter = 1;
@@ -71,20 +60,7 @@ namespace Electron {
         this->height = height;
         this->id = counter++;
         this->rbo = RenderBuffer(width, height);
-        glCreateFramebuffers(1, &fbo);
-
-        glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0, rbo.colorBuffer, 0);
-        glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT1, rbo.uvBuffer, 0);
-
-        glCreateRenderbuffers(1, &stencil);
-        glNamedRenderbufferStorage(stencil, GL_DEPTH24_STENCIL8, width, height);
-        glNamedFramebufferRenderbuffer(fbo, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, stencil);
-
-        GLuint attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-        glNamedFramebufferDrawBuffers(fbo, 2, attachments);
-        if (glCheckNamedFramebufferStatus(fbo, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            throw std::runtime_error("framebuffer is not complete!");
-        }
+        this->fbo = DriverCore::GenerateFramebuffer(rbo.colorBuffer, rbo.uvBuffer, width, height);
     }
 
     PipelineFrameBuffer::PipelineFrameBuffer(GLuint color, GLuint uv) {
@@ -94,18 +70,15 @@ namespace Electron {
     }
 
     void PipelineFrameBuffer::Bind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glViewport(0, 0, width, height);
+        DriverCore::BindFramebuffer(fbo);
     }
 
     void PipelineFrameBuffer::Unbind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, Shared::displaySize.x, Shared::displaySize.y);
+        DriverCore::BindFramebuffer(0);
     }
 
     void PipelineFrameBuffer::Destroy() {
         rbo.Destroy();
-        glDeleteRenderbuffers(1, &stencil);
-        glDeleteFramebuffers(1, &fbo);
+        DriverCore::DestroyFramebuffer(fbo);
     }
 }

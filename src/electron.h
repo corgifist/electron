@@ -59,7 +59,17 @@ typedef std::vector<std::string> DylibRegistry;
 
 namespace Electron {
 
-    typedef nlohmann::json json_t;
+    using json_t = nlohmann::json;
+    using GPUHandle = uint32_t;
+    using GPUExtendedHandle = uint64_t;
+
+    enum class ShaderType {
+        Vertex, Fragment, Compute, VertexFragment
+    };
+
+    enum class MemoryBarrierType {
+        ImageStoreWriteBarrier
+    };
 
     typedef enum {
         _CloseEditor,

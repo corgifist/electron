@@ -55,16 +55,12 @@ namespace Electron {
     };
 
     struct PipelineShader {
-        GLuint vertex, fragment, compute;
+        GPUHandle vertex, fragment, compute;
         PipelineShader() {
             this->vertex = 0;
             this->fragment = 0;
             this->compute = 0;
         }
-    };
-
-    enum class ShaderType {
-        Vertex, Fragment, Compute, VertexFragment
     };
     
     // Responsible of some GPU manipulations
@@ -73,9 +69,9 @@ namespace Electron {
         static PreviewOutputBufferType outputBufferType;
         static std::vector<RenderLayer> layers;
         static bool isPlaying;
-        static std::unordered_map<GLuint, std::unordered_map<std::string, GLuint>> uniformCache;
+        static std::unordered_map<GPUHandle, std::unordered_map<std::string, GPUHandle>> uniformCache;
         static std::vector<PipelineFrameBuffer> compositorQueue;
-        static GLuint pipeline;
+        static GPUHandle pipeline;
 
         static PipelineShader basic, compositor, channel;
 
@@ -100,15 +96,15 @@ namespace Electron {
         static void ResizeRenderBuffer(int width, int height);
         static GLuint GetPreviewGPUTexture();
 
-        static GLuint GenerateVAO(std::vector<float> vertices, std::vector<float> uv);
+        static GPUExtendedHandle GenerateVAO(std::vector<float> vertices, std::vector<float> uv);
         static void DrawArrays(GLuint vao, int size);
-        static GLuint CompileComputeShader(std::string path);
+        static GPUHandle CompileComputeShader(std::string path);
         static PipelineShader CompilePipelineShader(std::string path, ShaderType type = ShaderType::VertexFragment);
-        static void UseShader(GLenum bitfield, GLuint shader);
+        static void UseShader(ShaderType type, GPUHandle shader);
         static void DispatchComputeShader(int grid_x, int grid_y, int grid_z);
-        static void ComputeMemoryBarier(GLbitfield barrier);
+        static void ComputeMemoryBarier(MemoryBarrierType barrier);
         static GLuint GenerateGPUTexture(int width, int height);
-        static void BindGPUTexture(GLuint texture, GLuint shader, int unit, std::string uniform);
+        static void BindGPUTexture(GPUHandle texture, GLuint shader, int unit, std::string uniform);
         static void BindComputeGPUTexture(GLuint texture, GLuint unit, GLuint readStatus);
         static void ShaderSetUniform(GLuint program, std::string name, int x, int y);
         static void ShaderSetUniform(GLuint program, std::string name, glm::vec3 vec);
