@@ -64,6 +64,21 @@ extern "C" {
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - warningTextSize.x / 2.0f,  windowSize.y / 2.0f - warningTextSize.y / 2.0f});
                 ImGui::Text("%s", CSTR(projectRequiredString));
+                std::string lastProject = JSON_AS_TYPE(Shared::configMap["LastProject"], std::string);
+                if (lastProject != "null" && std::filesystem::exists(lastProject + "/project.json")) {
+                    static json_t loadedProject;
+                    static std::string loadedProjectPath = "null";
+                    if (loadedProjectPath != lastProject) {
+                        loadedProjectPath = lastProject;
+                        loadedProject = json_t::parse(read_file(lastProject + "/project.json"));
+                    }
+                    ProjectMap project;
+                    project.path = loadedProjectPath;
+                    project.propertiesMap = loadedProject;
+                    if (AppCore::ButtonCenteredOnLine(string_format("%s %s: '%s'", ICON_FA_FOLDER_OPEN, ELECTRON_GET_LOCALIZATION("PROJECT_CONFIGURATION_OPEN_RECENT_PROJECT"), JSON_AS_TYPE(loadedProject["ProjectName"], std::string).c_str()).c_str())) {
+                        Shortcuts::Ctrl_P_O(project);
+                    }
+                }
                 UI::End();
                 return;
             }

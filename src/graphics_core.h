@@ -16,12 +16,6 @@
 
 #include "vram.h"
 
-#define MAX_DEPTH 100000000
-#define IMPORT_EXTENSIONS ".png,.jpg,.jpeg,.tga,.psd,.ogg,.mp3,.wav,.*"
-
-#define SAMPLER_BUFFER_SIZE 1024
-
-
 static DylibRegistry dylibRegistry{};
 
 namespace Electron {

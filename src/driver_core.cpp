@@ -104,6 +104,9 @@ namespace Electron {
             std::string extension = (const char*) glGetStringi(GL_EXTENSIONS, i);
             print("\t" << glGetStringi(GL_EXTENSIONS, i));
         }
+        int combinedTextureUnitsCount;
+        glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &combinedTextureUnitsCount);
+        DUMP_VAR(combinedTextureUnitsCount);
     }
 
     GPUHandle DriverCore::GeneratePipeline() {
@@ -305,14 +308,59 @@ namespace Electron {
     }
 
     void DriverCore::BindFramebuffer(GPUExtendedHandle fbo) {
+        static GPUExtendedHandle boundFBO = 0;
         if (!fbo) {
+            boundFBO = 0;
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glViewport(0, 0, Shared::displaySize.x, Shared::displaySize.y);
-        } else {
+        } else if (boundFBO != fbo) {
+            boundFBO = fbo;
             FramebufferInfo* info = (FramebufferInfo*) fbo;
             glBindFramebuffer(GL_FRAMEBUFFER, info->fbo);
             glViewport(0, 0, info->width, info->height);
         }
+    }
+
+    std::vector<GPUHandle> DriverCore::GenerateTransferBuffers(int count, int size) {
+        std::vector<GPUHandle> buffers(count);
+        glGenBuffers(count, buffers.data());
+        for (int i = 0; i < count; i++) {
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buffers[i]);
+            glBufferData(GL_PIXEL_UNPACK_BUFFER, size, 0, GL_STREAM_DRAW);
+        }
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        return buffers;
+    }
+
+    void DriverCore::CopyTransferBufferToTexture(GPUHandle texture, GPUHandle transfer, int width, int height) {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, transfer);
+        glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    }
+
+    void* DriverCore::MapTransferBuffer(GPUHandle transfer, int width, int height) {
+        return glMapNamedBufferRange(transfer, 0, width * height * 4, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+    }
+
+    void DriverCore::SetTransferBufferData(GPUHandle transfer, int width, int height, uint8_t* data) {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, transfer);
+        glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, width * height * 4, data);
+    }
+
+    void DriverCore::UnmapTransferBuffer(GPUHandle transfer) {
+        glUnmapNamedBuffer(transfer);
+    }
+
+    void DriverCore::BindTransferBuffer(GPUHandle transfer) {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, transfer);
+    }
+
+    void DriverCore::DeleteTransferBuffers(std::vector<GPUHandle> transfers) {
+        glDeleteBuffers(transfers.size(), transfers.data());
+    }
+
+    void DriverCore::UpdateTextureData(GPUHandle texture, int width, int height, uint8_t* data) {
+        glTextureSubImage2D(texture, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
     }
 
     void DriverCore::DestroyGPUTexture(GPUHandle texture) {
@@ -329,7 +377,7 @@ namespace Electron {
     }
 
     void DriverCore::ImGuiNewFrame() {
-        glfwWaitEvents();
+        glfwPollEvents();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -337,7 +385,7 @@ namespace Electron {
     }
 
     void DriverCore::ImGuiRender() {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        DriverCore::BindFramebuffer(0);
         float blackPtr[] = {
             0, 0, 0, 1
         };

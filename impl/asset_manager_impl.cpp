@@ -48,20 +48,21 @@ extern "C" {
                     ImGui::Text("%s", CSTR(noAssetSelectedMsg));
                 } else {
                     TextureUnion& asset = AssetCore::assets[Shared::assetSelected];
-                    ImVec2 acceptedPreviewResolution = {ImGui::GetContentRegionAvail().x * 0.35f, 128};
+                    ImVec2 acceptedPreviewResolution = {ImGui::GetContentRegionAvail().x * 0.3f, 128.0f};
                     GLuint gpuPreview = -1;
                     glm::vec2 assetResolution = {0, 0};
                     switch (asset.type) {
                         case TextureUnionType::Audio:
-                        case TextureUnionType::Texture: {
+                        case TextureUnionType::Texture:
+                        case TextureUnionType::Video: {
                             gpuPreview = asset.pboGpuTexture;
                             assetResolution = asset.GetDimensions();
                             break;
                         }
                     }
-                    glm::vec2 reservedResolution = assetResolution;
                     float xAspect = assetResolution.x / acceptedPreviewResolution.x;
-                    assetResolution = {acceptedPreviewResolution.x, asset.GetDimensions().y / xAspect};
+                    ImVec2 ir = FitRectInRect(acceptedPreviewResolution, ImVec2{assetResolution.x, assetResolution.y});
+                    assetResolution = {ir.x, ir.y};
                     if (ImGui::BeginTable("infoTable", 2, ImGuiTableFlags_SizingFixedFit)) {
                         ImGui::TableNextRow();
                         ImGui::TableSetColumnIndex(0);
@@ -115,10 +116,11 @@ extern "C" {
                     if (!asset.ready) assetIcon = ICON_FA_SPINNER;
                     std::string reservedResourcePath = asset.path;
                     bool audioLoaded = false;
-                    if (asset.type == TextureUnionType::Audio) {
+                    if (asset.ready && (asset.type == TextureUnionType::Audio || asset.type == TextureUnionType::Video)) {
+                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];
                         auto audioStatusResponse =  Servers::AudioServerRequest({
                             {"action", "is_loaded"},
-                            {"path", asset.path}
+                            {"path", audioPath}
                         });
                         audioLoaded = JSON_AS_TYPE(
                             audioStatusResponse["loaded"], bool);
@@ -126,7 +128,7 @@ extern "C" {
                         if (!audioLoaded) {
                             Servers::AudioServerRequest({
                                 {"action", "load_sample"},
-                                {"path", asset.path}
+                                {"path", audioPath}
                             });
                         }
                     }
@@ -247,7 +249,8 @@ extern "C" {
                 PixelBuffer::DestroyGPUTexture(assets.at(assetDeletionIndex).pboGpuTexture);
             }
             for (auto& path : asset.linkedCache) {
-                std::filesystem::remove(path);
+                if (std::filesystem::exists(path))
+                    std::filesystem::remove_all(path);
             }
             assets.erase(assets.begin() + assetDeletionIndex);
         }

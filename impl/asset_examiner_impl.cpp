@@ -15,6 +15,7 @@ extern "C" {
     ELECTRON_EXPORT void UIRender() {
         ImGui::SetCurrentContext(AppCore::context);
 
+        static AssetDecoder videoDecoder;
 
         if (Shared::assetSelected != -1 && Shared::assetSelected != -128 && AppCore::projectOpened && Shared::assetSelected < AssetCore::assets.size()) {
             UI::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_ASSET_EXAMINER"))), Signal::_CloseWindow, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
@@ -37,18 +38,22 @@ extern "C" {
                 TextureUnion& asset = AssetCore::assets.at(Shared::assetSelected);
                 switch (asset.type) {
                     case TextureUnionType::Audio:
-                    case TextureUnionType::Texture: {
+                    case TextureUnionType::Texture:
+                    case TextureUnionType::Video: {
                         static DragStructure imageDrag{};
                         static ImVec2 imageOffset{};
                         GLuint textureID = asset.pboGpuTexture;
+                        if (asset.type == TextureUnionType::Video) {
+                            textureID = videoDecoder.GetGPUTexture(&asset);
+                        }
                         ImVec2 dimension = {asset.GetDimensions().x, asset.GetDimensions().y};
                         ImVec2 imageSize = FitRectInRect(ImGui::GetContentRegionAvail(), dimension) * 0.75f * assetPreviewScale;
                         imageDrag.Activate(); float f;
                         if (imageDrag.GetDragDistance(f) && previousWindowSize == ws && previousWindowPos == wp) {
                             imageOffset += ImGui::GetIO().MouseDelta;
                             ImGuiStyle& style = ImGui::GetStyle();
-                            DrawRect(RectBounds(ImVec2(windowSize.x / 2.0f + imageOffset.x - 2, 0), ImVec2(4.0f, ImGui::GetWindowSize().y)), style.Colors[ImGuiCol_MenuBarBg]);
-                            DrawRect(RectBounds(ImVec2(0, windowSize.y / 2.0f + imageOffset.y - 2), ImVec2(ImGui::GetWindowSize().x, 4.0f)), style.Colors[ImGuiCol_MenuBarBg]);
+                            DrawRect(RectBounds(ImVec2(windowSize.x / 2.0f + imageOffset.x - 2, 0), ImVec2(4.0f, ImGui::GetContentRegionAvail().y)), style.Colors[ImGuiCol_MenuBarBg]);
+                            DrawRect(RectBounds(ImVec2(0, windowSize.y / 2.0f + imageOffset.y - 2), ImVec2(ImGui::GetContentRegionAvail().x, 4.0f)), style.Colors[ImGuiCol_MenuBarBg]);
                             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
                         } else imageDrag.Deactivate();
                         if (glm::abs(imageOffset.x) < 5) imageOffset.x = 0;
@@ -95,19 +100,29 @@ extern "C" {
                     static bool audioLoaded = false;
                     static bool audioHandleInitialized = false;
 
-                    if (previousAssetID != asset.id && asset.type == TextureUnionType::Audio) {
-                        AudioMetadata audioMetadata = std::get<AudioMetadata>(asset.as);
+                    if (previousAssetID != asset.id && (asset.type == TextureUnionType::Audio || asset.type == TextureUnionType::Video)) {
+                        if (videoDecoder.texture) {
+                            videoDecoder.Destroy();
+                        } 
+                        if (asset.type == TextureUnionType::Video) {
+                            videoDecoder = AssetDecoder();
+                            videoDecoder.lastLoadedFrame = -1; videoDecoder.GetGPUTexture(&asset);
+                            videoDecoder.lastLoadedFrame = -1; videoDecoder.GetGPUTexture(&asset);
+                        }
+                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];
+                        float audioLength = asset.type == TextureUnionType::Audio ? std::get<AudioMetadata>(asset.as).audioLength : std::get<VideoMetadata>(asset.as).duration;
                         audioPlaybackPlaying = false;
                         audioHandleInitialized = false;
-                        audioPlaybackLength = audioMetadata.audioLength;
+                        audioPlaybackLength = audioLength;
                         audioPlaybackProgress = 0;
                         audioLoaded = JSON_AS_TYPE(
                         Servers::AudioServerRequest({
                             {"action", "is_loaded"},
-                            {"path", asset.path}
+                            {"path", audioPath}
                         })["loaded"], bool);
                     }
                     if (!audioHandleInitialized && audioLoaded) {
+                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];
                         if (audioHandle != 0) {
                             Servers::AudioServerRequest({
                                 {"action", "stop_sample"},
@@ -116,7 +131,7 @@ extern "C" {
                         }
                         auto audioResponse = Servers::AudioServerRequest({
                             {"action", "play_sample"},
-                            {"path", asset.path}
+                            {"path", audioPath}
                         });
                         audioHandle = JSON_AS_TYPE(audioResponse["handle"], int);
                         audioHandleInitialized = true;
@@ -131,11 +146,13 @@ extern "C" {
                             ImGui::Text("%s", CSTR(string_format("%s: %ix%i", ELECTRON_GET_LOCALIZATION("GENERIC_RESOLUTION"), (int) asset.GetDimensions().x, (int) asset.GetDimensions().y)));
                             break;
                         }
+                        case TextureUnionType::Video:
                         case TextureUnionType::Audio: {
+                            std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];
                             audioLoaded = JSON_AS_TYPE(
                             Servers::AudioServerRequest({
                                 {"action", "is_loaded"},
-                                {"path", asset.path}
+                                {"path", audioPath}
                             })["loaded"], bool);
                             audioPlaybackProgress = glm::clamp(audioPlaybackProgress, 0.0f, audioPlaybackLength);
                             if (audioPlaybackProgress >= audioPlaybackLength) audioPlaybackPlaying = false;
@@ -153,6 +170,10 @@ extern "C" {
 
                             if (audioLoaded) ImGui::SameLine();
                             if (audioLoaded) ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, formatToTimestamp(audioPlaybackProgress * 60, 60).c_str(), 0);
+                            if (asset.type == TextureUnionType::Video) {
+                                VideoMetadata video = std::get<VideoMetadata>(asset.as);
+                                videoDecoder.frame = glm::ceil(audioPlaybackProgress * video.framerate);
+                            }
                             if (audioLoaded && ImGui::IsItemEdited()) {
                                 Servers::AudioServerRequest({
                                     {"action", "seek_sample"},

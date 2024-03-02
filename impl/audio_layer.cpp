@@ -210,17 +210,16 @@ extern "C" {
                     return;
                 }
 
-                userData->averageWaveforms.resize(glm::ceil(copyBuffer.getNumSamplesPerChannel() / AVERAGE_WAVEFORM_PRECISION));
+                uint64_t averageWaveformSize = glm::ceil(copyBuffer.getNumSamplesPerChannel() / (uint64_t) AVERAGE_WAVEFORM_PRECISION);
+                userData->averageWaveforms.resize(averageWaveformSize);
                 uint64_t sampleStep = copyBuffer.getSampleRate() / AVERAGE_WAVEFORM_PRECISION;
-                int averageIndex = 0;
+                uint64_t averageIndex = 0;
                 for (uint64_t sample = 0; sample < copyBuffer.getNumSamplesPerChannel(); sample += sampleStep) {
-                    if (averageIndex >= copyBuffer.getNumSamplesPerChannel() / AVERAGE_WAVEFORM_PRECISION) break;
+                    if (averageIndex >= averageWaveformSize) break;
                     if (*terminationFlag) return;
                     float averageAccumulator = 0;
-                    int subsampleIndex = 0;
                     for (uint64_t subSample = sample; subSample < sample + sampleStep; subSample++) {
-                        averageAccumulator = (averageAccumulator + glm::abs(copyBuffer.samples[0][glm::clamp(subSample, (uint64_t) 0, (uint64_t) copyBuffer.getNumSamplesPerChannel() - (uint64_t) 1)])) / 2.0f;
-                        subsampleIndex++;
+                        averageAccumulator = (averageAccumulator + glm::abs(copyBuffer.samples[0][glm::clamp(subSample, (uint64_t) 0, copyBuffer.getNumSamplesPerChannel() - (uint64_t) 1)])) / 2.0f;
                     }
                     userData->averageWaveforms[averageIndex++] = averageAccumulator; 
                 }
@@ -379,6 +378,10 @@ extern "C" {
         if (JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string) != "") {
             std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
             Servers::AudioServerRequest({
+                {"action", "stop_sample"},
+                {"handle", userData->audioHandle}
+            });
+            Servers::AudioServerRequest({
                 {"action", "destroy_sample"},
                 {"path", audioPath}
             });
@@ -476,7 +479,7 @@ extern "C" {
         float pixelAdvance = (GraphicsCore::renderFramerate / AVERAGE_WAVEFORM_PRECISION) * desc.pixelsPerFrame;
         glm::vec4 waveformColor = LayerTimelineColor * 0.7f;
         waveformColor.w = 1.0f;
-        for (int i = 0; i < userData->averageWaveforms.size(); i++) {
+        for (uint64_t i = 0; i < userData->averageWaveforms.size(); i++) {
             if (originalCursor.x < desc.legendOffset.x) {
                 originalCursor.x += pixelAdvance;
                 continue;

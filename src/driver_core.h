@@ -52,6 +52,14 @@ namespace Electron {
         static void DestroyVAO(GPUExtendedHandle handle);
         static void BindVAO(GPUExtendedHandle handle);
         static void DrawArrays(int size);
+        static std::vector<GPUHandle> GenerateTransferBuffers(int count, int size);
+        static void CopyTransferBufferToTexture(GPUHandle texture, GPUHandle transfer, int width, int height);
+        static void* MapTransferBuffer(GPUHandle transfer, int width, int height);
+        static void UnmapTransferBuffer(GPUHandle transfer);
+        static void BindTransferBuffer(GPUHandle transfer);
+        static void SetTransferBufferData(GPUHandle transfer, int width, int height, uint8_t* data);
+        static void UpdateTextureData(GPUHandle texture, int width, int height, uint8_t* data);
+        static void DeleteTransferBuffers(std::vector<GPUHandle> transfers);
         static GPUHandle GenerateShaderProgram(ShaderType type, const char* code);
         static void DestroyShaderProgram(GPUHandle program);
         static GPUHandle GetProgramUniformLocation(GPUHandle program, const char* uniform);

@@ -110,6 +110,7 @@ namespace Electron {
             renderTimes[layerIndex] = (DriverCore::GetTime() - first);
             layerIndex++;
         }
+        ComputeMemoryBarier(MemoryBarrierType::ImageStoreWriteBarrier);
         PerformComposition();
         return renderTimes;
     }
@@ -136,7 +137,7 @@ namespace Electron {
     }
 
     GPUHandle GraphicsCore::CompileComputeShader(std::string path) {
-        return DriverCore::GenerateShaderProgram(ShaderType::Compute, path.c_str());
+        return DriverCore::GenerateShaderProgram(ShaderType::Compute, string_format("%s\n layout(local_size_x = %i, local_size_y = %i, local_size_z = %i) in;\n%s", Shared::glslVersion.c_str(), Wavefront::x, Wavefront::y, Wavefront::z, read_file("compute/" + path).c_str()).c_str());
     }
 
     PipelineShader GraphicsCore::CompilePipelineShader(std::string path, ShaderType type) {
@@ -278,20 +279,20 @@ namespace Electron {
 
         glm::mat4 identity = glm::identity<glm::mat4>();
         renderBuffer.Bind();
-        UseShader(ShaderType::Vertex, basic.vertex);
         UseShader(ShaderType::Fragment, compositor.fragment);
         ShaderSetUniform(basic.vertex, "uMatrix", identity);
-        ShaderSetUniform(compositor.fragment, "uDisplaySize", glm::vec2(renderBuffer.width, renderBuffer.height));
 
-        for (auto& buffer : compositorQueue) {
-            BindGPUTexture(buffer.rbo.colorBuffer, compositor.fragment, 0, "uColor");
-            BindGPUTexture(buffer.rbo.uvBuffer, compositor.fragment, 1, "uUV");
-
-            DriverCore::DrawArrays(fsQuadVertices.size() / 2);
-            Shared::compositorCalls++;
+        while (compositorQueue.size() != 0) {
+            int unitsCount = glm::min((int) compositorQueue.size(), 16);
+            for (int i = 0; i < unitsCount; i++) {
+                PipelineFrameBuffer& frb = compositorQueue[i];
+                BindGPUTexture(frb.rbo.colorBuffer, compositor.fragment, i * 2 + 0, "uColor[" + std::to_string(i) + "]");
+                BindGPUTexture(frb.rbo.uvBuffer, compositor.fragment, i * 2 + 1, "uUV[" + std::to_string(i) + "]");
+            }
+            glDrawArraysInstanced(GL_TRIANGLES, 0, fsQuadVertices.size() / 2, unitsCount);
+            compositorQueue.erase(compositorQueue.begin(), compositorQueue.begin() + unitsCount);
         }
         renderBuffer.Unbind();
-        compositorQueue.clear();
     }
 
     void GraphicsCore::PerformComposition() {

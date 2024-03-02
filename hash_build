@@ -29,6 +29,8 @@ object_add_compile_options("Wno-unused")
 object_add_compile_options("I /usr/include/")
 dump_compilation_commands(0)
 
+object_add_link_options("static-libstdc++")
+
 target_impls = [
     project_configuration_impl,
     render_preview_impl,
@@ -88,12 +90,7 @@ scenario build_core {
         ]
     }
 
-    if eq(get_platform(), windows) {
-        object_add_link_options(static)
-        object_add_link_options("static-libstdc++")
-    } else {
-        object_add_link_options("rdynamic")
-    }
+    object_add_link_options("rdynamic")
     link_executable($objects, cat($dylib_id, cat($base_exec_name, $dylib_prefix)), $deps, shared, electron, "libs")
     move_shared_libs()
 }

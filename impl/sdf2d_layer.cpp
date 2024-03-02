@@ -22,6 +22,7 @@ extern "C" {
 
     struct SDF2DUserData {
         PipelineFrameBuffer frb;
+        AssetDecoder assetDecoder;
 
         SDF2DUserData() {}
     };
@@ -159,7 +160,10 @@ extern "C" {
         }
         
         if (canTexture) {
-            GraphicsCore::BindGPUTexture(asset->pboGpuTexture, sdf2d_compute.fragment, 0, "uTexture");
+            AssetDecoder* decoder = &userData->assetDecoder;
+            VideoMetadata video = std::get<VideoMetadata>(asset->as);
+            decoder->frame = (GraphicsCore::renderFrame - owner->beginFrame) * (video.framerate / GraphicsCore::renderFramerate);
+            GraphicsCore::BindGPUTexture(decoder->GetGPUTexture(asset), sdf2d_compute.fragment, 0, "uTexture");
         }
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uCanTexture", canTexture);
         GraphicsCore::DrawArrays(Shared::fsVAO, fsQuadVertices.size() * 0.5);
@@ -311,9 +315,10 @@ extern "C" {
 
     ELECTRON_EXPORT void LayerTimelineRender(RenderLayer* layer, TimelineLayerRenderDesc desc) {
         TextureUnion* asset = AssetCore::GetAsset(JSON_AS_TYPE(layer->properties["TextureID"], std::string));
+        SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
         if (!asset) return;
-        ImVec2 previewSize = {desc.layerSizeY, desc.layerSizeY};
         glm::vec2 assetDimensions = asset->GetDimensions();
+        ImVec2 previewSize = {desc.layerSizeY * (assetDimensions.x / assetDimensions.y), desc.layerSizeY};
         ImVec2 rectSize = FitRectInRect(previewSize, ImVec2{assetDimensions.x, assetDimensions.y});
         ImVec2 upperLeft = ImGui::GetCursorScreenPos();
         ImVec2 bottomRight = ImGui::GetCursorScreenPos();
@@ -329,8 +334,9 @@ extern "C" {
         }
         upperLeft.x = glm::min(upperLeft.x, dragBounds);
         bottomRight.x = glm::min(bottomRight.x, dragBounds);
-        ImTextureID texID = (ImTextureID) (uint64_t) asset->pboGpuTexture;
-        ImGui::GetWindowDrawList()->AddImage(texID, upperLeft, bottomRight);
+        AssetDecoder* decoder = &userData->assetDecoder;
+        VideoMetadata video = std::get<VideoMetadata>(asset->as);
+        ImGui::GetWindowDrawList()->AddImage((ImTextureID) (uint64_t) decoder->GetGPUTexture(asset), upperLeft, bottomRight);
     }
 
     ELECTRON_EXPORT PipelineFrameBuffer LayerGetFramebuffer(RenderLayer* layer) {

@@ -4,6 +4,9 @@
 #include "pixel_buffer.h"
 #include "cache.h"
 
+#define IMPORT_EXTENSIONS ".*,.png,.jpg,.jpeg,.tga,.psd,.ogg,.mp3,.wav,.mp4,.wmv,.mov,.mkv"
+#define VIDEO_CACHE_EXTENSION "jpg"
+
 namespace Electron {
     enum class TextureUnionType {
         Texture, Audio, Video
@@ -26,7 +29,34 @@ namespace Electron {
         PixelBufferMetadata() {}
     };
 
-    using InternalTextureUnion = std::variant<PixelBufferMetadata, AudioMetadata>;
+    struct VideoMetadata {
+        float duration;
+        std::string codecName;
+
+        int width, height;
+        float framerate;
+
+        VideoMetadata(json_t probeJson);
+        VideoMetadata() {}
+    };
+
+    using InternalTextureUnion = std::variant<PixelBufferMetadata, AudioMetadata, VideoMetadata>;
+
+    struct TextureUnion;
+
+    struct AssetDecoder {
+        GPUHandle texture;
+        int width, height;
+        stbi_uc* image;
+        int lastLoadedFrame;
+        int frame;
+
+        AssetDecoder();
+
+        GPUHandle GetGPUTexture(TextureUnion* asset);
+
+        void Destroy();    
+    };
 
     // Represents Texture/Audio/Video asset
     struct TextureUnion {
@@ -54,7 +84,7 @@ namespace Electron {
 
         // Can be interpreted as texture
         bool IsTextureCompatible() {
-            return type == TextureUnionType::Texture || type == TextureUnionType::Audio;
+            return type == TextureUnionType::Texture || type == TextureUnionType::Video;
         }
 
         void RebuildAssetData();

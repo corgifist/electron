@@ -125,7 +125,7 @@ public:
     int getBitDepth() const;
     
     /** @Returns the number of samples per channel */
-    int getNumSamplesPerChannel() const;
+    uint64_t getNumSamplesPerChannel() const;
     
     /** @Returns the length in seconds of the audio file based on the number of samples and sample rate */
     double getLengthInSeconds() const;
@@ -373,10 +373,10 @@ int AudioFile<T>::getBitDepth() const
 
 //=============================================================
 template <class T>
-int AudioFile<T>::getNumSamplesPerChannel() const
+uint64_t AudioFile<T>::getNumSamplesPerChannel() const
 {
     if (samples.size() > 0)
-        return (int) samples[0].size();
+        return samples[0].size();
     else
         return 0;
 }
