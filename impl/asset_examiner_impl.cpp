@@ -16,6 +16,7 @@ extern "C" {
         ImGui::SetCurrentContext(AppCore::context);
 
         static AssetDecoder videoDecoder;
+        static GPUExtendedHandle examinerGpuHandle = 0;
 
         if (Shared::assetSelected != -1 && Shared::assetSelected != -128 && AppCore::projectOpened && Shared::assetSelected < AssetCore::assets.size()) {
             UI::Begin(CSTR(string_format("%s %s", ICON_FA_MAGNIFYING_GLASS, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_ASSET_EXAMINER"))), Signal::_CloseWindow, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
@@ -42,7 +43,7 @@ extern "C" {
                     case TextureUnionType::Video: {
                         static DragStructure imageDrag{};
                         static ImVec2 imageOffset{};
-                        GLuint textureID = asset.pboGpuTexture;
+                        GPUExtendedHandle textureID = asset.pboGpuTexture;
                         if (asset.type == TextureUnionType::Video) {
                             textureID = videoDecoder.GetGPUTexture(&asset);
                         }
@@ -59,7 +60,8 @@ extern "C" {
                         if (glm::abs(imageOffset.x) < 5) imageOffset.x = 0;
                         if (glm::abs(imageOffset.y) < 5) imageOffset.y = 0;
                         ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - imageSize.x / 2.0f, windowSize.y / 2.0f - imageSize.y / 2.0f} + imageOffset);
-                        ImGui::Image((ImTextureID)(uint64_t) textureID, imageSize);
+                        if (examinerGpuHandle) 
+                            ImGui::Image((ImTextureID) examinerGpuHandle, imageSize);
                         if (ImGui::IsItemHovered()) {
                             ImGui::SetTooltip("%s", CSTR(string_format("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_LEFT_CLICK_FOR_CONTEXT_MENU"))));
                         }
@@ -104,10 +106,15 @@ extern "C" {
                         if (videoDecoder.texture) {
                             videoDecoder.Destroy();
                         } 
+                        DriverCore::DestroyImageHandleUI(examinerGpuHandle);
                         if (asset.type == TextureUnionType::Video) {
                             videoDecoder = AssetDecoder();
                             videoDecoder.lastLoadedFrame = -1; videoDecoder.GetGPUTexture(&asset);
                             videoDecoder.lastLoadedFrame = -1; videoDecoder.GetGPUTexture(&asset);
+                            
+                            examinerGpuHandle = DriverCore::GetImageHandleUI(videoDecoder.texture);
+                        } else {
+                            examinerGpuHandle = DriverCore::GetImageHandleUI(asset.pboGpuTexture);
                         }
                         std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];
                         float audioLength = asset.type == TextureUnionType::Audio ? std::get<AudioMetadata>(asset.as).audioLength : std::get<VideoMetadata>(asset.as).duration;
@@ -120,6 +127,10 @@ extern "C" {
                             {"action", "is_loaded"},
                             {"path", audioPath}
                         })["loaded"], bool);
+                    }
+                    if (previousAssetID != asset.id && asset.type == TextureUnionType::Texture) {
+                        DriverCore::DestroyImageHandleUI(examinerGpuHandle);
+                        examinerGpuHandle = DriverCore::GetImageHandleUI(asset.pboGpuTexture);
                     }
                     if (!audioHandleInitialized && audioLoaded) {
                         std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];

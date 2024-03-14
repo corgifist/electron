@@ -72,8 +72,11 @@ extern "C" {
         std::thread* filterJob;
         bool* terminationFlag;
         std::vector<float> averageWaveforms;
+        GPUExtendedHandle audioCoverHandle;
 
-        AudioLayerUserData() {}
+        AudioLayerUserData() {
+            this->audioCoverHandle = 0;
+        }
     };
 
     ELECTRON_EXPORT std::string LayerName = "Audio";
@@ -110,10 +113,12 @@ extern "C" {
             {"Audio", ICON_FA_FILE_AUDIO " Audio"},
             {"BassBoost", ICON_FA_WAVE_SQUARE " Bass"}
         };
-        owner->properties["PreviewAudioChannel"] = 0;
+        owner->internalData["PreviewAudioChannel"] = 0;
         owner->internalData["LoadID"] = -1;
         owner->internalData["PreviousInBounds"] = false;
         owner->internalData["AudioBufferPtr"] = 0;
+        owner->internalData["PreviousIsVisible"] = true;
+        owner->internalData["PreviousBounds"] = {owner->beginFrame, owner->endFrame};
 
         owner->properties["OverrideAudioPath"] = string_format("cache/%i.wav", Cache::GetCacheIndex());
 
@@ -165,6 +170,7 @@ extern "C" {
                 std::lock_guard<std::mutex> uploadGuard(uploadMutex);
                 layer->internalData["ShowLoadingSpinner"] = true;
                 std::string audioPath = JSON_AS_TYPE(layer->properties["OverrideAudioPath"], std::string);
+                AudioMetadata metadata = std::get<AudioMetadata>(asset->as);
                 AudioFile<float>* originalBuffer = (AudioFile<float>*) JSON_AS_TYPE(
                     Servers::AudioServerRequest({
                         {"action", "audio_buffer_ptr"},
@@ -209,10 +215,10 @@ extern "C" {
                 if (*terminationFlag) {
                     return;
                 }
-
-                uint64_t averageWaveformSize = glm::ceil(copyBuffer.getNumSamplesPerChannel() / (uint64_t) AVERAGE_WAVEFORM_PRECISION);
+                ReloadAudioHandle(layer, asset, &copyBuffer);
+                uint64_t averageWaveformSize = glm::floor(copyBuffer.getNumSamplesPerChannel() / (uint64_t) AVERAGE_WAVEFORM_PRECISION);
                 userData->averageWaveforms.resize(averageWaveformSize);
-                uint64_t sampleStep = copyBuffer.getSampleRate() / AVERAGE_WAVEFORM_PRECISION;
+                uint64_t sampleStep = glm::floor(copyBuffer.getSampleRate() / AVERAGE_WAVEFORM_PRECISION);
                 uint64_t averageIndex = 0;
                 for (uint64_t sample = 0; sample < copyBuffer.getNumSamplesPerChannel(); sample += sampleStep) {
                     if (averageIndex >= averageWaveformSize) break;
@@ -224,7 +230,6 @@ extern "C" {
                     userData->averageWaveforms[averageIndex++] = averageAccumulator; 
                 }
 
-                ReloadAudioHandle(layer, asset, &copyBuffer);
             }, layer, asset, userData->terminationFlag, userData
         );
     }
@@ -239,15 +244,37 @@ extern "C" {
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
         AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
-        json_t previousAudioID = layer->properties["AudioID"];
+        std::string previousAudioID = layer->properties["AudioID"];
         json_t& audioID = layer->properties["AudioID"];
-        layer->RenderAssetProperty(audioID, "Audio", TextureUnionType::Audio);
-        std::string audioSID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
+        layer->RenderAssetProperty(audioID, "Audio", TextureUnionType::Audio, userData->audioCoverHandle);
+        std::string audioSID = layer->properties["AudioID"];
         TextureUnion* asset = AssetCore::GetAsset(audioID);
+
+        if (previousAudioID != audioSID) {
+            if (asset) {
+                DriverCore::DestroyImageHandleUI(userData->audioCoverHandle);
+                userData->audioCoverHandle = DriverCore::GetImageHandleUI(asset->pboGpuTexture);
+            } else {
+                DriverCore::DestroyImageHandleUI(userData->audioCoverHandle);
+                userData->audioCoverHandle = 0;
+            }
+        }
+
+        if (asset && !userData->audioCoverHandle) {
+            userData->audioCoverHandle = DriverCore::GetImageHandleUI(asset->pboGpuTexture);
+        }
 
         if (audioSID != "" && asset == nullptr) {
             layer->properties["AudioID"] = "";
             userData->audioHandle = -1;
+        }
+
+        if (!asset) {
+            Servers::AudioServerRequest({
+                {"action", "stop_sample"},
+                {"handle", userData->audioHandle}
+            });
+            userData->audioHandle = 0;
         }
 
         json_t& volume = layer->properties["Volume"];
@@ -269,7 +296,7 @@ extern "C" {
                 })["ptr"], unsigned long
             );
         }
-        int previewAudioChannel = JSON_AS_TYPE(layer->properties["PreviewAudioChannel"], int);
+        int previewAudioChannel = JSON_AS_TYPE(layer->internalData["PreviewAudioChannel"], int);
         int nextAudioChannel = previewAudioChannel;
         if (asset != nullptr && audioBuffer) {
             AudioMetadata metadata = std::get<AudioMetadata>(asset->as);
@@ -306,15 +333,26 @@ extern "C" {
             if (AppCore::ButtonCenteredOnLine(string_format("%s %s > %i", ICON_FA_FILE_WAVEFORM, ELECTRON_GET_LOCALIZATION("NEXT_AUDIO_CHANNEL"), nextAudioChannel).c_str())) {
                 previewAudioChannel = nextAudioChannel;
             }
-            layer->properties["PreviewAudioChannel"] = previewAudioChannel;
+            layer->internalData["PreviewAudioChannel"] = previewAudioChannel;
             ImGui::Spacing();
         }
     }
 
     ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {
         AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
+        if (Shared::selectedRenderLayer != layer->id && userData->audioCoverHandle) {
+            DriverCore::DestroyImageHandleUI(userData->audioCoverHandle);
+        } 
+
         json_t& volume = layer->properties["Volume"];
         layer->SortKeyframes(volume);
+
+        json_t& panning = layer->properties["Panning"];
+        layer->SortKeyframes(panning);
+        
+        json_t& bass = layer->properties["BassBoost"];
+        layer->SortKeyframes(bass);
+
         if (userData->audioHandle != -1) {
             Servers::AudioServerRequest({
                 {"action", "pause_sample"},
@@ -323,7 +361,9 @@ extern "C" {
             });
         }        
         bool inBounds = IsInBounds(GraphicsCore::renderFrame, layer->beginFrame, layer->endFrame);
-        if (JSON_AS_TYPE(layer->internalData["PreviousInBounds"], bool) != inBounds) {
+        bool isVisible = JSON_AS_TYPE(layer->internalData["PreviousIsVisible"], bool);
+        std::vector<float> previousBounds = JSON_AS_TYPE(layer->internalData["PreviousBounds"], std::vector<float>);
+        if (JSON_AS_TYPE(layer->internalData["PreviousInBounds"], bool) != inBounds || layer->visible != isVisible || previousBounds[0] != layer->beginFrame || previousBounds[1] != layer->endFrame) {
             if (userData->audioHandle != -1) {
                 double elapsedTime = (double) (GraphicsCore::renderFrame - layer->beginFrame + TIMESHIFT(layer)) / GraphicsCore::renderFramerate;
                 Servers::AudioServerRequest({
@@ -335,6 +375,8 @@ extern "C" {
         }
 
         layer->internalData["PreviousInBounds"] = inBounds;
+        layer->internalData["PreviousIsVisible"] = layer->visible;
+        layer->internalData["PreviousBounds"] = {layer->beginFrame, layer->endFrame};
 
         int loadID = JSON_AS_TYPE(layer->internalData["LoadID"], int);
         if (loadID != -1) {

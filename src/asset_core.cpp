@@ -33,7 +33,7 @@ namespace Electron {
         this->frame = 0;
     }
 
-    GPUHandle AssetDecoder::GetGPUTexture(TextureUnion* asset) {
+    GPUExtendedHandle AssetDecoder::GetGPUTexture(TextureUnion* asset) {
         if (asset->type == TextureUnionType::Texture || asset->type == TextureUnionType::Audio) {
             return asset->pboGpuTexture;
         } else if (asset->type == TextureUnionType::Video) {
@@ -68,14 +68,6 @@ namespace Electron {
 
     void TextureUnion::RebuildAssetData() {
         std::string oldName = name;
-        if (!file_exists(path)) {
-            invalid = true;
-            type = TextureUnionType::Texture;
-            GenerateUVTexture();
-            PixelBuffer::DestroyGPUTexture(pboGpuTexture);
-            return;
-        } else
-            invalid = false;
         PixelBuffer::DestroyGPUTexture(pboGpuTexture);
         pboGpuTexture = 0;
         *this = AssetCore::LoadAssetFromPath(path).result;
@@ -101,24 +93,6 @@ namespace Electron {
     }
 }
 
-void TextureUnion::GenerateUVTexture() {
-    type = TextureUnionType::Texture;
-    PixelBufferMetadata metadata;
-    metadata.width = 256;
-    metadata.height = 256;
-    metadata.channels = 4;
-    as = metadata;
-    PixelBuffer buffer(256, 256);
-    for (int x = 0; x < buffer.width; x++) {
-        for (int y = 0; y < buffer.height; y++) {
-            buffer.SetPixel(x, y,
-                            Pixel((float)x / (float)buffer.width,
-                                  (float)y / (float)buffer.height, 0, 1));
-        }
-    }
-    pboGpuTexture = buffer.BuildGPUTexture();
-}
-
 std::string TextureUnion::GetIcon() {
     return TextureUnion::GetIconByType(type);
 }
@@ -142,6 +116,16 @@ void TextureUnion::DumpData() {
     print("== Asset Dump " << name << " ==");
     print("type: " << AssetCore::StringFromTextureUnionType(type));
     print("path: " << path);
+}
+
+void TextureUnion::Destroy() {
+    if (type == TextureUnionType::Texture || type == TextureUnionType::Audio) {
+        PixelBuffer::DestroyGPUTexture(pboGpuTexture);
+    }
+    for (auto& path : linkedCache) {
+        if (std::filesystem::exists(path))
+            std::filesystem::remove_all(path);
+    }
 }
 
 void AssetCore::LoadFromProject(json_t project) {
@@ -182,7 +166,7 @@ void AssetCore::LoadFromProject(json_t project) {
         assetUnion.result.linkedCache = linkedCache;
         if (assetUnion.returnMessage != "") {
             print(resourcePath << ": " << assetUnion.returnMessage);
-            assetUnion.result.GenerateUVTexture();
+            throw std::runtime_error("fauly asset detected!");
         }
         assetUnion.result.audioCacheCover = audioCoverPath;
         assetUnion.result.coverResolution = audioCoverResolution;
@@ -252,7 +236,6 @@ AssetCore::LoadAssetFromPath(std::string path) {
     assetUnion.name = "New Asset";
     assetUnion.path = path;
     assetUnion.previewScale = 1.0f;
-    assetUnion.invalid = invalid;
     if (!invalid) {
         switch (targetAssetType) {
         case TextureUnionType::Texture: {
@@ -279,10 +262,6 @@ AssetCore::LoadAssetFromPath(std::string path) {
             retMessage = "Editor is now unstable, restart now.";
         }
         }
-    } else {
-        assetUnion.type = TextureUnionType::Texture;
-        assetUnion.strType = "Image";
-        assetUnion.GenerateUVTexture();
     }
 
     AssetLoadInfo result{};
@@ -297,6 +276,12 @@ std::string AssetCore::ImportAsset(std::string path) {
     if (loadInfo.returnMessage != "")
         return loadInfo.returnMessage;
     loadInfo.result.id = seedrand();
+    if (file_exists(path)) {
+        std::string cachePath = string_format("%s/%i.%s", Shared::project.path.c_str(), loadInfo.result.id, std::filesystem::path(path).extension().c_str());
+        std::filesystem::copy(path, cachePath);
+        loadInfo.result.path = cachePath;
+        path = cachePath;
+    }
     assets.push_back(loadInfo.result);
     if (loadInfo.result.type == TextureUnionType::Texture) {
         // Texture FFProbing
@@ -321,6 +306,7 @@ std::string AssetCore::ImportAsset(std::string path) {
         operations.push_back(AsyncFFMpegOperation(
             [](OperationArgs_T& args) {
                 TextureUnion* tu = std::any_cast<TextureUnion*>(args[0]);
+                try {
                 std::vector<AsyncFFMpegOperation>* operations = 
                     std::any_cast<std::vector<AsyncFFMpegOperation>*>(args[1]);
                 std::string originalAudioPath = std::any_cast<std::string>(args[2]);
@@ -331,7 +317,7 @@ std::string AssetCore::ImportAsset(std::string path) {
                 tu->ffprobeJsonData = ffprobeJsonData;
                 tu->as = AudioMetadata(json_t::parse(ffprobeJsonData));
                 if (tu->ffprobeData.find("attached pic") != std::string::npos) {
-                    std::string coverPath = string_format("cache/%i.png", Cache::GetCacheIndex());
+                    std::string coverPath = string_format("%s/%i.png", Shared::project.path.c_str(), Cache::GetCacheIndex());
                     tu->linkedCache.push_back(coverPath);
                     /* Perform async cover extraction */
                     operations->push_back(AsyncFFMpegOperation(
@@ -356,7 +342,7 @@ std::string AssetCore::ImportAsset(std::string path) {
                     };
                 }
                 if (!hasEnding(tu->path, ".wav")) {
-                    std::string formattedCachePath = string_format("cache/%i.wav", Cache::GetCacheIndex());
+                    std::string formattedCachePath = string_format("%s/%i.wav", Shared::project.path.c_str(), Cache::GetCacheIndex());
                     tu->linkedCache.push_back(formattedCachePath);
                     operations->push_back(AsyncFFMpegOperation(
                         [](OperationArgs_T& coverArgs){
@@ -369,7 +355,16 @@ std::string AssetCore::ImportAsset(std::string path) {
                     ));
                 }
                 tu->ready = true;
-            }, {tu, &operations, originalAudioPath, Cache::GetCacheIndex()}, string_format("ffprobe -v quiet -print_format json -show_format -show_streams '%s' &> .ffprobe_json & ffprobe '%s' &> .ffprobe_data", tu->path.c_str(), tu->path.c_str()),
+                } catch (std::runtime_error& error) {
+                    tu->invalid = true;
+                    operations.push_back(
+                        AsyncFFMpegOperation(
+                            nullptr, {}, "sleep 5", 
+                            string_format("%s %s '%s'", ICON_FA_TRIANGLE_EXCLAMATION, ELECTRON_GET_LOCALIZATION("CANNOT_IMPORT_ASSET"), tu->path.c_str())
+                        )
+                    );
+                }
+            }, {tu, &operations, originalAudioPath, Cache::GetCacheIndex()}, string_format("(ffprobe -v quiet -print_format json -show_format -show_streams '%s' &> .ffprobe_json) && (ffprobe '%s' &> .ffprobe_data)", tu->path.c_str(), tu->path.c_str()),
                 string_format("%s %s '%s'", ICON_FA_INFO, ELECTRON_GET_LOCALIZATION("FFPROBE_GATHERING"), tu->path.c_str())
         ));
     } else if (loadInfo.result.type == TextureUnionType::Video) {

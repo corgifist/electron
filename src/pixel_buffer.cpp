@@ -20,7 +20,8 @@ namespace Electron {
         if (!file_exists(path)) {
             throw std::runtime_error("image " + path + " is not found");
         }
-        stbi_uc *image = stbi_load(path.c_str(), &width, &height, &channels, 0);
+        stbi_uc *image = stbi_load(path.c_str(), &width, &height, &channels, 4);
+        channels = 4;
 
         std::vector<stbi_uc> vector_image =
             std::vector<stbi_uc>(image, image + width * height * channels);
@@ -32,6 +33,7 @@ namespace Electron {
                 vector_image[i + 2] / 255.0f,
                 channels == 4 ? vector_image[i + 3] / 255.0f : 1.0f});
         }
+
 
         stbi_image_free(image);
 
@@ -50,8 +52,7 @@ namespace Electron {
         return this->pixels[x + y * this->width];
     }
 
-    GLuint PixelBuffer::BuildGPUTexture() {
-        GLuint id;
+    GPUExtendedHandle PixelBuffer::BuildGPUTexture() {
         std::vector<GLubyte> textureConversion(this->width * this->height * 4);
         for (int x = 0; x < this->width; x++) {
             for (int y = 0; y < this->height; y++) {
@@ -64,9 +65,7 @@ namespace Electron {
             }
         }
 
-        id = DriverCore::ImportGPUTexture(textureConversion.data(), width, height, 4);
-
-        return id;
+        return DriverCore::ImportGPUTexture(textureConversion.data(), width, height, 4);
     }
 
     void PixelBuffer::FillColor(Pixel pixel) {
@@ -77,7 +76,7 @@ namespace Electron {
         }
     }
 
-    void PixelBuffer::DestroyGPUTexture(GLuint texture) {
+    void PixelBuffer::DestroyGPUTexture(GPUExtendedHandle texture) {
         DriverCore::DestroyGPUTexture(texture);
     }
 } // namespace Electron

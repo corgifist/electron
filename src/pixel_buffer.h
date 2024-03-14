@@ -36,8 +36,8 @@ namespace Electron {
 
         void FillColor(Pixel pixel);
 
-        GPUHandle BuildGPUTexture();
+        GPUExtendedHandle BuildGPUTexture();
 
-        static void DestroyGPUTexture(GLuint texture);
+        static void DestroyGPUTexture(GPUExtendedHandle texture);
     };
 }

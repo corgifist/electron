@@ -45,7 +45,7 @@ namespace Electron {
     struct TextureUnion;
 
     struct AssetDecoder {
-        GPUHandle texture;
+        GPUExtendedHandle texture;
         int width, height;
         stbi_uc* image;
         int lastLoadedFrame;
@@ -53,7 +53,7 @@ namespace Electron {
 
         AssetDecoder();
 
-        GPUHandle GetGPUTexture(TextureUnion* asset);
+        GPUExtendedHandle GetGPUTexture(TextureUnion* asset);
 
         void Destroy();    
     };
@@ -67,18 +67,19 @@ namespace Electron {
         std::string strType;
         std::string audioCacheCover;
         std::string ffprobeData, ffprobeJsonData;
-        GLuint pboGpuTexture;
-        bool invalid;
+        GPUExtendedHandle pboGpuTexture;
         float previewScale;
         glm::vec2 coverResolution;
         std::vector<std::string> linkedCache;
         int id;
         bool ready;
+        bool invalid;
 
         TextureUnion() {
+            this->pboGpuTexture = 0;
             this->previewScale = 1.0f;
-            this->invalid = false;
             this->ready = true;
+            this->invalid = false;
         }
         ~TextureUnion() {}
 
@@ -89,10 +90,10 @@ namespace Electron {
 
         void RebuildAssetData();
         glm::vec2 GetDimensions();
-        void GenerateUVTexture();
         void DumpData();
         std::string GetIcon();
         static std::string GetIconByType(TextureUnionType type);
+        void Destroy();
     }; 
 
     // Helper class that stores asset import logs

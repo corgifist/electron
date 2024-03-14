@@ -49,7 +49,9 @@ extern "C" {
                 } else {
                     TextureUnion& asset = AssetCore::assets[Shared::assetSelected];
                     ImVec2 acceptedPreviewResolution = {ImGui::GetContentRegionAvail().x * 0.3f, 128.0f};
-                    GLuint gpuPreview = -1;
+                    GPUExtendedHandle gpuPreview = 0;
+                    static GPUExtendedHandle gpuHandle = 0;
+                    static GPUExtendedHandle previousGPUPreview = -1;
                     glm::vec2 assetResolution = {0, 0};
                     switch (asset.type) {
                         case TextureUnionType::Audio:
@@ -63,10 +65,14 @@ extern "C" {
                     float xAspect = assetResolution.x / acceptedPreviewResolution.x;
                     ImVec2 ir = FitRectInRect(acceptedPreviewResolution, ImVec2{assetResolution.x, assetResolution.y});
                     assetResolution = {ir.x, ir.y};
+                    if (gpuPreview && previousGPUPreview != gpuPreview) {
+                        if (gpuHandle) DriverCore::DestroyImageHandleUI(gpuHandle);
+                        gpuHandle = DriverCore::GetImageHandleUI(asset.pboGpuTexture);
+                    }
                     if (ImGui::BeginTable("infoTable", 2, ImGuiTableFlags_SizingFixedFit)) {
                         ImGui::TableNextRow();
                         ImGui::TableSetColumnIndex(0);
-                        ImGui::Image((ImTextureID)(uint64_t) gpuPreview, ImVec2{assetResolution.x, assetResolution.y});
+                        ImGui::Image((ImTextureID) gpuHandle, ImVec2{assetResolution.x, assetResolution.y});
                         ImGui::TableSetColumnIndex(1);
                         ImGui::InputText("##AssetName", &asset.name, 0);
                         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) 
@@ -88,6 +94,7 @@ extern "C" {
                         }
                         ImGui::EndTable();
                     }
+                    previousGPUPreview = gpuPreview;
                 }
                 ImGui::Spacing(); ImGui::Spacing();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
@@ -114,6 +121,7 @@ extern "C" {
                         continue;
                     std::string assetIcon = asset.GetIcon();
                     if (!asset.ready) assetIcon = ICON_FA_SPINNER;
+                    if (asset.invalid) assetIcon = ICON_FA_TRIANGLE_EXCLAMATION;
                     std::string reservedResourcePath = asset.path;
                     bool audioLoaded = false;
                     if (asset.ready && (asset.type == TextureUnionType::Audio || asset.type == TextureUnionType::Video)) {
@@ -136,7 +144,7 @@ extern "C" {
                         ImGui::TableSetColumnIndex(column);
                         if (column == 0) {
                             if (ImGui::Selectable(CSTR(string_format("%s %s##%i", CSTR(assetIcon), CSTR(asset.ready ? asset.name : ELECTRON_GET_LOCALIZATION("GENERIC_IMPORTING")), asset.id)), p, ImGuiSelectableFlags_SpanAllColumns)) {
-                                if (asset.ready) {
+                                if (asset.ready && !asset.invalid) {
                                     if (asset.type == TextureUnionType::Audio && audioLoaded)
                                         Shared::assetSelected = assetIndex;
                                     else if (asset.type != TextureUnionType::Audio) {
@@ -160,7 +168,7 @@ extern "C" {
                             if (ImGui::BeginDragDropSource(sourceFlags)) {
                                 ImGui::SetDragDropPayload(ASSET_DRAG_PAYLOAD, &assetIndex, sizeof(assetIndex));
                                 if (asset.IsTextureCompatible()) {
-                                    ImGui::Image((ImTextureID) (uint64_t) asset.pboGpuTexture, FitRectInRect(ImVec2(128, 128), ImVec2(128, 128)));
+                                    // ImGui::Image((ImTextureID) (uint64_t) asset.pboGpuTexture, FitRectInRect(ImVec2(128, 128), ImVec2(128, 128)));
                                 }
                                 ImGui::Text("%s %s", asset.GetIcon().c_str(), asset.name.c_str());
                                 Shared::assetManagerDragDropType = asset.type == TextureUnionType::Texture ? 
@@ -244,14 +252,7 @@ extern "C" {
         if (assetDeletionIndex != -1) {
             auto& assets = AssetCore::assets;
             TextureUnion& asset = assets.at(assetDeletionIndex);
-            TextureUnionType type = assets.at(assetDeletionIndex).type;
-            if (type == TextureUnionType::Texture || type == TextureUnionType::Audio) {
-                PixelBuffer::DestroyGPUTexture(assets.at(assetDeletionIndex).pboGpuTexture);
-            }
-            for (auto& path : asset.linkedCache) {
-                if (std::filesystem::exists(path))
-                    std::filesystem::remove_all(path);
-            }
+            asset.Destroy();
             assets.erase(assets.begin() + assetDeletionIndex);
         }
     }

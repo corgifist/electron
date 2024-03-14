@@ -6,7 +6,6 @@
 #include "async_ffmpeg.h"
 #include "cache.h"
 #include "shared.h"
-#include "utils/gl.h"
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_stdlib.h"
 
@@ -22,8 +21,7 @@ namespace Electron {
 
     enum PreviewOutputBufferType {
         PreviewOutputBufferType_Color,
-        PreviewOutputBufferType_UV,
-        PreviewOutputBufferType_Depth
+        PreviewOutputBufferType_UV
     };
 
     class GraphicsCore;
@@ -49,7 +47,7 @@ namespace Electron {
     };
 
     struct PipelineShader {
-        GPUHandle vertex, fragment, compute;
+        GPUExtendedHandle vertex, fragment, compute;
         PipelineShader() {
             this->vertex = 0;
             this->fragment = 0;
@@ -63,9 +61,8 @@ namespace Electron {
         static PreviewOutputBufferType outputBufferType;
         static std::vector<RenderLayer> layers;
         static bool isPlaying;
-        static std::unordered_map<GPUHandle, std::unordered_map<std::string, GPUHandle>> uniformCache;
+        static std::unordered_map<GPUExtendedHandle, std::unordered_map<std::string, GPUExtendedHandle>> uniformCache;
         static std::vector<PipelineFrameBuffer> compositorQueue;
-        static GPUHandle pipeline;
 
         static PipelineShader basic, compositor, channel;
 
@@ -92,25 +89,14 @@ namespace Electron {
 
         static GPUExtendedHandle GenerateVAO(std::vector<float> vertices, std::vector<float> uv);
         static void DrawArrays(GLuint vao, int size);
-        static GPUHandle CompileComputeShader(std::string path);
+        static GPUExtendedHandle CompileComputeShader(std::string path);
         static PipelineShader CompilePipelineShader(std::string path, ShaderType type = ShaderType::VertexFragment);
-        static void UseShader(ShaderType type, GPUHandle shader);
+        static void UseShader(ShaderType type, GPUExtendedHandle shader);
         static void DispatchComputeShader(int grid_x, int grid_y, int grid_z);
         static void ComputeMemoryBarier(MemoryBarrierType barrier);
-        static GLuint GenerateGPUTexture(int width, int height);
-        static void BindGPUTexture(GPUHandle texture, GLuint shader, int unit, std::string uniform);
-        static void BindComputeGPUTexture(GLuint texture, GLuint unit, GLuint readStatus);
-        static void ShaderSetUniform(GLuint program, std::string name, int x, int y);
-        static void ShaderSetUniform(GLuint program, std::string name, glm::vec3 vec);
-        static void ShaderSetUniform(GLuint program, std::string name, float f);
-        static void ShaderSetUniform(GLuint program, std::string name, glm::vec2 vec);
-        static void ShaderSetUniform(GLuint program, std::string name, int x);
-        static void ShaderSetUniform(GLuint program, std::string name, glm::vec4 vec);
-        static void ShaderSetUniform(GLuint program, std::string name, glm::mat3 mat3);
-        static void ShaderSetUniform(GLuint program, std::string name, glm::mat4 mat4);
-        static void ShaderSetUniform(GLuint program, std::string name, bool b);
+        static GPUExtendedHandle GenerateGPUTexture(int width, int height);
 
-        static GLuint GetUniformLocation(GLuint program, std::string name);
+        static GPUExtendedHandle GetUniformLocation(GPUExtendedHandle program, std::string name);
 
         static void FireTimelineSeek();
         static void FirePlaybackChange();

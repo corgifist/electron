@@ -49,10 +49,6 @@ int main(int argc, char *argv[]) {
     }
     print("electron " + std::to_string(BUILD_NUMBER) + " is starting soon...");
 
-    if (!std::filesystem::exists("cache/")) {
-        print("cache folder not found, so creating one");
-        std::filesystem::create_directories("cache/");
-    }
 
     if (start_server("async_writer", 4040)) {}
 

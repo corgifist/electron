@@ -1,7 +1,6 @@
 #pragma once
 
 #include "electron.h"
-#include <curl/curl.h>
 #include "libraries.h"
 
 namespace Electron {
@@ -39,8 +38,7 @@ namespace Electron {
     public:
         static ServerStructure audioSystem;
 
-        static ServerResponse AsyncWriterRequest(json_t request);
-        static json_t AudioServerRequest(json_t request);
+        static json_t AudioServerRequest(json_t request) ;
         static void Initialize();
         static void Destroy();
     };

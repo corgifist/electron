@@ -4,8 +4,6 @@
 #include "electron_font.h"
 
 #include "ImGui/imgui.h"
-#include "ImGui/imgui_impl_glfw.h"
-#include "ImGui/imgui_impl_opengl3.h"
 #include "ImGui/imgui_internal.h"
 
 #include "editor_core.h"
@@ -16,6 +14,7 @@
 #include "servers.h"
 #include "asset_core.h"
 #include "driver_core.h"
+#include "build_number.h"
 
 
 namespace Electron {
@@ -31,6 +30,8 @@ namespace Electron {
         static bool projectOpened; // True if any project is opened
         static bool showBadConfigMessage;
         static bool ffmpegAvailable; // is FFMpeg available
+        static std::thread* asyncWriter;
+        static bool running;
 
 
         static float fontSize; // Used in FontAtlas manipulations

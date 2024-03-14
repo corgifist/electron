@@ -8,14 +8,14 @@
 namespace Electron {
 
     struct VRAM {
-        static GPUHandle GenerateGPUTexture(int width, int height);
+        static GPUExtendedHandle GenerateGPUTexture(int width, int height);
     };
 
     // A set of GPU textures that represents color/depth/uv buffers
     class RenderBuffer {
     public:
-        GPUHandle colorBuffer;
-        GPUHandle uvBuffer;
+        GPUExtendedHandle colorBuffer;
+        GPUExtendedHandle uvBuffer;
         int width, height;
 
         RenderBuffer(int width, int height);
@@ -31,7 +31,7 @@ namespace Electron {
 
     // GPUTexture that adapts to preview buffer size changes
     struct ResizableGPUTexture {
-        GPUHandle texture;
+        GPUExtendedHandle texture;
         int width, height;
 
         ResizableGPUTexture(int width, int height);
@@ -60,7 +60,7 @@ namespace Electron {
         static int counter;
 
         PipelineFrameBuffer(int width, int height);
-        PipelineFrameBuffer(GPUHandle color, GPUHandle uv);
+        PipelineFrameBuffer(GPUExtendedHandle color, GPUExtendedHandle uv);
         PipelineFrameBuffer() {
             this->id = 0;
         }

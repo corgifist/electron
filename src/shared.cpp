@@ -4,12 +4,9 @@ namespace Electron {
 
     void ProjectMap::SaveProject() {
         std::string propertiesDump = propertiesMap.dump();
-
-        Servers::AsyncWriterRequest({
-            {"action", "write"},
-            {"path", path + "/project.json"},
-            {"content", propertiesDump}
-        });
+        std::ofstream outputStream(path + "/project.json");
+        outputStream << propertiesDump;
+        outputStream.close();
     }
 
     int Shared::selectedRenderLayer = -1;

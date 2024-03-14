@@ -2,7 +2,7 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #define GLM_FORCE_SWIZZLE
-#define GLFW_INCLUDE_NONE
+#define GLFW_INCLUDE_VULKAN
 
 #include <iostream>
 #include <vector>
@@ -33,8 +33,8 @@
 #include <tuple>
 #include <boost/process.hpp>
 #include <utility>
+#include <set>
 
-#include "utils/gl.h"
 #include "GLFW/glfw3.h"
 
 #include "ImGui/imgui.h"
@@ -85,6 +85,7 @@ namespace Electron {
         _TerminateServer,
         _A,
         _B,
+        _SkipFrame,
         _None
     } Signal;
 

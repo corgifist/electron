@@ -129,7 +129,7 @@ extern "C" {
         transform = glm::translate(transform, vec3(position, 0.0f));
         float aspect = (float) frb.width / (float) frb.height;
         mat4 projection = ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
-        GraphicsCore::ShaderSetUniform(GraphicsCore::basic.vertex, "uMatrix", projection * transform);
+        /* GraphicsCore::ShaderSetUniform(GraphicsCore::basic.vertex, "uMatrix", projection * transform);
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uColor", color);
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfShape", JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int));
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSize", size);
@@ -168,7 +168,7 @@ extern "C" {
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uCanTexture", canTexture);
         GraphicsCore::DrawArrays(Shared::fsVAO, fsQuadVertices.size() * 0.5);
 
-        GraphicsCore::CallCompositor(frb);
+        GraphicsCore::CallCompositor(frb); */
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {

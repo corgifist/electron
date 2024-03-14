@@ -68,7 +68,7 @@ namespace Electron {
 
         void Render();
         void RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName);
-        void RenderAssetProperty(json_t& property, std::string label, TextureUnionType type);
+        void RenderAssetProperty(json_t& property, std::string label, TextureUnionType type, GPUExtendedHandle assetPreview = 0);
         void RenderProperties();
 
         void SortKeyframes(json_t& keyframes);

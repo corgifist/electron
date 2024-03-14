@@ -271,7 +271,7 @@ namespace Electron {
     }
 
     void RenderLayer::RenderAssetProperty(json_t &property, std::string label,
-                                        TextureUnionType type) {
+                                        TextureUnionType type, GPUExtendedHandle assetPreview) {
         json_t aliases = properties["PropertyAlias"];
         if (aliases.find(label) != aliases.end()) {
             label = JSON_AS_TYPE(aliases[label], std::string);
@@ -300,7 +300,7 @@ namespace Electron {
                                 ImVec2(textureDimensions.x, textureDimensions.y));
                 ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f -
                                     imageCenterRect.x / 2.0f);
-                ImGui::Image((ImTextureID)((uint64_t)textureAsset->pboGpuTexture),
+                if (assetPreview) ImGui::Image((ImTextureID) assetPreview,
                             imageCenterRect);
                 ImGui::Text("%s %s", ICON_FA_INFO,
                             textureAsset->ffprobeData.c_str());
@@ -353,8 +353,12 @@ namespace Electron {
                 ImGui::EndPopup();
             }
 
+            static GPUExtendedHandle assetPopupHandle = 0;
+            static int assetPopupRepresentativeID = 0;
+            bool popupIsAlive = false;
             if (ImGui::BeginPopup(
                     string_format("SelectAssetPopup%s", label.c_str()).c_str())) {
+                popupIsAlive = true;
                 static std::string searchFilter = "";
                 ImGui::InputText("##PopupSearchFilter", &searchFilter, 0);
                 if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
@@ -388,14 +392,28 @@ namespace Electron {
                         asset.type == TextureUnionType::Audio) &&
                         ImGui::IsItemHovered() && ImGui::BeginTooltip()) {
                         glm::vec2 resolution = asset.GetDimensions();
-                        ImGui::Image(
-                            (ImTextureID)((uint64_t)asset.pboGpuTexture),
-                            FitRectInRect(ImVec2(128, 128),
-                                        ImVec2(resolution.x, resolution.y)));
+
+                        if (assetPopupRepresentativeID != asset.id) {
+                            if (assetPopupHandle) DriverCore::DestroyImageHandleUI(asset.pboGpuTexture);
+                            assetPopupRepresentativeID = asset.id;
+                            assetPopupHandle = DriverCore::GetImageHandleUI(asset.pboGpuTexture);
+                        }
+
+                        if (assetPopupHandle) 
+                            ImGui::Image(
+                                (ImTextureID) assetPopupHandle,
+                                FitRectInRect(ImVec2(128, 128),
+                                            ImVec2(resolution.x, resolution.y)));
                         ImGui::EndTooltip();
                     }
                 }
                 ImGui::EndPopup();
+            }
+
+            if (!popupIsAlive && assetPopupHandle) {
+                DriverCore::DestroyImageHandleUI(assetPopupHandle);
+                assetPopupRepresentativeID = 0;
+                assetPopupHandle = 0;
             }
 
             property = textureID;

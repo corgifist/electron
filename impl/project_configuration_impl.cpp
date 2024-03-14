@@ -139,8 +139,12 @@ extern "C" {
             if (ImGuiFileDialog::Instance()->IsOk()) {
                 ProjectMap project{};
                 project.path = ImGuiFileDialog::Instance()->GetFilePathName();
-                project.propertiesMap = json_t::parse(std::fstream(std::string(project.path) + "/project.json"));
-                Shortcuts::Ctrl_P_O(project);
+                if (file_exists(project.path + "/project.json")) {
+                    project.propertiesMap = json_t::parse(std::fstream(std::string(project.path) + "/project.json"));
+                    Shortcuts::Ctrl_P_O(project);
+                } else {
+                    AppCore::PushNotification(5, string_format("%s %s", ICON_FA_TRIANGLE_EXCLAMATION, ELECTRON_GET_LOCALIZATION("CORRUPTED_PROJECT")));
+                }
             }
 
             ImGuiFileDialog::Instance()->Close();

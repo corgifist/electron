@@ -1,7 +1,5 @@
 #include "app.h"
 
-#define GLAD_GL_IMPLEMENTATION
-#include "utils/gl.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "utils/stb_image.h"
@@ -15,6 +13,8 @@ namespace Electron {
     bool AppCore::ffmpegAvailable;
     float AppCore::fontSize;
     bool AppCore::showBadConfigMessage;
+    bool AppCore::running = true;
+    std::thread* AppCore::asyncWriter;
 
     ImFont* AppCore::largeFont = nullptr;
     ImFont* AppCore::mediumFont = nullptr;
@@ -125,6 +125,83 @@ namespace Electron {
         
         Shared::glslVersion = "#version 460 core\n";
         GraphicsCore::PrecompileEssentialShaders();
+
+        DUMP_VAR(DriverCore::renderer.renderer);
+        DUMP_VAR(DriverCore::renderer.vendor);
+        DUMP_VAR(DriverCore::renderer.version);
+
+        AppCore::running = true;
+
+        AppCore::asyncWriter = new std::thread([]() {
+            while (AppCore::running) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                std::string configDump = Shared::configMap.dump();
+                std::ofstream configStream("misc/config.json");
+                configStream << configDump;
+                configStream.close();
+
+                if (AppCore::projectOpened) {
+                    json_t AssetCore = {};
+                    auto &_assets = AssetCore::assets;
+                    for (int i = 0; i < _assets.size(); i++) {
+                        json_t assetDescription = {};
+                        TextureUnion texUnion = _assets[i];
+                        assetDescription["InternalName"] = texUnion.name;
+                        assetDescription["Path"] = texUnion.path;
+                        assetDescription["Type"] = texUnion.strType;
+                        assetDescription["ID"] = texUnion.id;
+                        assetDescription["AudioCoverPath"] =
+                            texUnion.audioCacheCover;
+                        if (texUnion.type == TextureUnionType::Audio) {
+                            assetDescription["AudioCoverResolution"] = {
+                                texUnion.coverResolution.x,
+                                texUnion.coverResolution.y};
+                        }
+                        assetDescription["LinkedCache"] = texUnion.linkedCache;
+                        assetDescription["FFProbeData"] = texUnion.ffprobeData;
+                        assetDescription["FFProbeJsonData"] =
+                            texUnion.ffprobeJsonData;
+                        AssetCore.push_back(assetDescription);
+                    }
+                    Shared::project.propertiesMap["AssetCore"] = AssetCore;
+                }
+
+                if (AppCore::projectOpened) {
+                    Shared::project.SaveProject();
+                }
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                if (JSON_AS_TYPE(Shared::configMap["LastProject"], std::string) !=
+                        "null") {
+                    if (!file_exists(JSON_AS_TYPE(Shared::configMap["LastProject"],
+                                                std::string))) {
+                        Shared::configMap["LastProject"] = "null";
+                    }
+                }
+
+                /* Execute completition procedures of AsyncFFMpegOperations */ {
+                    std::vector<int> deleteTargets{};
+                    for (auto &op : AssetCore::operations) {
+                        if (op.Completed() && !op.procCompleted &&
+                            op.proc != nullptr) {
+                            op.proc(op.args);
+                            op.procCompleted = true;
+                            deleteTargets.push_back(op.id);
+                        }
+                    }
+                    for (auto &target : deleteTargets) {
+                        int index = 0;
+                        for (auto &op : AssetCore::operations) {
+                            if (op.id == target) {
+                                AssetCore::operations.erase(
+                                    AssetCore::operations.begin() + index);
+                                break;
+                            }
+                            index++;
+                        }
+                    }
+                }
+            }
+        });
     }
 
     static bool showDemoWindow = false;
@@ -154,264 +231,193 @@ namespace Electron {
 
     void AppCore::Run() {
         while (!DriverCore::ShouldClose()) {
-            double firstTime = GetTime();
-            AppCore::context = ImGui::GetCurrentContext();
+            try {
+                double firstTime = GetTime();
+                AppCore::context = ImGui::GetCurrentContext();
 
-            static bool asyncWriterDead = false;
-            if (!Servers::AsyncWriterRequest({{"action", "alive"}}).alive &&
-                !asyncWriterDead) {
-                asyncWriterDead = true;
-            }
+                ImGuiIO &io = ImGui::GetIO();
 
-            ImGuiIO &io = ImGui::GetIO();
-            if (projectOpened) {
-                Shared::project.SaveProject();
-            }
 
-            Servers::AsyncWriterRequest(
-                {{"action", "write"},
-                 {"path", "misc/config.json"},
-                 {"content", Shared::configMap.dump()}});
+                Shared::displayPos = GetNativeWindowPos();
+                Shared::displaySize = GetNativeWindowSize();
+                Shared::configMap["LastWindowSize"] = {Shared::displaySize.x,
+                                                    Shared::displaySize.y};
+                
+                Shared::renderCalls = 0;
+                Shared::compositorCalls = 0;
 
-            if (JSON_AS_TYPE(Shared::configMap["LastProject"], std::string) !=
-                "null") {
-                if (!file_exists(JSON_AS_TYPE(Shared::configMap["LastProject"],
-                                              std::string))) {
-                    Shared::configMap["LastProject"] = "null";
+                if (projectOpened) {
+                    Shared::configMap["LastProject"] = Shared::project.path;
                 }
-            }
-            Shared::displayPos = GetNativeWindowPos();
-            Shared::displaySize = GetNativeWindowSize();
-            Shared::configMap["LastWindowSize"] = {Shared::displaySize.x,
-                                                   Shared::displaySize.y};
+                Shared::configMap["CacheIndex"] = Cache::cacheIndex;
+
+                float renderLengthCandidate = 0;
+                for (auto &layer : GraphicsCore::layers) {
+                    renderLengthCandidate =
+                        glm::max(renderLengthCandidate, layer.endFrame);
+
+                    layer.beginFrame =
+                        glm::clamp(layer.beginFrame, 0.0f, layer.endFrame);
+                }
+                GraphicsCore::renderLength = renderLengthCandidate;
+                GraphicsCore::renderFrame =
+                    glm::clamp((float)GraphicsCore::renderFrame, 0.0f,
+                            (float)GraphicsCore::renderLength);
+
+                PixelBuffer::filtering =
+                    Shared::configMap["TextureFiltering"] == "linear" ? GL_LINEAR
+                                                                    : GL_NEAREST;
+                if (projectOpened) {
+                    Shared::project.propertiesMap["LastSelectedLayer"] =
+                        Shared::selectedRenderLayer;
+                }
             
-            Shared::renderCalls = 0;
-            Shared::compositorCalls = 0;
-
-            if (projectOpened) {
-                Shared::configMap["LastProject"] = Shared::project.path;
-            }
-            Shared::configMap["CacheIndex"] = Cache::cacheIndex;
-
-            float renderLengthCandidate = 0;
-            for (auto &layer : GraphicsCore::layers) {
-                renderLengthCandidate =
-                    glm::max(renderLengthCandidate, layer.endFrame);
-
-                layer.beginFrame =
-                    glm::clamp(layer.beginFrame, 0.0f, layer.endFrame);
-            }
-            GraphicsCore::renderLength = renderLengthCandidate;
-            GraphicsCore::renderFrame =
-                glm::clamp((float)GraphicsCore::renderFrame, 0.0f,
-                           (float)GraphicsCore::renderLength);
-
-            PixelBuffer::filtering =
-                Shared::configMap["TextureFiltering"] == "linear" ? GL_LINEAR
-                                                                  : GL_NEAREST;
-            if (projectOpened) {
-                Shared::project.propertiesMap["LastSelectedLayer"] =
-                    Shared::selectedRenderLayer;
-            }
-        
-            DriverCore::ImGuiNewFrame();
-            int windowIndex = 0;
-            int destroyWindowTarget = -1;
-            if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_I)) {
-                ChangeShowDemoWindow();
-            }
-            if (showDemoWindow) {
-                ImGui::ShowDemoWindow();
-            }
-
-            if (showBadConfigMessage) {
-                RenderCriticalError(ELECTRON_GET_LOCALIZATION(
-                                        "CORRUPTED_CONFIG_MESSAGE_MESSAGE"),
-                                    &showBadConfigMessage);
-            }
-
-            if (asyncWriterDead) {
-                static bool awOpen = true;
-                RenderCriticalError(
-                    ELECTRON_GET_LOCALIZATION("ASYNC_WRITER_CRASHED"), &awOpen);
-            }
-
-            if (AssetCore::faultyAssets.size() != 0) {
-                ImGui::OpenPopup(ELECTRON_GET_LOCALIZATION("CRITICAL_ERROR"));
-                if (ImGui::BeginPopupModal(
-                        ELECTRON_GET_LOCALIZATION("CRITICAL_ERROR"), nullptr,
-                        ImGuiWindowFlags_NoMove |
-                            ImGuiWindowFlags_AlwaysAutoResize)) {
-                    ImGui::SetWindowPos({GetNativeWindowSize().x / 2.0f -
-                                             ImGui::GetWindowSize().x / 2.0f,
-                                         GetNativeWindowSize().y / 2.0f -
-                                             ImGui::GetWindowSize().y / 2.0f});
-                    ImGui::Text("%s:", ELECTRON_GET_LOCALIZATION(
-                                           "SOME_ASSETS_ARE_CORRUPTED"));
-                    for (auto &asset : AssetCore::faultyAssets) {
-                        ImGui::BulletText(
-                            "%s %s | %s",
-                            TextureUnion::GetIconByType(asset.type).c_str(),
-                            asset.name.c_str(), asset.path.c_str());
-                    }
-                    if (ButtonCenteredOnLine(
-                            ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
-                        AssetCore::faultyAssets.clear();
-                    }
-                    ImGui::EndPopup();
+                DriverCore::ImGuiNewFrame();
+                int windowIndex = 0;
+                int destroyWindowTarget = -1;
+                if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_I)) {
+                    ChangeShowDemoWindow();
                 }
-            }
-
-            static bool warningOpen = true;
-            std::string operationsPopupTag = string_format(
-                "%s##ffmpegActive",
-                ELECTRON_GET_LOCALIZATION("FFMPEG_OPERATIONS_ARE_IN_PROGRESS"));
-            if (!ffmpegAvailable)
-                goto no_ffmpeg;
-
-            /* Execute completition procedures of AsyncFFMpegOperations */ {
-                std::vector<int> deleteTargets{};
-                for (auto &op : AssetCore::operations) {
-                    if (op.Completed() && !op.procCompleted &&
-                        op.proc != nullptr) {
-                        op.proc(op.args);
-                        op.procCompleted = true;
-                        deleteTargets.push_back(op.id);
-                    }
+                if (showDemoWindow) {
+                    ImGui::ShowDemoWindow();
                 }
-                for (auto &target : deleteTargets) {
-                    int index = 0;
-                    for (auto &op : AssetCore::operations) {
-                        if (op.id == target) {
-                            AssetCore::operations.erase(
-                                AssetCore::operations.begin() + index);
-                            break;
+
+                if (showBadConfigMessage) {
+                    RenderCriticalError(ELECTRON_GET_LOCALIZATION(
+                                            "CORRUPTED_CONFIG_MESSAGE_MESSAGE"),
+                                        &showBadConfigMessage);
+                }
+
+                if (AssetCore::faultyAssets.size() != 0) {
+                    ImGui::OpenPopup(ELECTRON_GET_LOCALIZATION("CRITICAL_ERROR"));
+                    if (ImGui::BeginPopupModal(
+                            ELECTRON_GET_LOCALIZATION("CRITICAL_ERROR"), nullptr,
+                            ImGuiWindowFlags_NoMove |
+                                ImGuiWindowFlags_AlwaysAutoResize)) {
+                        ImGui::SetWindowPos({GetNativeWindowSize().x / 2.0f -
+                                                ImGui::GetWindowSize().x / 2.0f,
+                                            GetNativeWindowSize().y / 2.0f -
+                                                ImGui::GetWindowSize().y / 2.0f});
+                        ImGui::Text("%s:", ELECTRON_GET_LOCALIZATION(
+                                            "SOME_ASSETS_ARE_CORRUPTED"));
+                        for (auto &asset : AssetCore::faultyAssets) {
+                            ImGui::BulletText(
+                                "%s %s | %s",
+                                TextureUnion::GetIconByType(asset.type).c_str(),
+                                asset.name.c_str(), asset.path.c_str());
                         }
-                        index++;
+                        if (ButtonCenteredOnLine(
+                                ELECTRON_GET_LOCALIZATION("GENERIC_OK"))) {
+                            AssetCore::faultyAssets.clear();
+                        }
+                        ImGui::EndPopup();
                     }
-                }
-            }
-            /* Fill previousProperties field */ {
-                for (auto &layer : GraphicsCore::layers) {
-                    layer.previousProperties = layer.properties;
-                }
-            }
-            /* Render UI */ {
-                std::vector<UIActivity> uiCopy = AppCore::content;
-                for (auto &window : uiCopy) {
-                    bool exitEditor = false;
-                    try {
-                        window.Render();
-                    } catch (Signal signal) {
-                        ExecuteSignal(signal, windowIndex, destroyWindowTarget,
-                                      exitEditor);
-                        if (exitEditor)
-                            goto editor_end;
-                    }
-                    windowIndex++;
-                }
-                for (auto &layer : GraphicsCore::layers) {
-                    layer.sortingProcedure(&layer);
-                }
-                if (destroyWindowTarget != -1) {
-                    *AppCore::content[destroyWindowTarget].counter = 0;
-                    AppCore::content.erase(content.begin() +
-                                               destroyWindowTarget);
                 }
 
-                if (AssetCore::operations.size() != 0) {
-                    AsyncFFMpegOperation *operation = nullptr;
-                    for (auto &op : AssetCore::operations) {
-                        if (!op.Completed() && !op.procCompleted)
-                            operation = &op;
-                    }
-                    if (operation != nullptr) {
-                        ImGui::Begin("##operation_notification", nullptr,
-                                     ImGuiWindowFlags_NoTitleBar |
-                                         ImGuiWindowFlags_NoResize |
-                                         ImGuiWindowFlags_NoScrollbar |
-                                         ImGuiWindowFlags_AlwaysAutoResize |
-                                         ImGuiWindowFlags_NoFocusOnAppearing);
-                        ImVec2 displaySize = GetNativeWindowSize();
-                        ImVec2 windowSize = ImGui::GetWindowSize();
+                static bool warningOpen = true;
+                std::string operationsPopupTag = string_format(
+                    "%s##ffmpegActive",
+                    ELECTRON_GET_LOCALIZATION("FFMPEG_OPERATIONS_ARE_IN_PROGRESS"));
+                if (!ffmpegAvailable)
+                    goto no_ffmpeg;
 
-                        ImGui::SetWindowPos(
-                            {displaySize.x - windowSize.x - 30,
-                             displaySize.y - windowSize.y - 30});
-
-                        ImGui::PushFont(mediumFont);
-                        std::string info = operation->info;
-                        ImGui::Text("%s", info.c_str());
-                        ImGui::PopFont();
-                        ImGui::End();
+                
+                /* Fill previousProperties field */ {
+                    for (auto &layer : GraphicsCore::layers) {
+                        layer.previousProperties = layer.properties;
                     }
                 }
-            }
-            /* Trigger LayerOnPropertiesChange Event */ {
-                for (auto &layer : GraphicsCore::layers) {
-                    json_t copyPreviousProperties = layer.previousProperties;
-                    json_t copyProperties = layer.properties;
+                /* Render UI */ {
+                    std::vector<UIActivity> uiCopy = AppCore::content;
+                    for (auto &window : uiCopy) {
+                        bool exitEditor = false;
+                        try {
+                            window.Render();
+                        } catch (Signal signal) {
+                            ExecuteSignal(signal, windowIndex, destroyWindowTarget,
+                                        exitEditor);
+                            if (exitEditor)
+                                goto editor_end;
+                        }
+                        windowIndex++;
+                    }
+                    if (destroyWindowTarget != -1) {
+                        *AppCore::content[destroyWindowTarget].counter = 0;
+                        AppCore::content.erase(content.begin() +
+                                                destroyWindowTarget);
+                    }
 
-                    if (layer.previousProperties != layer.properties) {
-                        layer.onPropertiesChange(&layer);
+                    if (AssetCore::operations.size() != 0) {
+                        AsyncFFMpegOperation *operation = nullptr;
+                        for (auto &op : AssetCore::operations) {
+                            if (!op.Completed() && !op.procCompleted)
+                                operation = &op;
+                        }
+                        if (operation != nullptr) {
+                            ImGui::Begin("##operation_notification", nullptr,
+                                        ImGuiWindowFlags_NoTitleBar |
+                                            ImGuiWindowFlags_NoResize |
+                                            ImGuiWindowFlags_NoScrollbar |
+                                            ImGuiWindowFlags_AlwaysAutoResize |
+                                            ImGuiWindowFlags_NoFocusOnAppearing);
+                            ImVec2 displaySize = GetNativeWindowSize();
+                            ImVec2 windowSize = ImGui::GetWindowSize();
+
+                            ImGui::SetWindowPos(
+                                {displaySize.x - windowSize.x - 30,
+                                displaySize.y - windowSize.y - 30});
+
+                            ImGui::PushFont(mediumFont);
+                            std::string info = operation->info;
+                            ImGui::Text("%s", info.c_str());
+                            ImGui::PopFont();
+                            ImGui::End();
+                        }
+                    }
+                } 
+                
+                /* Trigger LayerOnPropertiesChange Event */ {
+                    for (auto &layer : GraphicsCore::layers) {
+                        layer.sortingProcedure(&layer);
+                        json_t copyPreviousProperties = layer.previousProperties;
+                        json_t copyProperties = layer.properties;
+
+                        if (layer.previousProperties != layer.properties) {
+                            layer.onPropertiesChange(&layer);
+                        }
                     }
                 }
+                goto render_success;
+            no_ffmpeg: {
+                RenderCriticalError(
+                    ELECTRON_GET_LOCALIZATION("FFMPEG_IS_NOT_AVAILABLE"),
+                    &warningOpen);
+                if (!warningOpen)
+                    exit(1);
+                goto render_success;
             }
-            goto render_success;
-        no_ffmpeg: {
-            RenderCriticalError(
-                ELECTRON_GET_LOCALIZATION("FFMPEG_IS_NOT_AVAILABLE"),
-                &warningOpen);
-            if (!warningOpen)
-                exit(1);
-            goto render_success;
+
+                goto render_success;
+
+            render_success:
+                DriverCore::ImGuiRender();
+                DriverCore::SwapBuffers();
+
+                double secondTime = GetTime();
+                Shared::deltaTime = secondTime - firstTime;
+                std::string windowTitle = "Electron " + std::string(" - Build Number ") + std::to_string(BUILD_NUMBER) + "";
+                if (AppCore::projectOpened)
+                    windowTitle +=
+                        " - " +
+                        JSON_AS_TYPE(Shared::project.propertiesMap["ProjectName"],
+                                    std::string);
+                windowTitle += " - " + std::to_string(int(ImGui::GetIO().Framerate)) + " FPS";
+                DriverCore::SetTitle(windowTitle);
+        } catch (Signal signal) {
+            if (signal == Signal::_SkipFrame) continue;
         }
-
-            goto render_success;
-
-        render_success:
-            DriverCore::ImGuiRender();
-            DriverCore::SwapBuffers();
-
-            if (projectOpened) {
-                json_t AssetCore = {};
-                auto &_assets = AssetCore::assets;
-                for (int i = 0; i < _assets.size(); i++) {
-                    json_t assetDescription = {};
-                    TextureUnion texUnion = _assets[i];
-                    assetDescription["InternalName"] = texUnion.name;
-                    assetDescription["Path"] = texUnion.path;
-                    assetDescription["Type"] = texUnion.strType;
-                    assetDescription["ID"] = texUnion.id;
-                    assetDescription["AudioCoverPath"] =
-                        texUnion.audioCacheCover;
-                    if (texUnion.type == TextureUnionType::Audio) {
-                        assetDescription["AudioCoverResolution"] = {
-                            texUnion.coverResolution.x,
-                            texUnion.coverResolution.y};
-                    }
-                    assetDescription["LinkedCache"] = texUnion.linkedCache;
-                    assetDescription["FFProbeData"] = texUnion.ffprobeData;
-                    assetDescription["FFProbeJsonData"] =
-                        texUnion.ffprobeJsonData;
-                    AssetCore.push_back(assetDescription);
-                }
-                Shared::project.propertiesMap["AssetCore"] = AssetCore;
-            }
-
-            double secondTime = GetTime();
-            Shared::deltaTime = secondTime - firstTime;
-            std::string windowTitle = "Electron";
-            if (AppCore::projectOpened)
-                windowTitle +=
-                    " - " +
-                    JSON_AS_TYPE(Shared::project.propertiesMap["ProjectName"],
-                                 std::string);
-            windowTitle += " - " + std::to_string((int) (1000 / (Shared::deltaTime * 1000))) + " FPS";
-            DriverCore::SetTitle(windowTitle);
-        }
+    }
     editor_end:
-
         Terminate();
     }
 
@@ -421,9 +427,12 @@ namespace Electron {
     }
 
     void AppCore::Terminate() {
+        AppCore::running = false;
+        AppCore::asyncWriter->join();
+        delete AppCore::asyncWriter;
+        GraphicsCore::renderBuffer.Destroy();
         Servers::Destroy();
         DriverCore::ImGuiShutdown();
-        Servers::AsyncWriterRequest({{"action", "kill"}});
         Servers::AudioServerRequest({{"action", "kill"}});
     }
 

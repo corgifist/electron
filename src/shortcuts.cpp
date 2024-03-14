@@ -6,6 +6,16 @@ void Shortcuts::Ctrl_W_R() {
 }
 
 void Shortcuts::Ctrl_P_O(ProjectMap projectMap) {
+    if (AppCore::projectOpened) {
+        for (auto& asset : AssetCore::assets) {
+            asset.Destroy();
+        }
+        AssetCore::assets.clear();
+        for (auto& layer : GraphicsCore::layers) {
+            layer.Destroy();
+        }
+        GraphicsCore::layers.clear();
+    }
     AppCore::projectOpened = true;
     Shared::project = projectMap;
 

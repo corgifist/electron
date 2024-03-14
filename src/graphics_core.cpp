@@ -2,7 +2,7 @@
 
 namespace Electron {
 
-    std::unordered_map<GPUHandle, std::unordered_map<std::string, GPUHandle>>
+    std::unordered_map<GPUExtendedHandle, std::unordered_map<std::string, GPUExtendedHandle>>
         GraphicsCore::uniformCache{};
 
     PipelineFrameBuffer GraphicsCore::renderBuffer;
@@ -12,7 +12,6 @@ namespace Electron {
     float GraphicsCore::renderFrame;
     int GraphicsCore::renderLength, GraphicsCore::renderFramerate;
     std::vector<PipelineFrameBuffer> GraphicsCore::compositorQueue;
-    GLuint GraphicsCore::pipeline;
     PipelineShader GraphicsCore::basic;
     PipelineShader GraphicsCore::compositor;
     PipelineShader GraphicsCore::channel;
@@ -35,9 +34,6 @@ namespace Electron {
         channel =
             CompilePipelineShader("channel_manipulator.pipeline", ShaderType::Fragment);
         Shared::fsVAO = GenerateVAO(fsQuadVertices, fsQuadUV);
-
-        pipeline = DriverCore::GeneratePipeline();
-        UseShader(ShaderType::Vertex, basic.vertex);
     }
 
     void GraphicsCore::FetchAllLayers() {
@@ -136,7 +132,7 @@ namespace Electron {
         DriverCore::DrawArrays(size);
     }
 
-    GPUHandle GraphicsCore::CompileComputeShader(std::string path) {
+    GPUExtendedHandle GraphicsCore::CompileComputeShader(std::string path) {
         return DriverCore::GenerateShaderProgram(ShaderType::Compute, string_format("%s\n layout(local_size_x = %i, local_size_y = %i, local_size_z = %i) in;\n%s", Shared::glslVersion.c_str(), Wavefront::x, Wavefront::y, Wavefront::z, read_file("compute/" + path).c_str()).c_str());
     }
 
@@ -176,11 +172,10 @@ namespace Electron {
         return shader;
     }
 
-    void GraphicsCore::UseShader(ShaderType stage, GPUHandle shader) {
-        DriverCore::UseProgramStages(stage, pipeline, shader);
+    void GraphicsCore::UseShader(ShaderType stage, GPUExtendedHandle shader) {
     }
 
-    GLuint GraphicsCore::GenerateGPUTexture(int width, int height) {
+    GPUExtendedHandle GraphicsCore::GenerateGPUTexture(int width, int height) {
         return VRAM::GenerateGPUTexture(width, height);
     }
 
@@ -200,63 +195,9 @@ namespace Electron {
         DriverCore::MemoryBarrier(barrier);
     }
 
-    void GraphicsCore::BindGPUTexture(GLuint texture, GLuint shader, int unit,
-                                    std::string uniform) {
-        glBindTextureUnit(unit, texture);
-        GraphicsCore::ShaderSetUniform(shader, uniform, unit);
-    }
 
-    void GraphicsCore::BindComputeGPUTexture(GLuint texture, GLuint unit, GLuint readStatus) {
-        glBindImageTexture(unit, texture, 0, GL_FALSE, 0, readStatus,
-                       GL_RGBA8);
-    }
-
-    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, int x,
-                                        int y) {
-        glProgramUniform2i(program, GetUniformLocation(program, name), x, y);
-    }
-
-    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
-                                        glm::vec3 vec) {
-        glProgramUniform3f(program, GetUniformLocation(program, name), vec.x, vec.y, vec.z);
-    }
-
-    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, float f) {
-        glProgramUniform1f(program, GetUniformLocation(program, name), f);
-    }
-
-    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
-                                        glm::vec2 vec) {
-        glProgramUniform2f(program, GetUniformLocation(program, name), vec.x, vec.y);
-    }
-
-    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, int x) {
-        glProgramUniform1i(program, GetUniformLocation(program, name), x);
-    }
-
-    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
-                                        glm::vec4 vec) {
-        glProgramUniform4f(program, GetUniformLocation(program, name), vec.x, vec.y, vec.z, vec.w);
-    }
-
-    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
-                                        glm::mat3 mat3) {
-        glProgramUniformMatrix3fv(program, GetUniformLocation(program, name), 1, GL_FALSE,
-                        glm::value_ptr(mat3));
-    }
-
-    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name,
-                                        glm::mat4 mat4) {
-        glProgramUniformMatrix4fv(program, GetUniformLocation(program, name), 1, GL_FALSE,
-                        glm::value_ptr(mat4));
-    }
-
-    void GraphicsCore::ShaderSetUniform(GLuint program, std::string name, bool b) {
-        ShaderSetUniform(program, name, (int) b);
-    }
-
-    GLuint GraphicsCore::GetUniformLocation(GPUHandle program, std::string name) {
-        std::unordered_map<std::string, GPUHandle> programMap{};
+    GPUExtendedHandle GraphicsCore::GetUniformLocation(GPUExtendedHandle program, std::string name) {
+        std::unordered_map<std::string, GPUExtendedHandle> programMap{};
         if (uniformCache.find(program) != uniformCache.end())
             programMap = uniformCache[program];
         GLuint location = 0;
@@ -275,7 +216,7 @@ namespace Electron {
     }
 
     void GraphicsCore::PerformForwardComposition() {
-        DriverCore::BindVAO(Shared::fsVAO);
+        /* DriverCore::BindVAO(Shared::fsVAO);
 
         glm::mat4 identity = glm::identity<glm::mat4>();
         renderBuffer.Bind();
@@ -292,7 +233,7 @@ namespace Electron {
             glDrawArraysInstanced(GL_TRIANGLES, 0, fsQuadVertices.size() / 2, unitsCount);
             compositorQueue.erase(compositorQueue.begin(), compositorQueue.begin() + unitsCount);
         }
-        renderBuffer.Unbind();
+        renderBuffer.Unbind(); */
     }
 
     void GraphicsCore::PerformComposition() {

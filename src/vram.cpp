@@ -2,7 +2,7 @@
 
 namespace Electron {
 
-    GPUHandle VRAM::GenerateGPUTexture(int width, int height) {
+    GPUExtendedHandle VRAM::GenerateGPUTexture(int width, int height) {
         return DriverCore::GenerateGPUTexture(width, height);
     }
 
@@ -63,7 +63,7 @@ namespace Electron {
         this->fbo = DriverCore::GenerateFramebuffer(rbo.colorBuffer, rbo.uvBuffer, width, height);
     }
 
-    PipelineFrameBuffer::PipelineFrameBuffer(GLuint color, GLuint uv) {
+    PipelineFrameBuffer::PipelineFrameBuffer(GPUExtendedHandle color, GPUExtendedHandle uv) {
         this->rbo.colorBuffer = color;
         this->rbo.uvBuffer = uv;
         this->id = counter++;
