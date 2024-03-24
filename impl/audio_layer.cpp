@@ -261,6 +261,7 @@ extern "C" {
         }
 
         if (asset && !userData->audioCoverHandle) {
+            DriverCore::DestroyImageHandleUI(asset->pboGpuTexture);
             userData->audioCoverHandle = DriverCore::GetImageHandleUI(asset->pboGpuTexture);
         }
 

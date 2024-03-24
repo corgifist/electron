@@ -12,6 +12,8 @@ extern "C" {
     ELECTRON_EXPORT std::string LayerName = "SDF2D";
     ELECTRON_EXPORT glm::vec4 LayerTimelineColor = {0.58, 0.576, 1, 1};
     static PipelineShader sdf2d_compute;
+    static GPUExtendedHandle sdf2d_pipeline = 0;
+    static GPUExtendedHandle sdf2d_layout = 0;
 
     enum class SDFShape {
         None = 0,
@@ -22,10 +24,17 @@ extern "C" {
 
     struct SDF2DUserData {
         PipelineFrameBuffer frb;
-        AssetDecoder assetDecoder;
+        ManagedAssetDecoder decoder;
 
-        SDF2DUserData() {}
+        SDF2DUserData() {
+        }
     };
+
+    struct SDF2DPushConstant {
+        glm::mat4 uMatrix;
+        alignas(4) float canTexture;
+    };
+    
 
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
         owner->properties["Position"] = {
@@ -73,9 +82,54 @@ extern "C" {
         owner->properties["SelectedSDFShape"] = 0;
 
         owner->userData = new SDF2DUserData();
+        SDF2DUserData* userData = (SDF2DUserData*) owner->userData;
+        userData->frb =  PipelineFrameBuffer(GraphicsCore::renderBuffer.width, GraphicsCore::renderBuffer.height);
 
-        if (sdf2d_compute.fragment == 0) {
-            sdf2d_compute = GraphicsCore::CompilePipelineShader("sdf2d.pipeline", ShaderType::Fragment);
+        if (sdf2d_pipeline == 0) {
+            sdf2d_compute = GraphicsCore::CompilePipelineShader("sdf2d", ShaderType::VertexFragment);
+
+            DescriptorSetLayoutBinding texturePoolBinding;
+            texturePoolBinding.bindingPoint = 0;
+            texturePoolBinding.descriptorType = DescriptorType::Sampler;
+            texturePoolBinding.shaderType = ShaderType::Fragment;
+            
+            DescriptorSetLayoutBuilder descriptorSetBuilder;
+            descriptorSetBuilder.AddBinding(texturePoolBinding);
+
+            GPUExtendedHandle builtDescriptorSetLayout = descriptorSetBuilder.Build();
+
+            RenderPipelinePushConstantRange vertexPushConstantRange;
+            vertexPushConstantRange.offset = 0;
+            vertexPushConstantRange.size = sizeof(SDF2DPushConstant);
+            vertexPushConstantRange.shaderStage = ShaderType::VertexFragment;
+
+            GPUExtendedHandle builtVertexPushConstantRange = vertexPushConstantRange.Build();
+
+            RenderPipelineLayoutBuilder pipelineLayoutBuilder;
+            pipelineLayoutBuilder.AddPushConstantRange(builtVertexPushConstantRange);
+            pipelineLayoutBuilder.setLayouts.push_back(builtDescriptorSetLayout);
+
+            sdf2d_layout = pipelineLayoutBuilder.Build();
+
+            RenderPipelineShaderStageBuilder vertexShaderStageBuilder;
+            vertexShaderStageBuilder.shaderModule = sdf2d_compute.vertex;
+            vertexShaderStageBuilder.name = "main";
+            vertexShaderStageBuilder.shaderStage = ShaderType::Vertex;
+            GPUExtendedHandle vertexBuiltStage = vertexShaderStageBuilder.Build();
+
+            RenderPipelineShaderStageBuilder fragmentShaderStageBuilder;
+            fragmentShaderStageBuilder.shaderModule = sdf2d_compute.fragment;
+            fragmentShaderStageBuilder.name = "main";
+            fragmentShaderStageBuilder.shaderStage = ShaderType::Fragment;
+            GPUExtendedHandle fragmentBuiltStage = fragmentShaderStageBuilder.Build();
+
+            RenderPipelineBuilder renderPipelineBuilder;
+            renderPipelineBuilder.pipelineLayout = sdf2d_layout;
+            renderPipelineBuilder.stages.push_back(vertexBuiltStage);
+            renderPipelineBuilder.stages.push_back(fragmentBuiltStage);
+            
+            sdf2d_pipeline = renderPipelineBuilder.Build();
+            if (!sdf2d_pipeline) throw std::runtime_error("cannot create SDF2D rendering pipeline!");
         }
     }
 
@@ -83,13 +137,12 @@ extern "C" {
         PipelineFrameBuffer* pbo = &GraphicsCore::renderBuffer;
 
         SDF2DUserData* userData = (SDF2DUserData*) owner->userData;
-        PipelineFrameBuffer frb = userData->frb;
+        ManagedAssetDecoder* decoder = &userData->decoder;
+        PipelineFrameBuffer& frb = userData->frb;
         if (frb.width != pbo->width || frb.height != pbo->height) {
             if (frb.id) frb.Destroy();
             frb = PipelineFrameBuffer(pbo->width, pbo->height);
         }
-        
-        userData->frb = frb;
 
         GraphicsCore::RequestTextureCollectionCleaning(frb, 0.0f);
 
@@ -121,14 +174,16 @@ extern "C" {
 
         bool canTexture = (asset != nullptr && texturingEnabled);
 
-        frb.Bind();
-        GraphicsCore::UseShader(ShaderType::Fragment, sdf2d_compute.fragment);
         mat4 transform = glm::identity<mat4>();
         transform = glm::scale(transform, vec3(size, 1.0f));
         transform = glm::rotate(transform, glm::radians(angle), vec3(0, 0, 1));
         transform = glm::translate(transform, vec3(position, 0.0f));
         float aspect = (float) frb.width / (float) frb.height;
         mat4 projection = ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
+
+        SDF2DPushConstant pushConstants;
+        pushConstants.uMatrix = projection * transform;
+        pushConstants.canTexture = canTexture ? 1.0f : 0.0f;
         /* GraphicsCore::ShaderSetUniform(GraphicsCore::basic.vertex, "uMatrix", projection * transform);
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uColor", color);
         GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfShape", JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int));
@@ -157,23 +212,38 @@ extern "C" {
                 GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
                 break;
             }
-        }
+        } */
         
-        if (canTexture) {
-            AssetDecoder* decoder = &userData->assetDecoder;
+        if (canTexture && asset->type == TextureUnionType::Video) {
             VideoMetadata video = std::get<VideoMetadata>(asset->as);
-            decoder->frame = (GraphicsCore::renderFrame - owner->beginFrame) * (video.framerate / GraphicsCore::renderFramerate);
-            GraphicsCore::BindGPUTexture(decoder->GetGPUTexture(asset), sdf2d_compute.fragment, 0, "uTexture");
+            decoder->decoder.frame = (GraphicsCore::renderFrame - owner->beginFrame) * (video.framerate / GraphicsCore::renderFramerate);
         }
-        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uCanTexture", canTexture);
-        GraphicsCore::DrawArrays(Shared::fsVAO, fsQuadVertices.size() * 0.5);
 
-        GraphicsCore::CallCompositor(frb); */
+        GraphicsCore::CallCompositor(frb);
+
+        DriverCore::BeginRendering(frb.fbo);
+
+            if (canTexture) {
+                DescriptorWriteBinding textureBinding;
+                textureBinding.binding = 0;
+                textureBinding.texture = decoder->GetGPUTexture(asset);
+                textureBinding.type = DescriptorType::Sampler;
+
+                DriverCore::PushDescriptors({textureBinding}, sdf2d_layout, 0);    
+            }
+
+            DriverCore::BindPipeline(sdf2d_pipeline);
+            DriverCore::SetRenderingViewport(frb.width, frb.height);
+            DriverCore::PushConstants(sdf2d_layout, ShaderType::VertexFragment, 0, sizeof(SDF2DPushConstant), &pushConstants);
+            GraphicsCore::DrawArrays(fsQuadVertices.size() / 2);
+        DriverCore::EndRendering();
+
+        GraphicsCore::CallCompositor(frb);
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
         PipelineFrameBuffer* pbo = &GraphicsCore::renderBuffer;
-
+        SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
         bool texturingEnabled = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
         ImGui::Checkbox("Enable texturing", &texturingEnabled);
         layer->properties["EnableTexturing"] = texturingEnabled;
@@ -268,7 +338,9 @@ extern "C" {
         }
 
         json_t& textureID = layer->properties["TextureID"];
-        layer->RenderAssetProperty(textureID, "Texturing", TextureUnionType::Texture);
+        layer->RenderAssetProperty(textureID, "Texturing", TextureUnionType::Texture, userData->decoder.previewHandle);
+        TextureUnion* asset = AssetCore::GetAsset(layer->properties["TextureID"]);
+        userData->decoder.Update(asset);
     }
 
     ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {
@@ -289,6 +361,7 @@ extern "C" {
         SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
         PipelineFrameBuffer frb = userData->frb;
         frb.Destroy();
+        userData->decoder.Destroy();
         delete userData;
     }
 
@@ -316,7 +389,13 @@ extern "C" {
     ELECTRON_EXPORT void LayerTimelineRender(RenderLayer* layer, TimelineLayerRenderDesc desc) {
         TextureUnion* asset = AssetCore::GetAsset(JSON_AS_TYPE(layer->properties["TextureID"], std::string));
         SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
-        if (!asset) return;
+        if (desc.dispose || !asset) {
+            userData->decoder.Dispose();
+            return;
+        }
+        if (asset && userData->decoder.IsDisposed()) {
+            userData->decoder.Reinitialize(asset);
+        }
         glm::vec2 assetDimensions = asset->GetDimensions();
         ImVec2 previewSize = {desc.layerSizeY * (assetDimensions.x / assetDimensions.y), desc.layerSizeY};
         ImVec2 rectSize = FitRectInRect(previewSize, ImVec2{assetDimensions.x, assetDimensions.y});
@@ -334,9 +413,9 @@ extern "C" {
         }
         upperLeft.x = glm::min(upperLeft.x, dragBounds);
         bottomRight.x = glm::min(bottomRight.x, dragBounds);
-        AssetDecoder* decoder = &userData->assetDecoder;
-        VideoMetadata video = std::get<VideoMetadata>(asset->as);
-        ImGui::GetWindowDrawList()->AddImage((ImTextureID) (uint64_t) decoder->GetGPUTexture(asset), upperLeft, bottomRight);
+        ManagedAssetDecoder* decoder = &userData->decoder;
+        if (!decoder->IsDisposed())
+            ImGui::GetWindowDrawList()->AddImage((ImTextureID) decoder->GetImageHandle(asset), upperLeft, bottomRight);
     }
 
     ELECTRON_EXPORT PipelineFrameBuffer LayerGetFramebuffer(RenderLayer* layer) {

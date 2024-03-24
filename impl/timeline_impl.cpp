@@ -168,9 +168,19 @@ extern "C" {
             auto fbo = layer->framebufferProcedure(layer);
             ImGui::SeparatorText(layer->layerUsername.c_str());
             layer->menuProcedure(layer);
+            static GPUExtendedHandle inspectBufferColorHandle = 0;
+            static GPUExtendedHandle inspectBufferUVHandle = 0;
+            static int inspectedBufferID = 0;
             if (fbo.id != 0 && ImGui::BeginMenu(string_format("%s %s", ICON_FA_IMAGES, ELECTRON_GET_LOCALIZATION("INSPECT_BUFFERS")).c_str())) {
-                // ImGui::Image((ImTextureID) (uint64_t) fbo.rbo.colorBuffer, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
-                // ImGui::Image((ImTextureID) (uint64_t) fbo.rbo.uvBuffer, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
+                if (fbo.id != inspectedBufferID) {
+                    DriverCore::DestroyImageHandleUI(inspectBufferColorHandle);
+                    DriverCore::DestroyImageHandleUI(inspectBufferUVHandle);
+                    inspectBufferColorHandle = DriverCore::GetImageHandleUI(fbo.rbo.colorBuffer);
+                    inspectBufferUVHandle = DriverCore::GetImageHandleUI(fbo.rbo.uvBuffer);
+                    inspectedBufferID = fbo.id;
+                }
+                ImGui::Image((ImTextureID) inspectBufferColorHandle, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
+                ImGui::Image((ImTextureID) inspectBufferUVHandle, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
                 ImGui::EndMenu();
             }
             if (ImGui::MenuItem(string_format("%s %s", ICON_FA_COPY,
@@ -861,11 +871,21 @@ extern "C" {
         }
         static std::vector<int> multipleDragSelectedLayers{};
         for (int i = GraphicsCore::layers.size() - 1; i >= 0; i--) {
-            if (layerOffsetY - ImGui::GetScrollY() < 0 || layerOffsetY - ImGui::GetScrollY() > ImGui::GetWindowSize().y) {
+            RenderLayer *layer = &GraphicsCore::layers[i];
+            if ((layerOffsetY - ImGui::GetScrollY() < 0 || layerOffsetY - ImGui::GetScrollY() > ImGui::GetWindowSize().y) ||
+                (layer->beginFrame * pixelsPerFrame - ImGui::GetScrollX() < 0 && layer->endFrame * pixelsPerFrame - ImGui::GetScrollX() < 0) ||
+                (layer->beginFrame * pixelsPerFrame - ImGui::GetScrollX() > ImGui::GetWindowSize().x &&
+                layer->endFrame * pixelsPerFrame - ImGui::GetScrollX() > ImGui::GetWindowSize().x)) {
+                layerSeparatorTargets.push_back(layerOffsetY);
+                ImGui::SetCursorPos({layer->beginFrame * pixelsPerFrame, layerOffsetY});
+                ImGui::Dummy({(layer->endFrame - layer->beginFrame) * pixelsPerFrame, layerSizeY});
+                ImGui::SetCursorPos({0, 0});
                 layerOffsetY += layerSizeY + layersPropertiesOffset[i];
+                TimelineLayerRenderDesc disposeDesc;
+                disposeDesc.dispose = true;
+                layer->timelineRenderProcedure(layer, disposeDesc);
                 continue;
             }
-            RenderLayer *layer = &GraphicsCore::layers[i];
             DragStructure &universalDrag = universalLayerDrags[i];
             DragStructure &forwardDrag = forwardLayerDrags[i];
             DragStructure &backwardDrag = backwardLayerDrags[i];

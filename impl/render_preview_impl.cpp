@@ -116,7 +116,6 @@ extern "C" {
             }
             if (AppCore::projectOpened && (currentVariant.width != rbo->width || currentVariant.height != rbo->height)) {
                 GraphicsCore::ResizeRenderBuffer(currentVariant.width, currentVariant.height);
-                GraphicsCore::RequestRenderBufferCleaningWithinRegion(); // fixes flickering when resizing rbo
                 RebuildRenderBufferHandles();
             }
             if (AppCore::projectOpened && (resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1])) {
@@ -207,25 +206,15 @@ extern "C" {
                 if (glm::abs(imageOffset.y) < 5) {
                     imageOffset.y = 0;
                 }
-
-                /* rbo->Bind();
-                GraphicsCore::UseShader(ShaderType::Fragment, GraphicsCore::channel.fragment);
-                static glm::mat4 identity = glm::mat4(1);
-                GraphicsCore::ShaderSetUniform(GraphicsCore::basic.vertex, "uMatrix", identity);
-                GraphicsCore::BindGPUTexture(rbo->rbo.colorBuffer, GraphicsCore::channel.fragment, 0, "uColor");
-                GraphicsCore::BindGPUTexture(rbo->rbo.uvBuffer, GraphicsCore::channel.fragment, 1, "uUV");
-                glm::vec4 factor{};
-                if (selectedChannel == 0) factor = {1, 0, 0, 1};
-                if (selectedChannel == 1) factor = {0, 1, 0, 1};
-                if (selectedChannel == 2) factor = {0, 0, 1, 1};
-                if (selectedChannel == 3) factor = {1, 1, 1, 1};
-                GraphicsCore::ShaderSetUniform(GraphicsCore::channel.fragment, "uFactor", factor);
-                glBindVertexArray(Shared::fsVAO);
-                glDrawArrays(GL_TRIANGLES, 0, fsQuadVertices.size() / 2); */
                 
+                ImVec4 tint = {1, 1, 1, 1};
+                if (selectedChannel == 3) tint = {1, 1, 1, 1};
+                if (selectedChannel == 0) tint = {1, 0, 0, 1};
+                if (selectedChannel == 1) tint = {0, 1, 0, 1};
+                if (selectedChannel == 2) tint = {0, 0, 1, 1};
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - previewTextureSize.x / 2.0f, windowSize.y / 2.0f - previewTextureSize.y / 2.0f} + imageOffset);
-                ImGui::Image((ImTextureID) previewTexture, previewTextureSize);
+                ImGui::Image((ImTextureID) previewTexture, previewTextureSize, ImVec2(0, 0), ImVec2(1, 1), tint);
             ImGui::EndChild();
             previousWindowPos = ImGui::GetWindowPos();
             previousWindowSize = ImGui::GetWindowSize();
