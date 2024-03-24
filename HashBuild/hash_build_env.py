@@ -91,7 +91,7 @@ def eq(a, b):
 def _not(x):
     return not x
 
-def link_executable(objects, out, link_libraries=[], shared='null', basename='implib', library_path='.'):
+def link_executable(objects, out, link_libraries=[], shared='null', basename='implib', library_path='.', rpath=''):
     if shared == 'shared':
         shared = True
     else:
@@ -103,7 +103,9 @@ def link_executable(objects, out, link_libraries=[], shared='null', basename='im
     out_implib = ""
     if get_platform() == "windows" and shared:
         out_implib = f"-Wl,--export-all-symbols,--out-implib,lib{basename}.a"
-    link_command = f"g++ -L {library_path} {'-shared' if shared else ''} -o {out} {str_objects}{' ' if len(link_libraries) != 0 else ''}{' '.join(transformed_libraries)} {' '.join(link_options)} {out_implib}"
+    if rpath != '':
+        rpath = f'-Wl,-rpath,{rpath}'
+    link_command = f"g++ -L {library_path} {'-shared' if shared else ''} -o {out} {str_objects}{' ' if len(link_libraries) != 0 else ''}{' '.join(transformed_libraries)} {' '.join(link_options)} {out_implib} {rpath}"
     info(" ".join(list(filter(lambda x: x != '', link_command.split(" ")))))
     info(f"linking {'executable' if not shared else 'shared library'} {out}")
     link_process = subprocess.run(list(filter(lambda x: x != '', link_command.split(" "))), stdout=sys.stdout, stderr=sys.stderr)

@@ -164,6 +164,7 @@ scenario build {
         mkdir("libs")
     }
     move_shared_libs()
+    compile_shader_blobs()
     write_build_number()
     call_scenario(build_imgui)
     call_scenario(build_core)
