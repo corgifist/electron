@@ -136,5 +136,11 @@
     "AVERAGE_RENDER_TIME": "Average Render Time",
     "INSPECT_BUFFERS": "Inspect Buffers",
     "IMAGE_LAYER": "Image Layer",
-    "AUDIO_LAYER": "Audio Layer"
+    "AUDIO_LAYER": "Audio Layer",
+    "USE_SELECTED_ASSET": "Use Selected Asset",
+    "HOVER_FOR_CONTEXT_MENU": "Hover For Context Menu",
+    "CACHING_VIDEO_FRAMES": "Caching Video Frames",
+    "CACHING_AUDIO": "Caching Audio",
+    "CORRUPTED_PROJECT": "Project is Corrupted And Cannot be Opened",
+    "CANNOT_IMPORT_ASSET": "Something Went Wrong While Importing Asset"
 }
