@@ -20,6 +20,7 @@
 #include <variant>
 #include <locale>
 #include <algorithm>
+#include <span>
 #include <filesystem>
 #include <iomanip>
 #include <thread>
@@ -34,8 +35,6 @@
 #include <boost/process.hpp>
 #include <utility>
 #include <set>
-
-#include "GLFW/glfw3.h"
 
 #include "ImGui/imgui.h"
 
@@ -305,5 +304,10 @@ namespace Electron {
 
     static double Lerp(double a, double b, double t) {
         return a + t * (b - a);
+    }
+
+    static std::vector<uint8_t> read_bytes(std::string path) {
+        auto str = read_file(path);
+        return std::vector<uint8_t>(str.begin(), str.end());
     }
 }

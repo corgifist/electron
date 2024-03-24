@@ -27,22 +27,29 @@ namespace Electron {
     }
 
     AssetDecoder::AssetDecoder() {
-        this->texture = 0;
+        this->transferBuffer = 0;
+        this->imageHandle = 0;
         this->image = nullptr;
         this->lastLoadedFrame = -1;
         this->frame = 0;
+        this->id = 0;
     }
 
     GPUExtendedHandle AssetDecoder::GetGPUTexture(TextureUnion* asset) {
         if (asset->type == TextureUnionType::Texture || asset->type == TextureUnionType::Audio) {
+            if (!id) id = seedrand();
+            if (transferBuffer) DriverCore::DestroyGPUTexture(transferBuffer);
             return asset->pboGpuTexture;
         } else if (asset->type == TextureUnionType::Video) {
+            if (!id) id = seedrand();
             auto video = std::get<VideoMetadata>(asset->as);
-            if (texture == 0 || video.width != width || video.height != height) {
+            if (transferBuffer == 0 || video.width != width || video.height != height) {
                 this->width = video.width;
                 this->height = video.height;
-                if (texture) DriverCore::DestroyGPUTexture(texture);
-                this->texture = DriverCore::GenerateGPUTexture(video.width, video.height);
+                UnloadHandles();
+                DriverCore::DestroyGPUTexture(transferBuffer);
+                transferBuffer = DriverCore::GenerateGPUTexture(width, height, true);
+                this->id = seedrand();
             }
             if (lastLoadedFrame != frame) {
                 lastLoadedFrame = frame;
@@ -52,18 +59,82 @@ namespace Electron {
                     loadedChannels = 4;
                     image = stbi_load(framePath.c_str(), &loadedWidth, &loadedHeight, &loadedChannels, 4);
                 }
-                if (image) DriverCore::UpdateTextureData(texture, width, height, image);
+                if (image) DriverCore::UpdateTextureData(transferBuffer, width, height, image);
                 if (image) stbi_image_free(image);
                 if (image) image = nullptr;
             }
-            return texture;
+            return transferBuffer;
         }
-        return texture;
+        return asset->pboGpuTexture;
     }
 
     void AssetDecoder::Destroy() {
-        DriverCore::DestroyGPUTexture(texture);
+        UnloadHandles();
+        DriverCore::DestroyGPUTexture(transferBuffer);
         if (image) stbi_image_free(image);
+    }
+
+    void AssetDecoder::LoadHandle(TextureUnion* asset) {
+        if (imageHandle) {
+            throw std::runtime_error("image handle leak detected!");
+        }
+        imageHandle = DriverCore::GetImageHandleUI(asset->type == TextureUnionType::Video ? transferBuffer : asset->pboGpuTexture);
+    }
+
+    void AssetDecoder::UnloadHandles() {
+        DriverCore::DestroyImageHandleUI(imageHandle);
+        imageHandle = 0;
+    }
+
+    bool AssetDecoder::AreHandlesLoaded() {
+        return imageHandle;
+    }
+
+    GPUExtendedHandle AssetDecoder::GetImageHandle(TextureUnion* asset) {
+        return imageHandle;
+    }
+
+    /* Managed Asset Decoder */
+
+    GPUExtendedHandle ManagedAssetDecoder::GetGPUTexture(TextureUnion* asset) {
+        return decoder.GetGPUTexture(asset);
+    }
+
+    GPUExtendedHandle ManagedAssetDecoder::GetImageHandle(TextureUnion* asset) {
+        return decoder.GetImageHandle(asset);
+    }
+
+    void ManagedAssetDecoder::Update(TextureUnion* asset) {
+        if (asset && !previewHandle) {
+            this->loadedAsset = asset;
+            previewHandle = DriverCore::GetImageHandleUI(asset->pboGpuTexture);
+        }
+        if (asset != this->loadedAsset) {
+            this->loadedAsset = asset;
+            DriverCore::DestroyImageHandleUI(previewHandle);
+            previewHandle = (asset ? asset->pboGpuTexture : 0);
+            if (!previewHandle) {
+                decoder.UnloadHandles();
+            }
+        }
+    }
+
+    bool ManagedAssetDecoder::IsDisposed() {
+        return !decoder.imageHandle;
+    }
+
+    void ManagedAssetDecoder::Reinitialize(TextureUnion* asset) {
+        decoder.LoadHandle(asset);
+    }
+
+    void ManagedAssetDecoder::Dispose() {
+        decoder.UnloadHandles();
+    }
+
+    void ManagedAssetDecoder::Destroy() {
+        DriverCore::DestroyImageHandleUI(previewHandle);
+        previewHandle = 0;
+        decoder.Destroy();
     }
 
     void TextureUnion::RebuildAssetData() {
@@ -428,6 +499,13 @@ TextureUnion* AssetCore::GetAsset(std::string id) {
 void AssetCore::Clear() { 
     assets.clear(); 
     faultyAssets.clear();
+}
+
+void AssetCore::Destroy() {
+    for (auto& asset : assets) {
+        asset.Destroy();
+    }
+    assets.clear();
 }
 
 TextureUnionType AssetCore::TextureUnionTypeFromString(std::string type) {

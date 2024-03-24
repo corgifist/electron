@@ -65,8 +65,6 @@ namespace Electron {
             this->id = 0;
         }
 
-        void Bind();
-        void Unbind();
         void Destroy();
     };
 

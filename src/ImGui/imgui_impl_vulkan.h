@@ -49,9 +49,9 @@
 #endif
 #if defined(VK_USE_PLATFORM_WIN32_KHR) && !defined(NOMINMAX)
 #define NOMINMAX
-#include <vulkan/vulkan.h>
+#include "../utils/glad/include/vulkan.h"
 #else
-#include <vulkan/vulkan.h>
+#include "../utils/glad/include/vulkan.h"
 #endif
 #if defined(VK_VERSION_1_3) || defined(VK_KHR_dynamic_rendering)
 #define IMGUI_IMPL_VULKAN_HAS_DYNAMIC_RENDERING

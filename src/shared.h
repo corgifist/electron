@@ -28,24 +28,13 @@ namespace Electron {
         static int selectedRenderLayer;
         static ProjectMap project;
         static json_t localizationMap, configMap;
-
         static int assetSelected;
         static std::string importErrorMessage;
-
         static float deltaTime;
-
-        static GPUExtendedHandle fsVAO;
-
         static ImVec2 displayPos, displaySize;
-
-        static std::string glslVersion;
-
         static float maxFramerate;
-
         static int renderCalls, compositorCalls;
-
         static uint64_t frameID;
-
         static std::string defaultImageLayer, defaultAudioLayer;
         static std::string assetManagerDragDropType;
     };

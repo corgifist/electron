@@ -50,8 +50,6 @@ int main(int argc, char *argv[]) {
     print("electron " + std::to_string(BUILD_NUMBER) + " is starting soon...");
 
 
-    if (start_server("async_writer", 4040)) {}
-
     AppCore::Initialize();
     AppCore::ExecuteSignal(Signal::_SpawnDockspace);
     AppCore::ExecuteSignal(Signal::_SpawnProjectConfiguration);
@@ -72,6 +70,6 @@ int main(int argc, char *argv[]) {
     return 0;
 
 system_reloaded:
-    if (system(string_format("%s &", argv[0]).c_str())) {}
+    if (system(string_format("%s", argv[0]).c_str())) {}
     return 0;
 }

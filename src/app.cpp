@@ -63,7 +63,6 @@ namespace Electron {
         DriverCore::Bootstrap();
 
         GraphicsCore::Initialize();
-        GraphicsCore::ResizeRenderBuffer(128, 128);
 
         if (DriverCore::renderer.vendor.find("NVIDIA") != std::string::npos) {
             Wavefront::x = 8;
@@ -122,8 +121,6 @@ namespace Electron {
 
         Servers::Initialize();
         GraphicsCore::FetchAllLayers();
-        
-        Shared::glslVersion = "#version 460 core\n";
         GraphicsCore::PrecompileEssentialShaders();
 
         DUMP_VAR(DriverCore::renderer.renderer);
@@ -430,7 +427,7 @@ namespace Electron {
         AppCore::running = false;
         AppCore::asyncWriter->join();
         delete AppCore::asyncWriter;
-        GraphicsCore::renderBuffer.Destroy();
+        GraphicsCore::Destroy();
         Servers::Destroy();
         DriverCore::ImGuiShutdown();
         Servers::AudioServerRequest({{"action", "kill"}});

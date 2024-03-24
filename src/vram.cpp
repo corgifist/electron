@@ -61,20 +61,14 @@ namespace Electron {
         this->id = counter++;
         this->rbo = RenderBuffer(width, height);
         this->fbo = DriverCore::GenerateFramebuffer(rbo.colorBuffer, rbo.uvBuffer, width, height);
+        DriverCore::OptimizeTextureForRendering(rbo.colorBuffer);
+        DriverCore::OptimizeTextureForRendering(rbo.uvBuffer);
     }
 
     PipelineFrameBuffer::PipelineFrameBuffer(GPUExtendedHandle color, GPUExtendedHandle uv) {
         this->rbo.colorBuffer = color;
         this->rbo.uvBuffer = uv;
         this->id = counter++;
-    }
-
-    void PipelineFrameBuffer::Bind() {
-        DriverCore::BindFramebuffer(fbo);
-    }
-
-    void PipelineFrameBuffer::Unbind() {
-        DriverCore::BindFramebuffer(0);
     }
 
     void PipelineFrameBuffer::Destroy() {

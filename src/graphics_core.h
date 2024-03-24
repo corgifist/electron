@@ -17,6 +17,8 @@
 
 static DylibRegistry dylibRegistry{};
 
+#define COMPOSITOR_MAX_TEXTURES 64
+
 namespace Electron {
 
     enum PreviewOutputBufferType {
@@ -54,6 +56,10 @@ namespace Electron {
             this->compute = 0;
         }
     };
+
+    struct CompositorPushConstants {
+        glm::vec2 viewport;
+    };
     
     // Responsible of some GPU manipulations
     struct GraphicsCore {
@@ -61,15 +67,19 @@ namespace Electron {
         static PreviewOutputBufferType outputBufferType;
         static std::vector<RenderLayer> layers;
         static bool isPlaying;
-        static std::unordered_map<GPUExtendedHandle, std::unordered_map<std::string, GPUExtendedHandle>> uniformCache;
         static std::vector<PipelineFrameBuffer> compositorQueue;
 
-        static PipelineShader basic, compositor, channel;
+        static struct CompositorPipeline {
+            GPUExtendedHandle compositorVertex, compositorFragment;
+            GPUExtendedHandle compositorLayout;
+            GPUExtendedHandle compositorPipeline;
+        } compositorPipeline;
 
         static float renderFrame;
         static int renderLength, renderFramerate;
         
         static void Initialize();
+        static void Destroy();
 
         static void AddRenderLayer(RenderLayer layer);
         static void FetchAllLayers();
@@ -87,8 +97,7 @@ namespace Electron {
         static void ResizeRenderBuffer(int width, int height);
         static GLuint GetPreviewGPUTexture();
 
-        static GPUExtendedHandle GenerateVAO(std::vector<float> vertices, std::vector<float> uv);
-        static void DrawArrays(GLuint vao, int size);
+        static void DrawArrays(int size);
         static GPUExtendedHandle CompileComputeShader(std::string path);
         static PipelineShader CompilePipelineShader(std::string path, ShaderType type = ShaderType::VertexFragment);
         static void UseShader(ShaderType type, GPUExtendedHandle shader);
@@ -96,13 +105,10 @@ namespace Electron {
         static void ComputeMemoryBarier(MemoryBarrierType barrier);
         static GPUExtendedHandle GenerateGPUTexture(int width, int height);
 
-        static GPUExtendedHandle GetUniformLocation(GPUExtendedHandle program, std::string name);
-
         static void FireTimelineSeek();
         static void FirePlaybackChange();
 
         static void CallCompositor(PipelineFrameBuffer frb);
-        static void PerformForwardComposition();
         static void PerformComposition();
         
     };

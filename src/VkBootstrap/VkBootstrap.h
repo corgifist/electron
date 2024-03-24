@@ -24,7 +24,7 @@
 #include <string>
 #include <system_error>
 
-#include <vulkan/vulkan_core.h>
+#include "../utils/glad/include/vulkan.h"
 
 #include "VkBootstrapDispatch.h"
 

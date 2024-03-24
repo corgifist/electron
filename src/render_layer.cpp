@@ -71,6 +71,7 @@ namespace Electron {
     }
 
     void RenderLayer::SortKeyframes(json_t &keyframes) {
+        if (Shared::frameID % 60 != 0) return;
         for (int step = 0; step < keyframes.size() - 1; ++step) {
             for (int i = 1; i < keyframes.size() - step - 1; ++i) {
                 if (keyframes.at(i).at(0) > keyframes.at(i + 1).at(0)) {

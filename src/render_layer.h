@@ -13,8 +13,11 @@ namespace Electron {
     struct TimelineLayerRenderDesc {
         ImVec2 position, size, legendOffset;
         float layerSizeY, pixelsPerFrame;
+        bool dispose;
 
-        TimelineLayerRenderDesc() {}
+        TimelineLayerRenderDesc() {
+            this->dispose = false;
+        }
     };
 
     class RenderLayer;

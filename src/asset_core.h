@@ -44,18 +44,45 @@ namespace Electron {
 
     struct TextureUnion;
 
+    // Decodes video, texture assets
     struct AssetDecoder {
-        GPUExtendedHandle texture;
+        GPUExtendedHandle transferBuffer, imageHandle;
         int width, height;
         stbi_uc* image;
-        int lastLoadedFrame;
-        int frame;
+        int lastLoadedFrame, frame, id;
 
         AssetDecoder();
 
         GPUExtendedHandle GetGPUTexture(TextureUnion* asset);
 
+        void LoadHandle(TextureUnion* asset);
+        void UnloadHandles();
+        bool AreHandlesLoaded();
+        GPUExtendedHandle GetImageHandle(TextureUnion* asset);
+
         void Destroy();    
+    };
+
+    // Combines AssetDecoder and ManagedImageHandle classes
+    struct ManagedAssetDecoder {
+        AssetDecoder decoder;
+        GPUExtendedHandle previewHandle;
+        TextureUnion* loadedAsset;
+
+        ManagedAssetDecoder() {
+            this->previewHandle = 0;
+            this->loadedAsset = nullptr;
+        }
+
+        GPUExtendedHandle GetImageHandle(TextureUnion* asset);
+        GPUExtendedHandle GetGPUTexture(TextureUnion* asset);
+        void Update(TextureUnion* asset);
+        bool IsDisposed();
+
+        void Reinitialize(TextureUnion* asset);
+        void Dispose();
+
+        void Destroy();
     };
 
     // Represents Texture/Audio/Video asset
@@ -131,6 +158,8 @@ namespace Electron {
 
         static void LoadFromProject(json_t project);
         static void Clear();
+
+        static void Destroy();
 
         // Load asset and push it into registry
         static std::string ImportAsset(std::string path);
