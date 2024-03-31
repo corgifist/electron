@@ -37,6 +37,7 @@
 #include <set>
 
 #include "ImGui/imgui.h"
+#include "cache.h"
 
 #include "utils/json.hpp"
 #include "utils/dylib.hpp"
@@ -197,8 +198,7 @@ namespace Electron {
     }
 
     static int seedrand() {
-        srand(time(NULL));
-        return rand();
+        return Cache::GetCacheIndex();
     }
 
     static void update_log() {

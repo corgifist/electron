@@ -126,6 +126,15 @@ extern "C" {
                 ImGui::Checkbox(ELECTRON_GET_LOCALIZATION("PREFER_X11_SESSION"), &preferX11);
                 Shared::configMap["PreferX11"] = preferX11;
 
+                bool useVideoGPUAcceleration = Shared::configMap["UseVideoGPUAcceleration"];
+                bool reservedGPUAcceleration = useVideoGPUAcceleration;
+                ImGui::Checkbox(ELECTRON_GET_LOCALIZATION("USE_GPU_VIDEO_ACCELERATION"), &useVideoGPUAcceleration);
+                if (reservedGPUAcceleration != useVideoGPUAcceleration) {
+                    AppCore::PushNotification(
+                        5, string_format("%s %s: %s", ICON_FA_EXCLAMATION, ELECTRON_GET_LOCALIZATION("RESTART_TO_APPLY_CHANGES"), ELECTRON_GET_LOCALIZATION("USE_GPU_VIDEO_ACCELERATION")));
+                }
+                Shared::configMap["UseVideoGPUAcceleration"] = useVideoGPUAcceleration;
+
                 ImGui::Separator();
                 ImGui::Spacing();
                 

@@ -37,5 +37,6 @@ namespace Electron {
         static uint64_t frameID;
         static std::string defaultImageLayer, defaultAudioLayer;
         static std::string assetManagerDragDropType;
+        static std::string deviceName;
     };
 }

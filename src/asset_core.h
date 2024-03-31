@@ -4,8 +4,12 @@
 #include "pixel_buffer.h"
 #include "cache.h"
 
+#include "utils/video_reader.hpp"
+
 #define IMPORT_EXTENSIONS ".*,.png,.jpg,.jpeg,.tga,.psd,.ogg,.mp3,.wav,.mp4,.wmv,.mov,.mkv"
 #define VIDEO_CACHE_EXTENSION "jpg"
+
+#define VIDEO_BUFFERS_COUNT 2
 
 namespace Electron {
     enum class TextureUnionType {
@@ -36,6 +40,8 @@ namespace Electron {
         int width, height;
         float framerate;
 
+        int linkedAudioAsset;
+
         VideoMetadata(json_t probeJson);
         VideoMetadata() {}
     };
@@ -44,12 +50,34 @@ namespace Electron {
 
     struct TextureUnion;
 
+    enum class AssetDecoderCommandType {
+        Seek, Decode
+    };
+
+    struct AssetDecoderCommand {
+        AssetDecoderCommandType type;
+        int64_t pts;
+        uint8_t* image;
+
+        AssetDecoderCommand(AssetDecoderCommandType type, int64_t pts, uint8_t* image);
+        AssetDecoderCommand(int64_t pts);
+        AssetDecoderCommand(uint8_t* image);
+    };
+
     // Decodes video, texture assets
     struct AssetDecoder {
-        GPUExtendedHandle transferBuffer, imageHandle;
+        std::vector<GPUExtendedHandle> transferBuffers;
+        std::vector<GPUExtendedHandle> imageHandles;
+        std::vector<AssetDecoderCommand> commandBuffer;
+        std::thread* decoderTask;
+        bool terminateDecoderTask;
+        bool decodingFinished;
+        int transferBufferIndex;
         int width, height;
-        stbi_uc* image;
         int lastLoadedFrame, frame, id;
+        uint8_t* image;
+
+        VideoReaderState vr;
 
         AssetDecoder();
 
@@ -59,6 +87,8 @@ namespace Electron {
         void UnloadHandles();
         bool AreHandlesLoaded();
         GPUExtendedHandle GetImageHandle(TextureUnion* asset);
+
+        int GetCurrentKeyFrameForFrame(int frame, TextureUnion* asset, int keyframeOffset = -1);
 
         void Destroy();    
     };
@@ -98,17 +128,21 @@ namespace Electron {
         float previewScale;
         glm::vec2 coverResolution;
         std::vector<std::string> linkedCache;
+        std::vector<int> videoKeyframes;
         int id;
+        int linkedAudioAsset;
         bool ready;
         bool invalid;
+        bool visible;
 
         TextureUnion() {
             this->pboGpuTexture = 0;
             this->previewScale = 1.0f;
             this->ready = true;
             this->invalid = false;
+            this->visible = true;
+            this->linkedAudioAsset = 0;
         }
-        ~TextureUnion() {}
 
         // Can be interpreted as texture
         bool IsTextureCompatible() {
@@ -162,7 +196,7 @@ namespace Electron {
         static void Destroy();
 
         // Load asset and push it into registry
-        static std::string ImportAsset(std::string path);
+        static AssetLoadInfo ImportAsset(std::string path);
         // Load asset and get it's TextureUnion representation
         static AssetLoadInfo LoadAssetFromPath(std::string path);
 

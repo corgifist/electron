@@ -211,7 +211,7 @@ extern "C" {
             loadedRegistry.erase(JSON_AS_TYPE(body["path"], std::string));
         }
         if (action == "seek_sample") {
-            float seek = JSON_AS_TYPE(body["seek"], double);
+            double seek = JSON_AS_TYPE(body["seek"], double);
             alSourcef(JSON_AS_TYPE(body["handle"], int), AL_SEC_OFFSET, seek);
         }
         if (action == "is_loaded") {
@@ -223,6 +223,7 @@ extern "C" {
             result["status"] = loadInfo.at(JSON_AS_TYPE(body["id"], int));
         }
         if (action == "audio_buffer_ptr") {
+            if (wavRegistry.find(body["path"]) == wavRegistry.end()) return {{"ptr", 0}};
             result["ptr"] = (uint64_t) &wavRegistry[JSON_AS_TYPE(body["path"], std::string)].data;
         }
         return result;

@@ -15,8 +15,8 @@
 #define MAX_FRAMES_IN_FLIGHT 3
 #define SWAPCHAIN_FORMAT VK_FORMAT_B8G8R8A8_UNORM
 #define COLOR_SPACE_FORMAT VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
-#define DESCRIPTOR_POOL_SIZE 128
-#define DESCRIPTOR_SET_SIZE 16
+#define DESCRIPTOR_POOL_SIZE 256
+#define MIPMAP_LEVELS 8
 
 namespace Electron {
 
@@ -243,5 +243,6 @@ namespace Electron {
         static void DestroyImageHandleUI(GPUExtendedHandle imageHandle);
 
         static int FramesInFlightCount();
+        static int GetFrameInFlightIndex();
     };
 };

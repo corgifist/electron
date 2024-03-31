@@ -28,4 +28,5 @@ namespace Electron {
     std::string Shared::defaultAudioLayer = "audio_layer";
     std::string Shared::assetManagerDragDropType;
     uint64_t Shared::frameID = 0;
+    std::string Shared::deviceName = "";
 }

@@ -46,8 +46,8 @@ extern "C" {
             {0, 0.5f, 0.5f},
         };
         owner->properties["Color"] = {
-            GeneralizedPropertyType::Color3,
-            {0, 1, 1, 1}
+            GeneralizedPropertyType::Color4,
+            {0, 1, 1, 1, 1}
         };
 
         owner->properties["Angle"] = {
@@ -216,10 +216,8 @@ extern "C" {
         
         if (canTexture && asset->type == TextureUnionType::Video) {
             VideoMetadata video = std::get<VideoMetadata>(asset->as);
-            decoder->decoder.frame = (GraphicsCore::renderFrame - owner->beginFrame) * (video.framerate / GraphicsCore::renderFramerate);
+            decoder->decoder.frame = std::ceil(double((GraphicsCore::renderFrame - owner->beginFrame) / GraphicsCore::renderFramerate) * (video.framerate));
         }
-
-        GraphicsCore::CallCompositor(frb);
 
         DriverCore::BeginRendering(frb.fbo);
 
@@ -395,13 +393,14 @@ extern "C" {
         }
         if (asset && userData->decoder.IsDisposed()) {
             userData->decoder.Reinitialize(asset);
+            return;
         }
         glm::vec2 assetDimensions = asset->GetDimensions();
         ImVec2 previewSize = {desc.layerSizeY * (assetDimensions.x / assetDimensions.y), desc.layerSizeY};
         ImVec2 rectSize = FitRectInRect(previewSize, ImVec2{assetDimensions.x, assetDimensions.y});
         ImVec2 upperLeft = ImGui::GetCursorScreenPos();
         ImVec2 bottomRight = ImGui::GetCursorScreenPos();
-        bottomRight +=  ImVec2{rectSize.x, rectSize.y};
+        bottomRight += ImVec2{rectSize.x, rectSize.y};
         ImVec2 dragSize = ImVec2((layer->endFrame - layer->beginFrame) * desc.pixelsPerFrame / 10, desc.layerSizeY);
         dragSize.x = glm::clamp(dragSize.x, 1.0f, 30.0f);
         upperLeft.x += dragSize.x;
@@ -414,7 +413,7 @@ extern "C" {
         upperLeft.x = glm::min(upperLeft.x, dragBounds);
         bottomRight.x = glm::min(bottomRight.x, dragBounds);
         ManagedAssetDecoder* decoder = &userData->decoder;
-        if (!decoder->IsDisposed())
+        if (asset && !decoder->IsDisposed())
             ImGui::GetWindowDrawList()->AddImage((ImTextureID) decoder->GetImageHandle(asset), upperLeft, bottomRight);
     }
 

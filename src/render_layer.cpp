@@ -24,6 +24,8 @@ namespace Electron {
 
         this->layerUsername = layerPublicName + " Layer";
         this->id = seedrand();
+
+        this->layerLockID = -1;
     }
 
     RenderLayer::~RenderLayer() {}
@@ -137,6 +139,10 @@ namespace Electron {
                     typeSize = 1;
                     break;
                 }
+                case GeneralizedPropertyType::Color4: {
+                    typeSize = 4;
+                    break;
+                }
                 }
                 for (int i = 0; i < typeSize; i++) {
                     addedKeyframe.push_back(0.0f);
@@ -148,6 +154,7 @@ namespace Electron {
                 bool breakLoop = false;
                 switch (type) {
                 case GeneralizedPropertyType::Color3:
+                case GeneralizedPropertyType::Color4:
                 case GeneralizedPropertyType::Vec2:
                 case GeneralizedPropertyType::Vec3: {
                     float fKey = JSON_AS_TYPE(property.at(i).at(0), float);
@@ -160,6 +167,9 @@ namespace Electron {
                         type == GeneralizedPropertyType::Color3) {
                         vectorProperty.push_back(
                             JSON_AS_TYPE(property.at(i).at(3), float));
+                    }
+                    if (type == GeneralizedPropertyType::Color4) {
+                        vectorProperty.push_back(JSON_AS_TYPE(property.at(i).at(4), float));
                     }
                     float *fProperty = vectorProperty.data();
                     ImGui::PushItemWidth(30);
@@ -199,6 +209,11 @@ namespace Electron {
                                         propertyName + std::to_string(i))
                                             .c_str(),
                                         fProperty, 0);
+                    else if (type == GeneralizedPropertyType::Color4) 
+                        ImGui::ColorEdit4((std::string(ICON_FA_STOPWATCH) +
+                                        std::to_string(i - 1) + "##" +
+                                        propertyName + std::to_string(i))
+                                            .c_str(), fProperty, 0);
                     else
                         ImGui::InputFloat3((std::string(ICON_FA_STOPWATCH) +
                                             std::to_string(i - 1) + "##" +
@@ -212,6 +227,9 @@ namespace Electron {
                     if (GeneralizedPropertyType::Vec3 == type ||
                         GeneralizedPropertyType::Color3 == type) {
                         property.at(i).at(3) = fProperty[2];
+                    }
+                    if (GeneralizedPropertyType::Color4 == type) {
+                        property.at(i).at(4) = fProperty[3];
                     }
                     break;
                 }
@@ -474,6 +492,7 @@ namespace Electron {
         // Vector interpolation
         case GeneralizedPropertyType::Vec2:
         case GeneralizedPropertyType::Vec3:
+        case GeneralizedPropertyType::Color4:
         case GeneralizedPropertyType::Color3: {
             if (beginKeyframeValue.size() != endKeyframeValue.size()) {
                 throw std::runtime_error(

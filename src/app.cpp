@@ -14,7 +14,6 @@ namespace Electron {
     float AppCore::fontSize;
     bool AppCore::showBadConfigMessage;
     bool AppCore::running = true;
-    std::thread* AppCore::asyncWriter;
 
     ImFont* AppCore::largeFont = nullptr;
     ImFont* AppCore::mediumFont = nullptr;
@@ -128,77 +127,6 @@ namespace Electron {
         DUMP_VAR(DriverCore::renderer.version);
 
         AppCore::running = true;
-
-        AppCore::asyncWriter = new std::thread([]() {
-            while (AppCore::running) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                std::string configDump = Shared::configMap.dump();
-                std::ofstream configStream("misc/config.json");
-                configStream << configDump;
-                configStream.close();
-
-                if (AppCore::projectOpened) {
-                    json_t AssetCore = {};
-                    auto &_assets = AssetCore::assets;
-                    for (int i = 0; i < _assets.size(); i++) {
-                        json_t assetDescription = {};
-                        TextureUnion texUnion = _assets[i];
-                        assetDescription["InternalName"] = texUnion.name;
-                        assetDescription["Path"] = texUnion.path;
-                        assetDescription["Type"] = texUnion.strType;
-                        assetDescription["ID"] = texUnion.id;
-                        assetDescription["AudioCoverPath"] =
-                            texUnion.audioCacheCover;
-                        if (texUnion.type == TextureUnionType::Audio) {
-                            assetDescription["AudioCoverResolution"] = {
-                                texUnion.coverResolution.x,
-                                texUnion.coverResolution.y};
-                        }
-                        assetDescription["LinkedCache"] = texUnion.linkedCache;
-                        assetDescription["FFProbeData"] = texUnion.ffprobeData;
-                        assetDescription["FFProbeJsonData"] =
-                            texUnion.ffprobeJsonData;
-                        AssetCore.push_back(assetDescription);
-                    }
-                    Shared::project.propertiesMap["AssetCore"] = AssetCore;
-                }
-
-                if (AppCore::projectOpened) {
-                    Shared::project.SaveProject();
-                }
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                if (JSON_AS_TYPE(Shared::configMap["LastProject"], std::string) !=
-                        "null") {
-                    if (!file_exists(JSON_AS_TYPE(Shared::configMap["LastProject"],
-                                                std::string))) {
-                        Shared::configMap["LastProject"] = "null";
-                    }
-                }
-
-                /* Execute completition procedures of AsyncFFMpegOperations */ {
-                    std::vector<int> deleteTargets{};
-                    for (auto &op : AssetCore::operations) {
-                        if (op.Completed() && !op.procCompleted &&
-                            op.proc != nullptr) {
-                            op.proc(op.args);
-                            op.procCompleted = true;
-                            deleteTargets.push_back(op.id);
-                        }
-                    }
-                    for (auto &target : deleteTargets) {
-                        int index = 0;
-                        for (auto &op : AssetCore::operations) {
-                            if (op.id == target) {
-                                AssetCore::operations.erase(
-                                    AssetCore::operations.begin() + index);
-                                break;
-                            }
-                            index++;
-                        }
-                    }
-                }
-            }
-        });
     }
 
     static bool showDemoWindow = false;
@@ -229,7 +157,6 @@ namespace Electron {
     void AppCore::Run() {
         while (!DriverCore::ShouldClose()) {
             try {
-                double firstTime = GetTime();
                 AppCore::context = ImGui::GetCurrentContext();
 
                 ImGuiIO &io = ImGui::GetIO();
@@ -260,6 +187,18 @@ namespace Electron {
                 GraphicsCore::renderFrame =
                     glm::clamp((float)GraphicsCore::renderFrame, 0.0f,
                             (float)GraphicsCore::renderLength);
+
+                for (auto& layer : GraphicsCore::layers) {
+                    try {
+                        if (layer.layerLockID != -1) {
+                            auto parentLayer = GraphicsCore::GetLayerByID(layer.layerLockID);
+                            layer.beginFrame = parentLayer->beginFrame;
+                            layer.endFrame = parentLayer->endFrame;
+                        }
+                    } catch (std::runtime_error err) {
+                        layer.layerLockID = -1;
+                    }
+                }
 
                 PixelBuffer::filtering =
                     Shared::configMap["TextureFiltering"] == "linear" ? GL_LINEAR
@@ -318,7 +257,30 @@ namespace Electron {
                 if (!ffmpegAvailable)
                     goto no_ffmpeg;
 
-                
+                    /* Execute completition procedures of AsyncFFMpegOperations */ {
+                    std::vector<int> deleteTargets{};
+                    for (auto &op : AssetCore::operations) {
+                        if (op.Completed() && !op.procCompleted &&
+                            op.proc != nullptr) {
+                            op.proc(op.args);
+                            op.procCompleted = true;
+                            deleteTargets.push_back(op.id);
+                        }
+                    }
+                    for (auto &target : deleteTargets) {
+                        int index = 0;
+                        for (auto &op : AssetCore::operations) {
+                            if (op.id == target) {
+                                delete op.process;
+                                AssetCore::operations.erase(
+                                    AssetCore::operations.begin() + index);
+                                break;
+                            }
+                            index++;
+                        }
+                    }
+                }
+
                 /* Fill previousProperties field */ {
                     for (auto &layer : GraphicsCore::layers) {
                         layer.previousProperties = layer.properties;
@@ -384,6 +346,53 @@ namespace Electron {
                         }
                     }
                 }
+
+                /* Save project / config */ {
+                    std::string configDump = Shared::configMap.dump();
+                    std::ofstream configStream("misc/config.json");
+                    configStream << configDump;
+                    configStream.close();
+                    if (AppCore::projectOpened) {
+                        Shared::project.SaveProject();
+                    }
+                    
+                    if (AppCore::projectOpened) {
+                        json_t AssetCore = {};
+                        auto &_assets = AssetCore::assets;
+                        for (int i = 0; i < _assets.size(); i++) {
+                            json_t assetDescription = {};
+                            TextureUnion texUnion = _assets[i];
+                            assetDescription["InternalName"] = texUnion.name;
+                            assetDescription["Path"] = texUnion.path;
+                            assetDescription["Type"] = texUnion.strType;
+                            assetDescription["ID"] = texUnion.id;
+                            assetDescription["AudioCoverPath"] =
+                                texUnion.audioCacheCover;
+                            if (texUnion.type == TextureUnionType::Audio) {
+                                assetDescription["AudioCoverResolution"] = {
+                                    texUnion.coverResolution.x,
+                                    texUnion.coverResolution.y};
+                            }
+                            assetDescription["LinkedCache"] = texUnion.linkedCache;
+                            assetDescription["FFProbeData"] = texUnion.ffprobeData;
+                            assetDescription["Visible"] = texUnion.visible;
+                            assetDescription["LinkedAudioAsset"] = texUnion.linkedAudioAsset;
+                            assetDescription["FFProbeJsonData"] =
+                                texUnion.ffprobeJsonData;
+                            assetDescription["VideoKeyframes"] = texUnion.videoKeyframes;
+                            AssetCore.push_back(assetDescription);
+                        }
+                        Shared::project.propertiesMap["AssetCore"] = AssetCore;
+                    }
+
+                    if (JSON_AS_TYPE(Shared::configMap["LastProject"], std::string) !=
+                            "null") {
+                        if (!file_exists(JSON_AS_TYPE(Shared::configMap["LastProject"],
+                                                    std::string))) {
+                            Shared::configMap["LastProject"] = "null";
+                        }
+                    }
+                }
                 goto render_success;
             no_ffmpeg: {
                 RenderCriticalError(
@@ -400,8 +409,7 @@ namespace Electron {
                 DriverCore::ImGuiRender();
                 DriverCore::SwapBuffers();
 
-                double secondTime = GetTime();
-                Shared::deltaTime = secondTime - firstTime;
+                Shared::deltaTime = ImGui::GetIO().DeltaTime;
                 std::string windowTitle = "Electron " + std::string(" - Build Number ") + std::to_string(BUILD_NUMBER) + "";
                 if (AppCore::projectOpened)
                     windowTitle +=
@@ -425,8 +433,6 @@ namespace Electron {
 
     void AppCore::Terminate() {
         AppCore::running = false;
-        AppCore::asyncWriter->join();
-        delete AppCore::asyncWriter;
         GraphicsCore::Destroy();
         Servers::Destroy();
         DriverCore::ImGuiShutdown();

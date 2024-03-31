@@ -501,6 +501,7 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerTimelineRender(RenderLayer* layer, TimelineLayerRenderDesc desc) {
+        if (desc.dispose) return;
         AudioLayerUserData* userData = (AudioLayerUserData*) layer->userData;
         std::string audioSID = JSON_AS_TYPE(layer->properties["AudioID"], std::string);
         TextureUnion* asset = AssetCore::GetAsset(audioSID);
@@ -517,9 +518,11 @@ extern "C" {
         if (!audioBuffer) return;
         if (userData->averageWaveforms.size() == 0) return;
         ImVec2 originalCursor = ImGui::GetCursorScreenPos();
+        ImVec2 layerEndCursor = {originalCursor.x + layer->endFrame * desc.pixelsPerFrame, originalCursor.y};
         ImVec2 dragSize = ImVec2((layer->endFrame - layer->beginFrame) * desc.pixelsPerFrame / 10, desc.layerSizeY);
         dragSize.x = glm::clamp(dragSize.x, 1.0f, 30.0f);
         float pixelAdvance = (GraphicsCore::renderFramerate / AVERAGE_WAVEFORM_PRECISION) * desc.pixelsPerFrame;
+        float advanceAccumulator = 0;
         glm::vec4 waveformColor = LayerTimelineColor * 0.7f;
         waveformColor.w = 1.0f;
         for (uint64_t i = 0; i < userData->averageWaveforms.size(); i++) {
@@ -528,6 +531,7 @@ extern "C" {
                 continue;
             }
             if (originalCursor.x > ImGui::GetWindowSize().x + desc.legendOffset.x) break;
+            if (advanceAccumulator > (layer->endFrame - layer->beginFrame) * desc.pixelsPerFrame) break;
             float average = glm::abs(userData->averageWaveforms[i]);
             float averageInPixels = average * desc.layerSizeY;
             float invertedAverageInPixels = desc.layerSizeY - averageInPixels;
@@ -538,6 +542,7 @@ extern "C" {
             upperLeft.y += invertedAverageInPixels;
             ImGui::GetWindowDrawList()->AddRectFilled(upperLeft, bottomRight, ImGui::GetColorU32(ImVec4{waveformColor.r, waveformColor.g, waveformColor.b, waveformColor.a}));
             originalCursor.x += pixelAdvance;
+            advanceAccumulator += pixelAdvance;
         }
     }
 

@@ -30,7 +30,6 @@ namespace Electron {
         static bool projectOpened; // True if any project is opened
         static bool showBadConfigMessage;
         static bool ffmpegAvailable; // is FFMpeg available
-        static std::thread* asyncWriter;
         static bool running;
 
 

@@ -45,7 +45,6 @@ extern "C" {
             static float titleChildHeight = 100;
             RenderLayer* targetLayer = GraphicsCore::GetLayerByID(Shared::selectedRenderLayer);
             ImGui::BeginChild("layerPropsTitleChild", ImVec2(ImGui::GetContentRegionAvail().x, titleChildHeight), false, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
-            float beginCursor = ImGui::GetCursorPos().y;
             ImGui::PushFont(AppCore::largeFont);
                 ImGui::Text("%s", CSTR(std::string(ICON_FA_LAYER_GROUP " ") + targetLayer->layerUsername + " (" + std::string(targetLayer->layerPublicName) + "<" + std::to_string(targetLayer->id) + ">" + ")"));
             ImGui::PopFont();
@@ -71,11 +70,13 @@ extern "C" {
             if (ImGui::Button(string_format("%s %s", ICON_FA_COPY, ELECTRON_GET_LOCALIZATION("GENERIC_COPY_ID")).c_str())) {
                 ImGui::SetClipboardText(CSTR(std::to_string(targetLayer->id)));
             }
-            titleChildHeight = ImGui::GetCursorPos().y - beginCursor;
+            titleChildHeight = ImGui::GetCursorPos().y;
             ImGui::EndChild();
             ImGui::Separator();
-            ImGui::BeginChild("layerPropertiesChild", ImVec2(ImGui::GetWindowSize().x, ImGui::GetWindowSize().y - ImGui::GetCursorPosY()), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+            ImGui::BeginChild("layerPropertiesChild", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
             targetLayer->RenderProperties();
+            ImGui::Spacing();
+            ImGui::Spacing();
             ImGui::EndChild();
         UI::End();
     }

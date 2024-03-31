@@ -64,7 +64,7 @@ extern "C" {
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload(
                     LEGEND_LAYER_DRAG_DROP,
-                    ImGuiDragDropFlags_SourceNoDisableHover | ImGuiDragDropFlags_AcceptNoDrawDefaultRect)) {
+                    ImGuiDragDropFlags_SourceNoDisableHover)) {
                 int from = *((int *)payload->Data);
                 int to = i;
                 std::swap(GraphicsCore::layers[from],
@@ -83,7 +83,7 @@ extern "C" {
             ImVec4 layerColor = ImVec4{layer.layerColor.r, layer.layerColor.g,
                     layer.layerColor.b, 0.7f};
             ImGui::PushStyleColor(ImGuiCol_Button, layerColor);
-                ImGui::Button(layer.layerUsername.c_str(), ImVec2((GraphicsCore::renderFramerate + 10) * pixelsPerFrame, layerSizeY / 2));
+                ImGui::Button(layer.layerUsername.c_str(), ImVec2((GraphicsCore::renderFramerate + 10) * pixelsPerFrame, layerSizeY));
             ImGui::PopStyleColor();
             ImGui::EndDragDropSource();
         }
@@ -181,6 +181,30 @@ extern "C" {
                 }
                 ImGui::Image((ImTextureID) inspectBufferColorHandle, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
                 ImGui::Image((ImTextureID) inspectBufferUVHandle, FitRectInRect(ImVec2(ImGui::GetWindowSize().x, 80), ImVec2(fbo.width, fbo.height)));
+                ImGui::EndMenu();
+            }
+            std::string layerLockName = "";
+            try {
+                if (layer->layerLockID != -1) layerLockName = GraphicsCore::GetLayerByID(layer->layerLockID)->layerUsername;
+            } catch(std::runtime_error err) {}
+            if (layerLockName == "") layerLockName = ELECTRON_GET_LOCALIZATION("NONE");
+            if (ImGui::BeginMenu(string_format("%s %s: %s", ICON_FA_LOCK, ELECTRON_GET_LOCALIZATION("LAYER_LOCK"), layerLockName.c_str()).c_str())) {
+                ImGui::SeparatorText(string_format("%s %s", ICON_FA_LOCK, ELECTRON_GET_LOCALIZATION("LAYER_LOCK")).c_str());
+                static std::string layerLockSearchFilter = "";
+                ImGui::InputText("##layerLockSearchFilter", &layerLockSearchFilter);
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetItemTooltip(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_SEARCH"));
+                }
+                if (ImGui::Selectable(string_format("%s %s", ICON_FA_XMARK, ELECTRON_GET_LOCALIZATION("NONE")).c_str())) {
+                    layer->layerLockID = -1;
+                }
+                for (auto& iLayer : GraphicsCore::layers) {
+                    if (iLayer.id == layer->id) continue;
+                    if (iLayer.layerUsername.find(layerLockSearchFilter) != std::string::npos || layerLockSearchFilter == "")
+                        if (ImGui::Selectable(string_format("%s %s", ICON_FA_LAYER_GROUP, iLayer.layerUsername.c_str()).c_str())) {
+                            layer->layerLockID = iLayer.id;   
+                        }
+                }
                 ImGui::EndMenu();
             }
             if (ImGui::MenuItem(string_format("%s %s", ICON_FA_COPY,
@@ -329,7 +353,7 @@ extern "C" {
         DrawRect(fillerTicksBackground, style.Colors[ImGuiCol_WindowBg] * ImVec4{0.7f, 0.7f, 0.7f, 1.0f});
         float propertiesStep = layerSizeY;
         float propertiesCoordAcc = 0;
-        for (int i = GraphicsCore::layers.size() - 1; i >= 0; i--) {
+        for (int i = GraphicsCore::layers.size() ; i --> 0;) {
             RenderLayer *layer = &GraphicsCore::layers[i];
             if (keyframeInfos.find(layer->id) == keyframeInfos.end()) {
                 keyframeInfos[layer->id] = std::vector<KeyframeHolderInfo>(
@@ -358,6 +382,7 @@ extern "C" {
             if (statusText != "") {
                 statusText = " - " + statusText;
             }
+            if (layer->layerLockID != -1) spinnerText = ICON_FA_LOCK + std::string(" ") + spinnerText;
             if (CustomCollapsingHeader(
                     (spinnerText + layer->layerUsername + statusText + "###" + layer->layerUsername +  std::to_string(i)).c_str(), ImVec2{ImGui::GetContentRegionAvail().x, layerSizeY})) {
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4);
@@ -472,11 +497,15 @@ extern "C" {
                         break;
                     }
                     case GeneralizedPropertyType::Vec3:
-                    case GeneralizedPropertyType::Color3: {
+                    case GeneralizedPropertyType::Color3:
+                    case GeneralizedPropertyType::Color4: {
                         json_t x = layer->InterpolateProperty(propertyMap);
                         std::vector<float> raw = {JSON_AS_TYPE(x.at(0), float),
                                                 JSON_AS_TYPE(x.at(1), float),
                                                 JSON_AS_TYPE(x.at(2), float)};
+                        if (propertyType == GeneralizedPropertyType::Color4) {
+                            raw.push_back(JSON_AS_TYPE(x.at(3), float));
+                        }
                         if (propertyType == GeneralizedPropertyType::Vec3
                                 ? ImGui::InputFloat3(
                                     (previewAlias +
@@ -484,11 +513,17 @@ extern "C" {
                                         .c_str(),
                                     raw.data(), "%.3f",
                                     ImGuiInputTextFlags_EnterReturnsTrue)
-                                : ImGui::ColorEdit3((
-                                    previewAlias +
-                                    "##" + std::to_string(i) + std::to_string(layer->id))
-                                        .c_str(),
-                                    raw.data(), 0)) {
+                                : (
+                                    propertyType == GeneralizedPropertyType::Color4 ? 
+                                        ImGui::ColorEdit4((previewAlias +
+                                        "##" + std::to_string(i) + std::to_string(layer->id))
+                                            .c_str(), raw.data(), 0) :
+                                        ImGui::ColorEdit3((
+                                        previewAlias +
+                                        "##" + std::to_string(i) + std::to_string(layer->id))
+                                            .c_str(),
+                                        raw.data(), 0)
+                                )) {
                             if (!keyframeAlreadyExists && customKeyframesExist) {
                                 propertyMap.push_back({(int)layerViewTime,
                                                     raw.at(0), raw.at(1),
@@ -870,7 +905,7 @@ extern "C" {
             DecreasePixelsPerFrame();
         }
         static std::vector<int> multipleDragSelectedLayers{};
-        for (int i = GraphicsCore::layers.size() - 1; i >= 0; i--) {
+        for (int i = GraphicsCore::layers.size(); i --> 0;) {
             RenderLayer *layer = &GraphicsCore::layers[i];
             if ((layerOffsetY - ImGui::GetScrollY() < 0 || layerOffsetY - ImGui::GetScrollY() > ImGui::GetWindowSize().y) ||
                 (layer->beginFrame * pixelsPerFrame - ImGui::GetScrollX() < 0 && layer->endFrame * pixelsPerFrame - ImGui::GetScrollX() < 0) ||
@@ -880,6 +915,10 @@ extern "C" {
                 ImGui::SetCursorPos({layer->beginFrame * pixelsPerFrame, layerOffsetY});
                 ImGui::Dummy({(layer->endFrame - layer->beginFrame) * pixelsPerFrame, layerSizeY});
                 ImGui::SetCursorPos({0, 0});
+                layerSeparatorTargets.push_back(layerOffsetY);
+                layerPreviewHeights.push_back(RectBounds(
+                    ImVec2(0, layerOffsetY + layerSizeY),
+                    ImVec2(canvasSize.x, layersPropertiesOffset[i])));
                 layerOffsetY += layerSizeY + layersPropertiesOffset[i];
                 TimelineLayerRenderDesc disposeDesc;
                 disposeDesc.dispose = true;
@@ -906,8 +945,9 @@ extern "C" {
             desc.layerSizeY = layerSizeY;
             desc.pixelsPerFrame = pixelsPerFrame;
             desc.legendOffset = {legendSize.x, ticksBackgroundHeight};
+            desc.dispose = false;
             if (CustomButtonEx(
-                    (layer->layerUsername + "##" + std::to_string(i)).c_str(),
+                    ((layer->layerLockID != -1 ? ICON_FA_LOCK + std::string(" ") : "") + layer->layerUsername + "##" + std::to_string(i)).c_str(),
                     ImVec2(pixelsPerFrame * layerDuration, layerSizeY), layer, desc, i)) {
                 if (ImGui::GetIO().KeyCtrl && !selected && !universalDrag.isActive && !backwardDrag.isActive && !forwardDrag.isActive) {
                     multipleDragSelectedLayers.push_back(i);
@@ -1215,15 +1255,43 @@ extern "C" {
                 ASSET_DRAG_PAYLOAD, ImGuiDragDropFlags_AcceptNoPreviewTooltip)) {
                     int assetIndex = *((int*) payload->Data);
                     TextureUnion& asset = AssetCore::assets[assetIndex];
+                    auto dylibRegistry = GraphicsCore::GetImplementationsRegistry();
                     switch (asset.type) {
                         case TextureUnionType::Texture: {
+                            if (std::find(dylibRegistry.begin(), dylibRegistry.end(), Shared::defaultImageLayer) == dylibRegistry.end()) {
+                                AppCore::PushNotification(5, string_format("%s %s '%s'", ICON_FA_TRIANGLE_EXCLAMATION, ELECTRON_GET_LOCALIZATION("NO_SUCH_LAYER"), Shared::defaultImageLayer.c_str()));
+                                break;
+                            }
                             RenderLayer imageLayer(Shared::defaultImageLayer);
                             imageLayer.properties["TextureID"] = intToHex(asset.id);
                             imageLayer.layerUsername = asset.name;
                             GraphicsCore::AddRenderLayer(imageLayer);
                             break;
                         }
+                        case TextureUnionType::Video: {
+                            if (std::find(dylibRegistry.begin(), dylibRegistry.end(), Shared::defaultImageLayer) == dylibRegistry.end()) {
+                                AppCore::PushNotification(5, string_format("%s %s '%s'", ICON_FA_TRIANGLE_EXCLAMATION, ELECTRON_GET_LOCALIZATION("NO_SUCH_LAYER"), Shared::defaultImageLayer.c_str()));
+                                break;
+                            }
+                            RenderLayer imageLayer(Shared::defaultImageLayer);
+                            imageLayer.properties["TextureID"] = intToHex(asset.id);
+                            imageLayer.layerUsername = asset.name;
+                            imageLayer.endFrame = imageLayer.beginFrame + std::get<VideoMetadata>(asset.as).duration * GraphicsCore::renderFramerate;
+
+                            RenderLayer audioLayer(Shared::defaultAudioLayer);
+                            audioLayer.layerLockID = imageLayer.id;
+                            audioLayer.properties["AudioID"] = intToHex(asset.linkedAudioAsset);
+                            audioLayer.layerUsername = asset.name;
+
+                            GraphicsCore::AddRenderLayer(audioLayer);
+                            GraphicsCore::AddRenderLayer(imageLayer);
+                            break;
+                        }
                         case TextureUnionType::Audio: {
+                            if (std::find(dylibRegistry.begin(), dylibRegistry.end(), Shared::defaultAudioLayer) == dylibRegistry.end()) {
+                                AppCore::PushNotification(5, string_format("%s %s '%s'", ICON_FA_TRIANGLE_EXCLAMATION, ELECTRON_GET_LOCALIZATION("NO_SUCH_LAYER"), Shared::defaultAudioLayer.c_str()));
+                                break;
+                            }
                             RenderLayer audioLayer(Shared::defaultAudioLayer);
                             audioLayer.properties["AudioID"] = intToHex(asset.id);
                             audioLayer.layerUsername = asset.name;
@@ -1238,7 +1306,7 @@ extern "C" {
                     Libraries::LoadLibrary("layers", library);
                     auto colorVector = Libraries::GetVariable<glm::vec4>(library, "LayerTimelineColor");
                     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(colorVector.r, colorVector.g, colorVector.b, colorVector.a));
-                    if (!anyLayerHovered && ImGui::IsDragDropPayloadBeingAccepted() && std::string(ImGui::GetDragDropPayload()->DataType) == ASSET_DRAG_PAYLOAD) 
+                    if (!anyLayerHovered && ImGui::IsDragDropPayloadBeingAccepted() && std::string(ImGui::GetDragDropPayload()->DataType) == ASSET_DRAG_PAYLOAD)
                         ImGui::Button(ELECTRON_GET_LOCALIZATION(library == Shared::defaultImageLayer ? "IMAGE_LAYER": "AUDIO_LAYER"), ImVec2(GraphicsCore::renderFramerate * 1.2f * pixelsPerFrame, layerSizeY));
                     ImGui::PopStyleColor();
                 }

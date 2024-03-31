@@ -27,7 +27,7 @@ namespace Electron {
     typedef void (*Electron_TimelineRenderImplF)(RenderLayer*, TimelineLayerRenderDesc);
 
     enum class GeneralizedPropertyType {
-        Vec3, Vec2, Float, Color3
+        Vec3, Vec2, Float, Color3, Color4
     };
 
     // Rendering unit of electron
@@ -56,6 +56,7 @@ namespace Electron {
         glm::vec4 layerColor; // Timeline layer color
         std::string layerUsername; // Layer name given by user
         int id;
+        int layerLockID;
         bool visible;
         void* userData;
 

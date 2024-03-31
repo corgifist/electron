@@ -1,5 +1,4 @@
 #pragma once
-#include "electron.h"
 
 namespace Electron {
     // Just a helper tool to get unique number

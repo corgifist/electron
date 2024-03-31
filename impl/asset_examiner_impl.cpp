@@ -38,7 +38,6 @@ extern "C" {
                 windowSize = ImGui::GetWindowSize();
                 TextureUnion& asset = AssetCore::assets.at(Shared::assetSelected);
                 if (previousAssetID != asset.id) {
-                    print("rebuildign asset decoder");
                     if (assetDecoder.id) assetDecoder.Destroy();
                     assetDecoder = AssetDecoder();
                 }
@@ -82,7 +81,7 @@ extern "C" {
                     }
                     if (asset.type == TextureUnionType::Audio && asset.audioCacheCover != "") {
                         if (ImGui::MenuItem(CSTR(string_format("%s %s", ICON_FA_FLOPPY_DISK, ELECTRON_GET_LOCALIZATION("IMPORT_COVER_AS_IMAGE"))))) {
-                            Shared::importErrorMessage = AssetCore::ImportAsset(asset.audioCacheCover);
+                            Shared::importErrorMessage = AssetCore::ImportAsset(asset.audioCacheCover).returnMessage;
                         }
                     }
                     ImGui::EndPopup();
@@ -112,7 +111,7 @@ extern "C" {
                     }
 
                     if (previousAssetID != asset.id && (asset.type == TextureUnionType::Audio || asset.type == TextureUnionType::Video)) {
-                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];
+                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[2];
                         float audioLength = asset.type == TextureUnionType::Audio ? std::get<AudioMetadata>(asset.as).audioLength : std::get<VideoMetadata>(asset.as).duration;
                         audioPlaybackPlaying = false;
                         audioHandleInitialized = false;
@@ -125,7 +124,7 @@ extern "C" {
                         })["loaded"], bool);
                     }
                     if (!audioHandleInitialized && audioLoaded) {
-                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];
+                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[2];
                         if (audioHandle != 0) {
                             Servers::AudioServerRequest({
                                 {"action", "stop_sample"},
@@ -151,7 +150,7 @@ extern "C" {
                         }
                         case TextureUnionType::Video:
                         case TextureUnionType::Audio: {
-                            std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];
+                            std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[2];
                             audioLoaded = JSON_AS_TYPE(
                             Servers::AudioServerRequest({
                                 {"action", "is_loaded"},
@@ -175,7 +174,7 @@ extern "C" {
                             if (audioLoaded) ImGui::SliderFloat("##audioPlaybackSlider", &audioPlaybackProgress, 0, audioPlaybackLength, formatToTimestamp(audioPlaybackProgress * 60, 60).c_str(), 0);
                             if (asset.type == TextureUnionType::Video) {
                                 VideoMetadata video = std::get<VideoMetadata>(asset.as);
-                                assetDecoder.frame = glm::ceil(audioPlaybackProgress * video.framerate);
+                                assetDecoder.frame = std::ceil(glm::ceil(audioPlaybackProgress * video.framerate));
                                 assetDecoder.GetGPUTexture(&asset);
                             }
                             if (audioLoaded && ImGui::IsItemEdited()) {

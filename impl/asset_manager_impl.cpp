@@ -116,16 +116,15 @@ extern "C" {
                 ImGui::TableSetupColumn(ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_SIZE"));
                 ImGui::TableHeadersRow();
                 for (auto& asset : AssetCore::assets) {
-                    ImGui::TableNextRow();
+                    if (asset.visible) ImGui::TableNextRow();
                     if (searchFilter != "" && (asset.name.find(searchFilter) == std::string::npos || hexToInt(trim_copy(searchFilter)) != asset.id)) 
                         continue;
                     std::string assetIcon = asset.GetIcon();
                     if (!asset.ready) assetIcon = ICON_FA_SPINNER;
-                    if (asset.invalid) assetIcon = ICON_FA_TRIANGLE_EXCLAMATION;
                     std::string reservedResourcePath = asset.path;
                     bool audioLoaded = false;
-                    if (asset.ready && (asset.type == TextureUnionType::Audio || asset.type == TextureUnionType::Video)) {
-                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[1];
+                    if (asset.ready && !asset.invalid && (asset.type == TextureUnionType::Audio || asset.type == TextureUnionType::Video)) {
+                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[2];
                         auto audioStatusResponse =  Servers::AudioServerRequest({
                             {"action", "is_loaded"},
                             {"path", audioPath}
@@ -139,6 +138,11 @@ extern "C" {
                                 {"path", audioPath}
                             });
                         }
+                    }
+                    if (asset.invalid) assetIcon = ICON_FA_TRIANGLE_EXCLAMATION;
+                    if (!asset.visible) {
+                        assetIndex++;
+                        continue;
                     }
                     for (int column = 0; column < 3; column++) {
                         ImGui::TableSetColumnIndex(column);
@@ -168,7 +172,13 @@ extern "C" {
                             if (ImGui::BeginDragDropSource(sourceFlags)) {
                                 ImGui::SetDragDropPayload(ASSET_DRAG_PAYLOAD, &assetIndex, sizeof(assetIndex));
                                 if (asset.IsTextureCompatible()) {
-                                    // ImGui::Image((ImTextureID) (uint64_t) asset.pboGpuTexture, FitRectInRect(ImVec2(128, 128), ImVec2(128, 128)));
+                                    static GPUExtendedHandle dragDropHandle = 0;
+                                    static int dragDropLastAssetID = 0;
+                                    if (!dragDropHandle || dragDropLastAssetID != asset.id) {
+                                        DriverCore::DestroyImageHandleUI(dragDropHandle);
+                                        dragDropHandle = DriverCore::GetImageHandleUI(asset.pboGpuTexture);
+                                    }
+                                    ImGui::Image((ImTextureID) dragDropHandle, FitRectInRect(ImVec2(128, 128), ImVec2(128, 128)));
                                 }
                                 ImGui::Text("%s %s", asset.GetIcon().c_str(), asset.name.c_str());
                                 Shared::assetManagerDragDropType = asset.type == TextureUnionType::Texture ? 
@@ -220,7 +230,7 @@ extern "C" {
         
         if (ImGuiFileDialog::Instance()->Display("ImportAssetDlg")) {
             if (ImGuiFileDialog::Instance()->IsOk()) {
-                Shared::importErrorMessage = AssetCore::ImportAsset(ImGuiFileDialog::Instance()->GetFilePathName());
+                Shared::importErrorMessage = AssetCore::ImportAsset(ImGuiFileDialog::Instance()->GetFilePathName()).returnMessage;
             }
             ImGuiFileDialog::Instance()->Close();
         }

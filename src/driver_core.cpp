@@ -299,7 +299,7 @@ namespace Electron {
         return presentInfo;
     }
 
-    static VulkanAllocatedTexture* ExplicitAllocateImage(int width, int height, VkFormat format, VkImageUsageFlags usage) {
+    static VulkanAllocatedTexture* ExplicitAllocateImage(int width, int height, VkFormat format, VkImageUsageFlags usage, int mipLevels = 1) {
         print("creating image with resolution " << width << " " << height);
         VulkanRendererInfo* vk = (VulkanRendererInfo*) DriverCore::renderer.userData;
         VulkanAllocatedTexture* texture = new VulkanAllocatedTexture();
@@ -317,7 +317,7 @@ namespace Electron {
         imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
         imageCreateInfo.format = texture->imageFormat;
         imageCreateInfo.extent = texture->imageExtent;
-        imageCreateInfo.mipLevels = 1;
+        imageCreateInfo.mipLevels = mipLevels;
         imageCreateInfo.arrayLayers = 1;
         imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -345,6 +345,8 @@ namespace Electron {
         samplerCreateInfo.pNext = nullptr;
         samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
         samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
+        samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerCreateInfo.maxLod = mipLevels;
 
         vkCreateSampler(vk->device.device, &samplerCreateInfo, nullptr, &texture->imageSampler);
 
@@ -463,6 +465,8 @@ namespace Electron {
         vk->graphicsQueueFamily = vk->device.get_queue_index(vkb::QueueType::graphics).value();
         vk->presentQueueFamily = vk->device.get_queue_index(vkb::QueueType::present).value();
         vk->transferQueueFamily = vk->device.get_queue_index(vkb::QueueType::transfer).value();
+
+        Shared::deviceName = vk->physicalDevice.name;
 
         ResizeSwapchain(maybeSize[0], maybeSize[1]);
 
@@ -884,7 +888,7 @@ namespace Electron {
     GPUExtendedHandle DriverCore::ImportGPUTexture(uint8_t* texture, int width, int height, int channels, bool keepStagingBuffer) {
         VulkanRendererInfo* vk = (VulkanRendererInfo*) renderer.userData;
 
-        VulkanAllocatedTexture* allocatedTexture = ExplicitAllocateImage(width, height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        VulkanAllocatedTexture* allocatedTexture = ExplicitAllocateImage(width, height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, MIPMAP_LEVELS);
 
         allocatedTexture->stagingBuffer = ExplicitAllocateBuffer(width * height * channels, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
         allocatedTexture->hasStagingBuffer = keepStagingBuffer;
@@ -906,12 +910,48 @@ namespace Electron {
         copyRegion.imageExtent = {(uint32_t) width, (uint32_t) height, 1};
 
         vkCmdCopyBufferToImage(cmd, allocatedTexture->stagingBuffer.buffer, allocatedTexture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
-        TransitionVulkanTexture(cmd, allocatedTexture->image, allocatedTexture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         if (!keepStagingBuffer)
             PushDeferredFunction([allocatedTexture]() {
                 ExplicitDestroyBuffer(allocatedTexture->stagingBuffer);
             });
+
+        VkImageMemoryBarrier mipmapBarrier = {};
+        mipmapBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        mipmapBarrier.image = allocatedTexture->image;
+        mipmapBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        mipmapBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        mipmapBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        mipmapBarrier.subresourceRange.baseArrayLayer = 0;
+        mipmapBarrier.subresourceRange.layerCount = 1;
+        mipmapBarrier.subresourceRange.levelCount = 1;
+
+
+        int32_t mipWidth = width;
+        int32_t mipHeight = height;
+
+        TransitionVulkanTexture(frameInfo->mainCommandBuffer, allocatedTexture->image, allocatedTexture, allocatedTexture->imageLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        for (int i = 1; i < MIPMAP_LEVELS; i++) {
+            VkImageBlit blit{};
+            blit.srcOffsets[0] = { 0, 0, 0 };
+            blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
+            blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.srcSubresource.mipLevel = i - 1;
+            blit.srcSubresource.baseArrayLayer = 0;
+            blit.srcSubresource.layerCount = 1;
+            blit.dstOffsets[0] = { 0, 0, 0 };
+            blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
+            blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.dstSubresource.mipLevel = i;
+            blit.dstSubresource.baseArrayLayer = 0;
+            blit.dstSubresource.layerCount = 1;
+
+            vkCmdBlitImage(frameInfo->mainCommandBuffer, allocatedTexture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, allocatedTexture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+            if (mipWidth > 1) mipWidth /= 2;
+            if (mipHeight > 1) mipHeight /= 2;
+        }
+
+        TransitionVulkanTexture(frameInfo->mainCommandBuffer, allocatedTexture->image, allocatedTexture, allocatedTexture->imageLayout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         return (GPUExtendedHandle) allocatedTexture;
     }
@@ -1275,5 +1315,9 @@ namespace Electron {
 
     int DriverCore::FramesInFlightCount() {
         return MAX_FRAMES_IN_FLIGHT;
+    }
+
+    int DriverCore::GetFrameInFlightIndex() {
+        return swapchainImageIndex;
     }
 }
