@@ -51,6 +51,10 @@ layout(push_constant) uniform PushConstants {
 
 layout(set = 0, binding = 0) uniform sampler2D textureSampler;
 
+layout(set = 0, binding = 1) uniform SDF2DUBO {
+    vec4 color;
+} ubo;
+
 void main() {
     gColor = vec4(vec3(1.0), 1.0);
     if (pcs.canTexture == 1.0) {

@@ -21,12 +21,11 @@ object_add_link_options(m64)
 impl_target_file = null
 
 object_add_compile_options(fPIC)
-object_add_compile_options("O3")
 object_add_compile_options(g)
 object_add_compile_options("ffast-math")
 object_add_compile_options(Werror)
 object_add_compile_options("Wno-unused")
-object_add_compile_options("I /usr/include/")
+object_add_compile_options("I /usr/include/ -I /usr/include/ffmpeg/")
 dump_compilation_commands(0)
 
 # object_add_link_options("static-libstdc++")
@@ -79,15 +78,9 @@ scenario build_core {
     )
 
     deps = list()
-    if eq(get_platform(), windows) {
-        deps = [
-            opengl32, SDL1, windowscodecs, ole32, shlwapi, pthread, dbgeng, backtrace, dbgeng, bfd, dbghelp, imgui, kernel32, user32, gdi32, winspool, comdlg32, advapi32, shell32, oleaut32, uuid, comctl32, wsock32, ldap, odbc32, z, ssl, crypto, crypt32, nghttp2
-        ]
-    } else {
-        deps = [
-            glfw, vulkan, m, pthread, dl, backtrace, bfd, unwind, xcb, imgui, boost_filesystem
-        ]
-    }
+    deps = [
+        glfw, m, pthread, dl, backtrace, bfd, unwind, xcb, imgui, boost_filesystem, avcodec, avutil, avformat, swscale
+    ]
 
     object_add_link_options("rdynamic")
     link_executable($objects, cat($dylib_id, cat($base_exec_name, $dylib_prefix)), $deps, shared, electron, "libs")
@@ -98,7 +91,7 @@ scenario build_starter {
     starter_targets = ["src/electron.cpp"]
     starter_objects = object_compile($starter_targets, $build_arch, [], "libs")
     link_executable($starter_objects, "electron", 
-        [electron, imgui, glfw, bfd, unwind], null, electron, "libs", "./libs"
+        [electron, imgui, glfw, bfd, unwind, avformat, avcodec, avutil, swscale], null, electron, "libs", "./libs"
     )
     move_shared_libs()
 }
