@@ -38,6 +38,13 @@ void main() {
 
 #version 450
 
+#extension GL_EXT_scalar_block_layout : enable
+
+#define SDF_SHAPE_NONE 0
+#define SDF_SHAPE_CIRCLE 1
+#define SDF_SHAPE_ROUNDED_RECT 2
+#define SDF_SHAPE_TRIANGLE 3
+
 layout(location = 0) out vec4 gColor;
 layout(location = 1) out vec4 gUV;
 
@@ -51,14 +58,52 @@ layout(push_constant) uniform PushConstants {
 
 layout(set = 0, binding = 0) uniform sampler2D textureSampler;
 
-layout(set = 0, binding = 1) uniform SDF2DUBO {
+layout(set = 0, binding = 1, std430) uniform SDF2DUniformBuffer {
     vec4 color;
+    vec2 uvOffset;
+    vec2 size;
+    int sdfShape;
+    float sdfRadius;
 } ubo;
 
+float sdfCircle(vec2 uv, float r) {
+    return length(uv) - r;
+}
+
+float sdfRoundedBox(vec2 position, vec2 halfSize, float cornerRadius) {
+   position = abs(position) - halfSize + cornerRadius;
+   return length(max(position, 0.0)) + min(max(position.x, position.y), 0.0) - cornerRadius;
+}
+
+float sdEquilateralTriangle(vec2 p,float r ) {
+    const float k = sqrt(3.0);
+    p.x = abs(p.x) - r;
+    p.y = p.y + r/k;
+    if( p.x+k*p.y>0.0 ) p = vec2(p.x-k*p.y,-k*p.x-p.y)/2.0;
+    p.x -= clamp( p.x, -2.0*r, 0.0 );
+    return -length(p)*sign(p.y);
+}
+
+
 void main() {
-    gColor = vec4(vec3(1.0), 1.0);
+    gColor = ubo.color;
     if (pcs.canTexture == 1.0) {
-        gColor *= texture(textureSampler, vUV);
+        gColor *= texture(textureSampler, vUV + ubo.uvOffset);
+    }
+    if (ubo.sdfShape > SDF_SHAPE_NONE) {
+        float d = 0.0;
+        if (ubo.sdfShape == SDF_SHAPE_CIRCLE) {
+            d = sdfCircle(vUV - 0.5, ubo.sdfRadius);
+        }
+        if (ubo.sdfShape == SDF_SHAPE_ROUNDED_RECT) {
+            d = sdfRoundedBox(vUV - 0.5, ubo.size, ubo.sdfRadius);
+        }
+        if (ubo.sdfShape == SDF_SHAPE_TRIANGLE) {
+            d = sdEquilateralTriangle(vec2(vUV.x, 1.0 - vUV.y) - 0.5, ubo.sdfRadius);
+        }
+        if (d > 0.0) {
+            gColor *= 0.0;
+        }
     }
     gUV = vec4(vUV, 0.0, 1.0);
 }
