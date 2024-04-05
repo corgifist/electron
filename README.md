@@ -1,10 +1,9 @@
 # <h1><p align="center">Electron [Heavy Work in Progress]</p></h1>
-<p align="center">Project is currently broken due to migration to Vulkan API</p>
-<p align="center">Cross-platform Extensible [Vulkan] Video Editor!</p>
+<p align="center">Cross-platform Extensible Vulkan Video Editor!</p>
 
 Advantages over other editors:
 * Electron is Modular. Every part of editor (e.g. editor windows, audio backends, layers/effects) can be replaced/modified!
-* Electron is Compatible to all OpenGL 4.6 Devices. 
+* Electron is Compatible to all Vulkan 1.3 Devices.
 * Electron is Light. Editor and it's Subsystems altogether Barely Consumes 100 MB of RAM
 * [WIP] Unique Render techniques (Render Targets, Layer Links and Snapshots) 
 
