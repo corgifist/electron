@@ -18,7 +18,11 @@ static AVPixelFormat correct_for_deprecated_pixel_format(AVPixelFormat pix_fmt) 
     }
 }
 
-static std::vector<AVHWDeviceType> availableDeviceTypes;
+static std::vector<AVHWDeviceType> availableDeviceTypes = {
+    AV_HWDEVICE_TYPE_CUDA,
+    AV_HWDEVICE_TYPE_VULKAN,
+    AV_HWDEVICE_TYPE_VDPAU
+};
 
 static int hw_decoder_init(VideoReaderState* state, AVCodecContext *ctx, const enum AVHWDeviceType type, const char* deviceName)
 {
@@ -294,7 +298,7 @@ bool video_reader_read_frame(VideoReaderState* state, uint8_t* frame_buffer, int
     
     if (frame_buffer) {
         if (!sws_scaler_ctx) {
-            sws_scaler_ctx = sws_getContext(width, height, state->useHardwareDecoding ? AV_PIX_FMT_NV12 : (AVPixelFormat) av_frame->format,
+            sws_scaler_ctx = sws_getContext(width, height, correct_for_deprecated_pixel_format(state->useHardwareDecoding ? AV_PIX_FMT_NV12 : (AVPixelFormat) av_frame->format),
                                             width, height, AV_PIX_FMT_RGB0,
                                             SWS_FAST_BILINEAR, NULL, NULL, NULL);
         }
@@ -332,8 +336,8 @@ void video_reader_close(VideoReaderState* state) {
     avformat_close_input(&state->av_format_ctx);
     avformat_free_context(state->av_format_ctx);
     av_frame_free(&state->hw_frame);
-    if (state->useHardwareDecoding) av_buffer_unref(&state->hw_device_ctx);
     av_frame_free(&state->av_frame);
     av_packet_free(&state->av_packet);
+    if (state->useHardwareDecoding) av_buffer_unref(&state->av_codec_ctx->hw_device_ctx);
     avcodec_free_context(&state->av_codec_ctx);
 }

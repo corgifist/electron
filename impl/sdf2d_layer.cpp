@@ -25,6 +25,7 @@ extern "C" {
     struct SDF2DUserData {
         PipelineFrameBuffer frb;
         ManagedAssetDecoder decoder;
+        GPUExtendedHandle ubo;
 
         SDF2DUserData() {
         }
@@ -33,6 +34,14 @@ extern "C" {
     struct SDF2DPushConstant {
         glm::mat4 uMatrix;
         alignas(4) float canTexture;
+    };
+
+    struct SDF2DUniformBuffer {
+        glm::vec4 uColor;
+        glm::vec2 uTextureOffset;
+        glm::vec2 uSize;
+        int uSdfEnabled;
+        float uSdfRadius;
     };
     
 
@@ -84,6 +93,7 @@ extern "C" {
         owner->userData = new SDF2DUserData();
         SDF2DUserData* userData = (SDF2DUserData*) owner->userData;
         userData->frb =  PipelineFrameBuffer(GraphicsCore::renderBuffer.width, GraphicsCore::renderBuffer.height);
+        userData->ubo = DriverCore::GenerateUniformBuffers(sizeof(SDF2DUniformBuffer));
 
         if (sdf2d_pipeline == 0) {
             sdf2d_compute = GraphicsCore::CompilePipelineShader("sdf2d", ShaderType::VertexFragment);
@@ -92,9 +102,15 @@ extern "C" {
             texturePoolBinding.bindingPoint = 0;
             texturePoolBinding.descriptorType = DescriptorType::Sampler;
             texturePoolBinding.shaderType = ShaderType::Fragment;
+
+            DescriptorSetLayoutBinding uniformBufferBinding;
+            uniformBufferBinding.bindingPoint = 1;
+            uniformBufferBinding.descriptorType = DescriptorType::UniformBuffer;
+            uniformBufferBinding.shaderType = ShaderType::VertexFragment;
             
             DescriptorSetLayoutBuilder descriptorSetBuilder;
             descriptorSetBuilder.AddBinding(texturePoolBinding);
+            descriptorSetBuilder.AddBinding(uniformBufferBinding);
 
             GPUExtendedHandle builtDescriptorSetLayout = descriptorSetBuilder.Build();
 
@@ -148,7 +164,7 @@ extern "C" {
 
         auto position = vec2();
         auto size = vec2(0.5f);
-        auto color = vec3(1.0f);
+        auto color = vec4(1.0f);
         auto uvOffset = vec2();
         auto angle = 0.0f; {
             auto positionVector = owner->InterpolateProperty(owner->properties["Position"]);
@@ -158,7 +174,7 @@ extern "C" {
             auto uvOffsetVector = owner->InterpolateProperty(owner->properties["UvOffset"]);
             position = vec2(positionVector[0], positionVector[1]);
             size = vec2(sizeVector[0], sizeVector[1]); 
-            color = vec3(colorVector[0], colorVector[1], colorVector[2]);
+            color = vec4(colorVector[0], colorVector[1], colorVector[2], colorVector[3]);
             angle = angleFloat[0];
             uvOffset = vec2(uvOffsetVector[0], uvOffsetVector[1]);
         }
@@ -175,8 +191,8 @@ extern "C" {
         bool canTexture = (asset != nullptr && texturingEnabled);
 
         mat4 transform = glm::identity<mat4>();
-        transform = glm::scale(transform, vec3(size, 1.0f));
         transform = glm::rotate(transform, glm::radians(angle), vec3(0, 0, 1));
+        transform = glm::scale(transform, vec3(size, 1.0f));
         transform = glm::translate(transform, vec3(position, 0.0f));
         float aspect = (float) frb.width / (float) frb.height;
         mat4 projection = ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
@@ -184,50 +200,53 @@ extern "C" {
         SDF2DPushConstant pushConstants;
         pushConstants.uMatrix = projection * transform;
         pushConstants.canTexture = canTexture ? 1.0f : 0.0f;
-        /* GraphicsCore::ShaderSetUniform(GraphicsCore::basic.vertex, "uMatrix", projection * transform);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uColor", color);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfShape", JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int));
-        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSize", size);
-        GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uUvOffset", uvOffset);
+
+        SDF2DUniformBuffer uniformBuffer;
+        uniformBuffer.uColor = color;
+        uniformBuffer.uTextureOffset = uvOffset;
+        uniformBuffer.uSize = size;
+        uniformBuffer.uSdfEnabled = JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int);
         switch ((SDFShape) JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int)) {
             case SDFShape::None: {
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnabled", false);
                 break;
             };
             case SDFShape::Circle: {
-                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["CircleRadius"]).at(0), float);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnabled", true);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
+                uniformBuffer.uSdfRadius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["CircleRadius"]).at(0), float);
                 break;
             }
             case SDFShape::RoundedRect: {
-                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["BoxRadius"]).at(0), float);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnabled", true);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
+                uniformBuffer.uSdfRadius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["BoxRadius"]).at(0), float);
                 break;
             }
             case SDFShape::Triangle: {
-                float radius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["TriangleRadius"]).at(0), float);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfEnabled", true);
-                GraphicsCore::ShaderSetUniform(sdf2d_compute.fragment, "uSdfCircleRadius", radius);
+                uniformBuffer.uSdfRadius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["TriangleRadius"]).at(0), float);
                 break;
             }
-        } */
+        } 
         
         if (canTexture && asset->type == TextureUnionType::Video) {
             VideoMetadata video = std::get<VideoMetadata>(asset->as);
             decoder->decoder.frame = std::ceil(double((GraphicsCore::renderFrame - owner->beginFrame) / GraphicsCore::renderFramerate) * (video.framerate));
         }
 
+        auto sdfTexture = decoder->GetGPUTexture(asset);
+
+        DriverCore::UpdateUniformBuffers(userData->ubo, &uniformBuffer);
+
         DriverCore::BeginRendering(frb.fbo);
 
             if (canTexture) {
                 DescriptorWriteBinding textureBinding;
                 textureBinding.binding = 0;
-                textureBinding.texture = decoder->GetGPUTexture(asset);
+                textureBinding.resource = sdfTexture;
                 textureBinding.type = DescriptorType::Sampler;
 
-                DriverCore::PushDescriptors({textureBinding}, sdf2d_layout, 0);    
+                DescriptorWriteBinding uboBinding;
+                uboBinding.binding = 1;
+                uboBinding.resource = userData->ubo;
+                uboBinding.type = DescriptorType::UniformBuffer;
+
+                DriverCore::PushDescriptors({textureBinding, uboBinding}, sdf2d_layout, 0);    
             }
 
             DriverCore::BindPipeline(sdf2d_pipeline);
@@ -393,7 +412,6 @@ extern "C" {
         }
         if (asset && userData->decoder.IsDisposed()) {
             userData->decoder.Reinitialize(asset);
-            return;
         }
         glm::vec2 assetDimensions = asset->GetDimensions();
         ImVec2 previewSize = {desc.layerSizeY * (assetDimensions.x / assetDimensions.y), desc.layerSizeY};

@@ -16,7 +16,7 @@
 #define SWAPCHAIN_FORMAT VK_FORMAT_B8G8R8A8_UNORM
 #define COLOR_SPACE_FORMAT VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
 #define DESCRIPTOR_POOL_SIZE 256
-#define MIPMAP_LEVELS 8
+#define MIPMAP_LEVELS 4
 
 namespace Electron {
 
@@ -112,9 +112,6 @@ namespace Electron {
         UniformBuffer, Sampler
     };
 
-    enum class DescriptorFlags {
-        None, Variable
-    };
 
     enum class TriangleTopology {
         Point, Line, Triangle
@@ -128,7 +125,6 @@ namespace Electron {
         int bindingPoint;
         DescriptorType descriptorType;
         ShaderType shaderType;
-        DescriptorFlags flag;
 
         DescriptorSetLayoutBinding() {}
 
@@ -188,9 +184,17 @@ namespace Electron {
     struct DescriptorWriteBinding {
         DescriptorType type;
         uint32_t binding;
-        GPUExtendedHandle texture;
+        GPUExtendedHandle resource;
 
         DescriptorWriteBinding() {}
+    };
+
+    struct VulkanAllocatedUniformBuffer {
+        std::vector<VulkanAllocatedBuffer> buffers;
+        std::vector<VulkanAllocatedBuffer> stagingBuffers;
+        size_t size;
+
+        VulkanAllocatedUniformBuffer() {}
     };
 
     struct DriverCore {
@@ -219,6 +223,10 @@ namespace Electron {
         static void SetRenderingViewport(int width, int height);
         static void DrawArrays(int size);
         static void EndRendering();
+
+        static GPUExtendedHandle GenerateUniformBuffers(size_t size);
+        static void UpdateUniformBuffers(GPUExtendedHandle ubo, void* data);
+        static void DestroyUniformBuffers(GPUExtendedHandle ubo);
 
         static void UpdateTextureStagingBuffer(GPUExtendedHandle, int width, int height, uint8_t* data);
 

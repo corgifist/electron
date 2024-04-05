@@ -70,6 +70,7 @@ extern "C" {
                         gpuHandle = DriverCore::GetImageHandleUI(asset.pboGpuTexture);
                     }
                     if (ImGui::BeginTable("infoTable", 2, ImGuiTableFlags_SizingFixedFit)) {
+                        std::string hexId = intToHex(asset.id);
                         ImGui::TableNextRow();
                         ImGui::TableSetColumnIndex(0);
                         ImGui::Image((ImTextureID) gpuHandle, ImVec2{assetResolution.x, assetResolution.y});
@@ -77,20 +78,28 @@ extern "C" {
                         ImGui::InputText("##AssetName", &asset.name, 0);
                         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) 
                             ImGui::SetTooltip("%s", CSTR(string_format("%s %s", ICON_FA_PENCIL, ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_RESOURCE_NAME"))));
-                        std::string hexId = intToHex(asset.id);
-                        ImGui::Text("%s", string_format("%s: %s", ELECTRON_GET_LOCALIZATION("ASSET_MANAGER_ASSET_ID"), hexId.c_str()).c_str());
-                        ImGui::SameLine();
+                        ImGui::SameLine();                        
                         if (ImGui::Button(CSTR(string_format("%s %s", ICON_FA_COPY, ELECTRON_GET_LOCALIZATION("GENERIC_COPY_ID"))))) {
                             ImGui::SetClipboardText(CSTR(hexId));
                         }
+                        if (ImGui::IsItemHovered()) 
+                            ImGui::SetTooltip(CSTR(hexId));
                         glm::vec2 naturalAssetReoslution = asset.GetDimensions();
-                        ImGui::Text("%s %s", ICON_FA_ARROW_POINTER, ELECTRON_GET_LOCALIZATION("HOVER_TO_GET_PROBE_DATA"));
-                        if (ImGui::IsItemHovered()) {
-                            std::string probeData = asset.ffprobeData;
-                            if (ImGui::GetIO().MouseClicked[ImGuiMouseButton_Left]) {
-                                ImGui::SetClipboardText(probeData.c_str());
-                            }
-                            ImGui::SetTooltip("%s", probeData.c_str());
+                        if (asset.type == TextureUnionType::Audio) {
+                            AudioMetadata audio = std::get<AudioMetadata>(asset.as);
+                            ImGui::Text("%s %s: %i", ICON_FA_FILE_WAVEFORM, ELECTRON_GET_LOCALIZATION("SAMPLE_RATE"), audio.sampleRate);
+                            ImGui::Text("%s %s: %s", ICON_FA_STOPWATCH, ELECTRON_GET_LOCALIZATION("DURATION"), formatToTimestamp(audio.audioLength * 60, 60).c_str());
+                            ImGui::Text("%s %s: %s", ICON_FA_AUDIO_DESCRIPTION, ELECTRON_GET_LOCALIZATION("CODEC_NAME"), audio.codecName.c_str());
+                        } else if (asset.type == TextureUnionType::Video) {
+                            VideoMetadata video = std::get<VideoMetadata>(asset.as);
+                            ImGui::Text("%s %s: %i", ICON_FA_VIDEO, ELECTRON_GET_LOCALIZATION("FRAMERATE"), (int) video.framerate);
+                            ImGui::Text("%s %s: %s", ICON_FA_STOPWATCH, ELECTRON_GET_LOCALIZATION("DURATION"), formatToTimestamp(video.duration * video.framerate, video.framerate).c_str());
+                            ImGui::Text("%s %s: %s", ICON_FA_FILE_VIDEO, ELECTRON_GET_LOCALIZATION("CODEC_NAME"), video.codecName.c_str());
+                        } else if (asset.type == TextureUnionType::Texture) {
+                            ImGui::Text("%s %s: %ix%i", ICON_FA_EXPAND, ELECTRON_GET_LOCALIZATION("RESOLUTION"), (int) asset.GetDimensions().x, (int) asset.GetDimensions().y);
+                        }
+                        if (ImGui::Button(CSTR(string_format("%s %s", ICON_FA_FOLDER_OPEN, ELECTRON_GET_LOCALIZATION("OPEN_IN_EXTERNAL_PROGRAM"))))) {
+                            system(string_format("xdg-open '%s' &", asset.path.c_str()).c_str());
                         }
                         ImGui::EndTable();
                     }
@@ -123,20 +132,23 @@ extern "C" {
                     if (!asset.ready) assetIcon = ICON_FA_SPINNER;
                     std::string reservedResourcePath = asset.path;
                     bool audioLoaded = false;
+                    bool usableAsAudio = asset.type == TextureUnionType::Audio ? true : AssetCore::GetAsset(intToHex(asset.linkedAudioAsset)) != nullptr;
                     if (asset.ready && !asset.invalid && (asset.type == TextureUnionType::Audio || asset.type == TextureUnionType::Video)) {
-                        std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : asset.linkedCache[2];
-                        auto audioStatusResponse =  Servers::AudioServerRequest({
-                            {"action", "is_loaded"},
-                            {"path", audioPath}
-                        });
-                        audioLoaded = JSON_AS_TYPE(
-                            audioStatusResponse["loaded"], bool);
-                        if (!audioLoaded) assetIcon = ICON_FA_SPINNER;
-                        if (!audioLoaded) {
-                            Servers::AudioServerRequest({
-                                {"action", "load_sample"},
+                        if (usableAsAudio) {
+                            std::string audioPath = asset.type == TextureUnionType::Audio ? asset.path : AssetCore::GetAsset(intToHex(asset.linkedAudioAsset))->path;
+                            auto audioStatusResponse =  Servers::AudioServerRequest({
+                                {"action", "is_loaded"},
                                 {"path", audioPath}
                             });
+                            audioLoaded = JSON_AS_TYPE(
+                                audioStatusResponse["loaded"], bool);
+                            if (!audioLoaded) assetIcon = ICON_FA_SPINNER;
+                            if (!audioLoaded) {
+                                Servers::AudioServerRequest({
+                                    {"action", "load_sample"},
+                                    {"path", audioPath}
+                                });
+                            }
                         }
                     }
                     if (asset.invalid) assetIcon = ICON_FA_TRIANGLE_EXCLAMATION;
@@ -178,7 +190,7 @@ extern "C" {
                                         DriverCore::DestroyImageHandleUI(dragDropHandle);
                                         dragDropHandle = DriverCore::GetImageHandleUI(asset.pboGpuTexture);
                                     }
-                                    ImGui::Image((ImTextureID) dragDropHandle, FitRectInRect(ImVec2(128, 128), ImVec2(128, 128)));
+                                    ImGui::Image((ImTextureID) dragDropHandle, FitRectInRect(ImVec2(128, 128), {asset.GetDimensions().x, asset.GetDimensions().y}));
                                 }
                                 ImGui::Text("%s %s", asset.GetIcon().c_str(), asset.name.c_str());
                                 Shared::assetManagerDragDropType = asset.type == TextureUnionType::Texture ? 

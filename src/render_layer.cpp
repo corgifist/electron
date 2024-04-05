@@ -314,8 +314,9 @@ namespace Electron {
             }
             if (textureAsset != nullptr) {
                 glm::vec2 textureDimensions = textureAsset->GetDimensions();
+                ImVec2 textureScreen = {glm::min(ImGui::GetWindowSize().x, 400.0f), 400.0f};
                 ImVec2 imageCenterRect =
-                    FitRectInRect(ImVec2(150, 150),
+                    FitRectInRect(textureScreen,
                                 ImVec2(textureDimensions.x, textureDimensions.y));
                 ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f -
                                     imageCenterRect.x / 2.0f);

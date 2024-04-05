@@ -19,19 +19,19 @@ namespace Electron {
         json_t format = data["format"];
         this->duration = std::stof(JSON_AS_TYPE(format["duration"], std::string));
         this->codecName = JSON_AS_TYPE(format["format_long_name"], std::string);
-        json_t firstStream = data["streams"].at(0);
+        json_t firstStream = {};
+        for (auto& stream : data["streams"]) {
+            if (stream["codec_type"] == "video") {
+                firstStream = stream;
+                break;
+            }
+        }
         this->width = JSON_AS_TYPE(firstStream["width"], int);
         this->height = JSON_AS_TYPE(firstStream["height"], int);
         auto frameRateParts = split_string(JSON_AS_TYPE(firstStream["r_frame_rate"], std::string), "/");
         this->framerate = std::stof(frameRateParts[0]) / std::stof(frameRateParts[1]);
 
         this->linkedAudioAsset = 0;
-    }
-
-    AssetDecoderCommand::AssetDecoderCommand(AssetDecoderCommandType type, int64_t pts, uint8_t* image) {
-        this->type = type;
-        this->pts = pts;
-        this->image = image;
     }
 
     AssetDecoderCommand::AssetDecoderCommand(int64_t pts) {
@@ -73,12 +73,10 @@ namespace Electron {
                 image = new uint8_t[width * height * 4];
 
                 video_reader_open(&vr, asset->path.c_str(), Shared::deviceName.c_str(), !Shared::configMap["UseVideoGPUAcceleration"]);
-                vr.sws_scaler_ctx = nullptr;
 
                 decoderTask = new std::thread([](AssetDecoder* decoder) {
                     while (true) {
                         if (decoder->terminateDecoderTask) break;
-                        if (decoder->commandBuffer.size() == 0) std::this_thread::sleep_for(std::chrono::milliseconds(1));
                         while (decoder->decodingFinished) {
                             if (decoder->terminateDecoderTask) break;
                         }
@@ -93,16 +91,25 @@ namespace Electron {
                                 video_reader_seek_frame(&decoder->vr, command.pts);
                             }
                         }
+                        if (decoder->terminateDecoderTask) break;
                         decoder->decodingFinished = true;
                     }
                 }, this);
 
                 for (int i = 0; i < DriverCore::FramesInFlightCount(); i++) {
                     transferBuffers.push_back(DriverCore::GenerateGPUTexture(width, height, true));
+                    float blackPtr[4] = {
+                        0, 0, 0, 1
+                    };
+                    DriverCore::ClearTextureImage(transferBuffers[i], 0, blackPtr);
                 }
                 this->id = seedrand();
             }
-            if (frame == 0) return asset->pboGpuTexture;
+            if (frame == 0) {
+                lastLoadedFrame = 0;
+                commandBuffer.push_back(AssetDecoderCommand((int64_t) 0));
+                return asset->pboGpuTexture;
+            }
             if (lastLoadedFrame != frame) {
                 int frameDifference = frame - lastLoadedFrame;
                 int reservedLastLoadedFrame = lastLoadedFrame;
@@ -140,7 +147,7 @@ namespace Electron {
                 if (decodingFinished) transferBufferIndex = (transferBufferIndex + 1) % DriverCore::FramesInFlightCount();
                 if (decodingFinished) DriverCore::UpdateTextureData(transferBuffers[transferBufferIndex], width, height, image);
                 if (decodingFinished) decodingFinished = false;
-                return transferBuffers[transferBufferIndex];
+                return frame == 0 ? asset->pboGpuTexture : transferBuffers[transferBufferIndex];
             }
             if (commandBuffer.size() != 0) {
                 decodingFinished = false;
@@ -163,6 +170,7 @@ namespace Electron {
     }
 
     void AssetDecoder::Destroy() {
+        id = 0;
         UnloadHandles();
         for (auto& transferBuffer : transferBuffers) {
             DriverCore::DestroyGPUTexture(transferBuffer);
@@ -172,12 +180,14 @@ namespace Electron {
             terminateDecoderTask = true;
             decoderTask->join();
             delete decoderTask;
+            decoderTask = nullptr;
         }
         if (vr.sws_scaler_ctx) {
             video_reader_close(&vr);
         }
         terminateDecoderTask = false;
-        stbi_image_free(image);
+        delete image;
+        image = nullptr;
     }
 
     void AssetDecoder::LoadHandle(TextureUnion* asset) {
@@ -191,6 +201,7 @@ namespace Electron {
             for (auto& transferBuffer : transferBuffers) {
                 imageHandles.push_back(DriverCore::GetImageHandleUI(transferBuffer));
             }
+            imageHandles.push_back(DriverCore::GetImageHandleUI(asset->pboGpuTexture));
         }
     }
 
@@ -206,6 +217,9 @@ namespace Electron {
     }
 
     GPUExtendedHandle AssetDecoder::GetImageHandle(TextureUnion* asset) {
+        if (asset->type == TextureUnionType::Video && lastLoadedFrame == 0) {
+            return imageHandles[3];
+        } 
         return asset->type == TextureUnionType::Texture ? imageHandles[0] : imageHandles[transferBufferIndex];
     }
 
@@ -425,7 +439,7 @@ AssetCore::LoadAssetFromPath(std::string path) {
     if (hasEnding(lowerPath, ".png") || hasEnding(lowerPath, ".jpg") ||
         hasEnding(lowerPath, ".jpeg") || hasEnding(lowerPath, ".tga")) {
         targetAssetType = TextureUnionType::Texture;
-    } else if (hasEnding(lowerPath, ".ogg") || hasEnding(lowerPath, ".mp3") || hasEnding(lowerPath, ".wav")) {
+    } else if (hasEnding(lowerPath, ".ogg") || hasEnding(lowerPath, ".mp3") || hasEnding(lowerPath, ".wav") || hasEnding(lowerPath, ".m4a")) {
         targetAssetType = TextureUnionType::Audio;
     } else if (hasEnding(lowerPath, ".mp4") || hasEnding(lowerPath, ".wmv") || hasEnding(lowerPath, ".mkv") || hasEnding(lowerPath, ".mov")) {
         targetAssetType = TextureUnionType::Video;

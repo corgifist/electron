@@ -158,9 +158,12 @@ namespace Electron {
         while (!DriverCore::ShouldClose()) {
             try {
                 AppCore::context = ImGui::GetCurrentContext();
+                
+                // very smart and elegant... smart and elegant...
+                if (Shared::frameID % 2 == 0) 
+                    Shared::timelineSeekFired = false;
 
                 ImGuiIO &io = ImGui::GetIO();
-
 
                 Shared::displayPos = GetNativeWindowPos();
                 Shared::displaySize = GetNativeWindowSize();

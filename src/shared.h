@@ -38,5 +38,6 @@ namespace Electron {
         static std::string defaultImageLayer, defaultAudioLayer;
         static std::string assetManagerDragDropType;
         static std::string deviceName;
+        static bool timelineSeekFired;
     };
 }

@@ -236,12 +236,12 @@ namespace Electron {
 
             DescriptorWriteBinding colorMapBinding;
             colorMapBinding.binding = 0;
-            colorMapBinding.texture = buffer.rbo.colorBuffer;
+            colorMapBinding.resource = buffer.rbo.colorBuffer;
             colorMapBinding.type = DescriptorType::Sampler;
 
             DescriptorWriteBinding uvMapBinding;
             uvMapBinding.binding = 1;
-            uvMapBinding.texture = buffer.rbo.uvBuffer;
+            uvMapBinding.resource = buffer.rbo.uvBuffer;
             uvMapBinding.type = DescriptorType::Sampler;
 
             DriverCore::PushDescriptors({
@@ -256,6 +256,7 @@ namespace Electron {
     }
 
     void GraphicsCore::FireTimelineSeek() {
+        Shared::timelineSeekFired = true;
         for (auto &layer : layers) {
             layer.onTimelineSeek(&layer);
         }

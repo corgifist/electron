@@ -148,6 +148,16 @@ extern "C" {
                 previewScale = defaultPreviewScale;
             }
 
+            static bool previousTimelineSeekFired = Shared::timelineSeekFired;
+            static float reservedRenderFrame = GraphicsCore::renderFrame;
+            static bool renderTimelineSeekQuickText = false;
+            if (previousTimelineSeekFired != Shared::timelineSeekFired && !renderTimelineSeekQuickText) {
+                reservedRenderFrame = GraphicsCore::renderFrame;
+                renderTimelineSeekQuickText = true;
+            }
+            if (renderTimelineSeekQuickText && Shared::timelineSeekFired == previousTimelineSeekFired) {
+                renderTimelineSeekQuickText = false;
+            }
             if (GraphicsCore::isPlaying) {
                 if ((int) GraphicsCore::renderFrame >= GraphicsCore::renderLength) {
                     if (looping) {
@@ -215,6 +225,13 @@ extern "C" {
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - previewTextureSize.x / 2.0f, windowSize.y / 2.0f - previewTextureSize.y / 2.0f} + imageOffset);
                 ImGui::Image((ImTextureID) previewTexture, previewTextureSize, ImVec2(0, 0), ImVec2(1, 1), tint);
+
+                if (renderTimelineSeekQuickText) {
+                    std::string timelineSeekQuickText = string_format("%s -> %s", formatToTimestamp(reservedRenderFrame, GraphicsCore::renderFramerate).c_str(), formatToTimestamp(GraphicsCore::renderFrame, GraphicsCore::renderFramerate).c_str());
+                    ImVec2 quickTextSize = ImGui::CalcTextSize(timelineSeekQuickText.c_str());
+                    ImGui::SetCursorPos({ImGui::GetWindowSize().x / 2.0f - quickTextSize.x / 2.0f, 0});
+                    ImGui::Text("%s", timelineSeekQuickText.c_str());
+                }
             ImGui::EndChild();
             previousWindowPos = ImGui::GetWindowPos();
             previousWindowSize = ImGui::GetWindowSize();
@@ -316,6 +333,7 @@ extern "C" {
                 }
                 propertiesHeight = ImGui::GetCursorPosY() - firstCursor;
             ImGui::EndChild();
+            previousTimelineSeekFired = Shared::timelineSeekFired;
         UI::End();
         internalFrameIndex++;
     }

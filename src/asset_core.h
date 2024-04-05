@@ -6,7 +6,7 @@
 
 #include "utils/video_reader.hpp"
 
-#define IMPORT_EXTENSIONS ".*,.png,.jpg,.jpeg,.tga,.psd,.ogg,.mp3,.wav,.mp4,.wmv,.mov,.mkv"
+#define IMPORT_EXTENSIONS ".*,.png,.jpg,.jpeg,.tga,.psd,.ogg,.mp3,.wav,.mp4,.m4a,.wmv,.mov,.mkv"
 #define VIDEO_CACHE_EXTENSION "jpg"
 
 #define VIDEO_BUFFERS_COUNT 2
@@ -59,10 +59,11 @@ namespace Electron {
         int64_t pts;
         uint8_t* image;
 
-        AssetDecoderCommand(AssetDecoderCommandType type, int64_t pts, uint8_t* image);
         AssetDecoderCommand(int64_t pts);
         AssetDecoderCommand(uint8_t* image);
     };
+
+    struct AssetDecoder;
 
     // Decodes video, texture assets
     struct AssetDecoder {

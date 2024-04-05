@@ -527,7 +527,7 @@ extern "C" {
                             if (!keyframeAlreadyExists && customKeyframesExist) {
                                 propertyMap.push_back({(int)layerViewTime,
                                                     raw.at(0), raw.at(1),
-                                                    raw.at(1)});
+                                                    raw.at(2)});
                             } else {
                                 propertyMap.at(keyframeIndex).at(1) = raw.at(0);
                                 propertyMap.at(keyframeIndex).at(2) = raw.at(1);
@@ -1278,12 +1278,19 @@ extern "C" {
                             imageLayer.layerUsername = asset.name;
                             imageLayer.endFrame = imageLayer.beginFrame + std::get<VideoMetadata>(asset.as).duration * GraphicsCore::renderFramerate;
 
-                            RenderLayer audioLayer(Shared::defaultAudioLayer);
-                            audioLayer.layerLockID = imageLayer.id;
-                            audioLayer.properties["AudioID"] = intToHex(asset.linkedAudioAsset);
-                            audioLayer.layerUsername = asset.name;
+                            TextureUnion* audioTu = AssetCore::GetAsset(intToHex(asset.linkedAudioAsset));
+                            if (audioTu) {
+                                RenderLayer audioLayer(Shared::defaultAudioLayer);
+                                audioLayer.layerLockID = imageLayer.id;
+                                audioLayer.properties["AudioID"] = intToHex(asset.linkedAudioAsset);
+                                audioLayer.layerUsername = asset.name;
 
-                            GraphicsCore::AddRenderLayer(audioLayer);
+                                AudioMetadata audioMetadata = std::get<AudioMetadata>(audioTu->as);
+                                audioLayer.endFrame = audioLayer.beginFrame + (audioMetadata.audioLength * GraphicsCore::renderFramerate);
+
+                                GraphicsCore::AddRenderLayer(audioLayer);
+                            }
+                            
                             GraphicsCore::AddRenderLayer(imageLayer);
                             break;
                         }
@@ -1292,9 +1299,15 @@ extern "C" {
                                 AppCore::PushNotification(5, string_format("%s %s '%s'", ICON_FA_TRIANGLE_EXCLAMATION, ELECTRON_GET_LOCALIZATION("NO_SUCH_LAYER"), Shared::defaultAudioLayer.c_str()));
                                 break;
                             }
+                            TextureUnion* tu = AssetCore::GetAsset(intToHex(asset.id));
+                            if (!tu) break;
                             RenderLayer audioLayer(Shared::defaultAudioLayer);
                             audioLayer.properties["AudioID"] = intToHex(asset.id);
                             audioLayer.layerUsername = asset.name;
+
+                            AudioMetadata audioMetadata = std::get<AudioMetadata>(asset.as);
+                            audioLayer.endFrame = audioLayer.beginFrame + (audioMetadata.audioLength * GraphicsCore::renderFramerate);
+
                             GraphicsCore::AddRenderLayer(audioLayer);
                             break;
                         }
@@ -1379,8 +1392,8 @@ extern "C" {
                 previousTimeShift = JSON_AS_TYPE(sourceLayer.properties["InternalTimeShift"], float);
             }
             cutLayer.properties["InternalTimeShift"] = sourceLayer.endFrame - oldBeginFrame + previousTimeShift;
-
             GraphicsCore::layers.insert(GraphicsCore::layers.begin() + layerCutTarget + 1, cutLayer);
+            sourceLayer.onPropertiesChange(GraphicsCore::GetLayerByID(sourceLayer.id));
         }
         bypass_cut:
         int x;
