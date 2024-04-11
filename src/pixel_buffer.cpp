@@ -65,7 +65,7 @@ namespace Electron {
             }
         }
 
-        return DriverCore::ImportGPUTexture(textureConversion.data(), width, height, 4);
+        return DriverCore::ImportGPUTexture(0, textureConversion.data(), width, height, 4);
     }
 
     void PixelBuffer::FillColor(Pixel pixel) {

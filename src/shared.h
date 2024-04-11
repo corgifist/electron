@@ -39,5 +39,6 @@ namespace Electron {
         static std::string assetManagerDragDropType;
         static std::string deviceName;
         static bool timelineSeekFired;
+        static glm::vec3 backgroundColor;
     };
 }

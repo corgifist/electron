@@ -20,7 +20,14 @@ namespace Electron {
         }
     };
 
+    
+    struct RenderLayerRenderDescription {
+        GPUExtendedHandle context;
+        float frame;
+    };  
+
     class RenderLayer;
+    typedef void (*Electron_LayerRenderImplF)(RenderLayer*, RenderLayerRenderDescription);
     typedef void (*Electron_LayerImplF)(RenderLayer*);
     typedef json_t (*Electron_PropertiesImplF)(RenderLayer*);
     typedef PipelineFrameBuffer (*Electron_FramebufferImplF)(RenderLayer*);
@@ -37,7 +44,7 @@ namespace Electron {
         json_t previousProperties; // Storing previous properties for LayerOnPropertiesChange event
         json_t properties; // Properties of the layer (keyframes, values) that can be saved to JSON
         json_t internalData; // JSON data that cannot be saved to file
-        Electron_LayerImplF layerProcedure;
+        Electron_LayerRenderImplF layerProcedure;
         Electron_LayerImplF destructionProcedure;
         Electron_LayerImplF onPlaybackChangeProcedure;
         Electron_LayerImplF onTimelineSeek;
@@ -70,7 +77,7 @@ namespace Electron {
 
         void FetchImplementation();
 
-        void Render();
+        void Render(RenderLayerRenderDescription description);
         void RenderProperty(GeneralizedPropertyType type, json_t& property, std::string propertyName);
         void RenderAssetProperty(json_t& property, std::string label, TextureUnionType type, GPUExtendedHandle assetPreview = 0);
         void RenderProperties();
@@ -81,6 +88,7 @@ namespace Electron {
 
         json_t GetPreviewProperties();
 
+        Electron_LayerRenderImplF TryGetLayerRenderImplF(std::string key);
         Electron_LayerImplF TryGetLayerImplF(std::string key);
         Electron_PropertiesImplF TryGetPropertiesImplF(std::string key);
         Electron_FramebufferImplF TryGetFramebufferImplF(std::string key);
@@ -89,6 +97,7 @@ namespace Electron {
         void Destroy();
     };
 
+    void LayerRenderImplPlaceholder(Electron::RenderLayer* layer, RenderLayerRenderDescription desc);
     void LayerImplPlaceholder(Electron::RenderLayer* layer);
     json_t LayerPropertiesImplPlaceholder(Electron::RenderLayer* layer);
     PipelineFrameBuffer LayerFramebufferImplPlaceholder(RenderLayer* layer);

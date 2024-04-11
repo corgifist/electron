@@ -17,6 +17,7 @@
 #define COLOR_SPACE_FORMAT VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
 #define DESCRIPTOR_POOL_SIZE 256
 #define MIPMAP_LEVELS 4
+#define QUEUES_COUNT 8
 
 namespace Electron {
 
@@ -34,6 +35,8 @@ namespace Electron {
 
         VkSemaphore swapchainSemaphore, renderSemaphore;
         VkFence renderFence;
+
+        std::vector<std::function<void()>> deferredExecutionQueue;
 
         VulkanFrameInfo() {}
     };
@@ -87,6 +90,7 @@ namespace Electron {
         vkb::Device device;
 
         VkQueue graphicsQueue, presentQueue, transferQueue;
+        std::vector<VkQueue> additionalGraphicsQueues;
         GPUHandle graphicsQueueFamily, presentQueueFamily, transferQueueFamily;
 
         VkSurfaceKHR surface;
@@ -196,6 +200,15 @@ namespace Electron {
 
         VulkanAllocatedUniformBuffer() {}
     };
+    
+    struct VulkanAllocatedContext {
+        VkCommandPool commandPool;
+        VkCommandBuffer mainCommandBuffer;
+
+        VkFence contextFence;
+
+        VkQueue graphicsQueue;
+    };  
 
     struct DriverCore {
         static RendererInfo renderer;
@@ -211,37 +224,43 @@ namespace Electron {
         static void GetDisplayPos(int* x, int* y);
         static void GetDisplaySize(int* w, int* h);
         static double GetTime();
-        static void BindPipeline(GPUExtendedHandle pipeline);
+        static void BindPipeline(GPUExtendedHandle context, GPUExtendedHandle pipeline);
         static void MemoryBarrier(MemoryBarrierType barrier);
         static void DispatchCompute(int x, int y, int z);
         
-        static void PushDescriptors(std::vector<DescriptorWriteBinding> bindings, GPUExtendedHandle layout, uint32_t set);
+        static GPUExtendedHandle GenerateContext();
+        static void WaitContextFence(GPUExtendedHandle context);
+        static void BeginContext(GPUExtendedHandle context);
+        static void EndContext(GPUExtendedHandle context);
+        static void DestroyContext(GPUExtendedHandle context);
+
+        static void PushDescriptors(GPUExtendedHandle context, std::vector<DescriptorWriteBinding> bindings, GPUExtendedHandle layout, uint32_t set);
         
-        static void PipelineBarrier();
-        static void BeginRendering(GPUExtendedHandle fbo);
-        static void PushConstants(GPUExtendedHandle layout, ShaderType shaderStage, size_t offset, size_t size, void* data);
-        static void SetRenderingViewport(int width, int height);
-        static void DrawArrays(int size);
-        static void EndRendering();
+        static void PipelineBarrier(GPUExtendedHandle context);
+        static void BeginRendering(GPUExtendedHandle context, GPUExtendedHandle fbo);
+        static void PushConstants(GPUExtendedHandle context, GPUExtendedHandle layout, ShaderType shaderStage, size_t offset, size_t size, void* data);
+        static void SetRenderingViewport(GPUExtendedHandle context, int width, int height);
+        static void DrawArrays(GPUExtendedHandle context, int size);
+        static void EndRendering(GPUExtendedHandle context);
 
         static GPUExtendedHandle GenerateUniformBuffers(size_t size);
-        static void UpdateUniformBuffers(GPUExtendedHandle ubo, void* data);
+        static void UpdateUniformBuffers(GPUExtendedHandle context, GPUExtendedHandle ubo, void* data);
         static void DestroyUniformBuffers(GPUExtendedHandle ubo);
 
-        static void UpdateTextureStagingBuffer(GPUExtendedHandle, int width, int height, uint8_t* data);
+        static void UpdateTextureStagingBuffer(GPUExtendedHandle context, GPUExtendedHandle, int width, int height, uint8_t* data);
 
-        static void UpdateTextureData(GPUExtendedHandle texture, int width, int height, uint8_t* data);
+        static void UpdateTextureData(GPUExtendedHandle context, GPUExtendedHandle texture, int width, int height, uint8_t* data);
         
-        static void OptimizeTextureForRendering(GPUExtendedHandle texture);
+        static void OptimizeTextureForRendering(GPUExtendedHandle context, GPUExtendedHandle texture);
 
         static GPUExtendedHandle GenerateShaderProgram(ShaderType type, std::vector<uint8_t> binary);
         static void DestroyShaderProgram(GPUExtendedHandle program);
         static GPUHandle GetProgramUniformLocation(GPUHandle program, const char* uniform);
         
-        static void ClearTextureImage(GPUExtendedHandle texture, int attachment, float* color);
+        static void ClearTextureImage(GPUExtendedHandle context, GPUExtendedHandle texture, int attachment, float* color);
         
-        static GPUExtendedHandle GenerateGPUTexture(int width, int height, bool keepStagingBuffer = false);
-        static GPUExtendedHandle ImportGPUTexture(uint8_t* texture, int width, int height, int channels, bool keepStagingBuffer = false);
+        static GPUExtendedHandle GenerateGPUTexture(GPUExtendedHandle context, int width, int height, bool keepStagingBuffer = false);
+        static GPUExtendedHandle ImportGPUTexture(GPUExtendedHandle context, uint8_t* texture, int width, int height, int channels, bool keepStagingBuffer = false);
         static void DestroyGPUTexture(GPUExtendedHandle texture);
 
         static GPUExtendedHandle GenerateFramebuffer(GPUExtendedHandle color, GPUExtendedHandle uv, int width, int height);

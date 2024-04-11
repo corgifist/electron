@@ -2,15 +2,15 @@
 
 namespace Electron {
 
-    GPUExtendedHandle VRAM::GenerateGPUTexture(int width, int height) {
-        return DriverCore::GenerateGPUTexture(width, height);
+    GPUExtendedHandle VRAM::GenerateGPUTexture(GPUExtendedHandle contextPtr, int width, int height) {
+        return DriverCore::GenerateGPUTexture(contextPtr, width, height);
     }
 
     int PipelineFrameBuffer::counter = 1;
 
-    RenderBuffer::RenderBuffer(int width, int height) {
-        this->colorBuffer = VRAM::GenerateGPUTexture(width, height);
-        this->uvBuffer = VRAM::GenerateGPUTexture(width, height);
+    RenderBuffer::RenderBuffer(GPUExtendedHandle context, int width, int height) {
+        this->colorBuffer = VRAM::GenerateGPUTexture(context, width, height);
+        this->uvBuffer = VRAM::GenerateGPUTexture(context, width, height);
 
         this->width = width;
         this->height = height;
@@ -23,31 +23,31 @@ namespace Electron {
         PixelBuffer::DestroyGPUTexture(uvBuffer);
     }
 
-    ResizableGPUTexture::ResizableGPUTexture(int width, int height) {
+    ResizableGPUTexture::ResizableGPUTexture(GPUExtendedHandle context, int width, int height) {
         this->width = width;
         this->height = height;
-        this->texture = VRAM::GenerateGPUTexture(width, height);
+        this->texture = VRAM::GenerateGPUTexture(context, width, height);
     }
 
-    void ResizableGPUTexture::CheckForResize(RenderBuffer *pbo) {
+    void ResizableGPUTexture::CheckForResize(GPUExtendedHandle context, RenderBuffer *pbo) {
         if (width != pbo->width || height != pbo->height) {
             this->width = pbo->width;
             this->height = pbo->height;
             PixelBuffer::DestroyGPUTexture(texture);
-            this->texture = VRAM::GenerateGPUTexture(width, height);
+            this->texture = VRAM::GenerateGPUTexture(context, width, height);
         }
     }
 
     void ResizableGPUTexture::Destroy() { PixelBuffer::DestroyGPUTexture(texture); }
 
-    ResizableRenderBuffer::ResizableRenderBuffer(int width, int height) {
-        this->color = ResizableGPUTexture(width, height);
-        this->uv = ResizableGPUTexture(width, height);
+    ResizableRenderBuffer::ResizableRenderBuffer(GPUExtendedHandle context, int width, int height) {
+        this->color = ResizableGPUTexture(context, width, height);
+        this->uv = ResizableGPUTexture(context, width, height);
     }
 
-    void ResizableRenderBuffer::CheckForResize(RenderBuffer *pbo) {
-        color.CheckForResize(pbo);
-        uv.CheckForResize(pbo);
+    void ResizableRenderBuffer::CheckForResize(GPUExtendedHandle context, RenderBuffer *pbo) {
+        color.CheckForResize(context, pbo);
+        uv.CheckForResize(context, pbo);
     }
 
     void ResizableRenderBuffer::Destroy() {
@@ -55,11 +55,11 @@ namespace Electron {
         uv.Destroy();
     }
 
-    PipelineFrameBuffer::PipelineFrameBuffer(int width, int height) {
+    PipelineFrameBuffer::PipelineFrameBuffer(GPUExtendedHandle context, int width, int height) {
         this->width = width;
         this->height = height;
         this->id = counter++;
-        this->rbo = RenderBuffer(width, height);
+        this->rbo = RenderBuffer(context, width, height);
         this->fbo = DriverCore::GenerateFramebuffer(rbo.colorBuffer, rbo.uvBuffer, width, height);
     }
 

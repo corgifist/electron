@@ -30,4 +30,5 @@ namespace Electron {
     uint64_t Shared::frameID = 0;
     std::string Shared::deviceName = "";
     bool Shared::timelineSeekFired = false;
+    glm::vec3 Shared::backgroundColor = {};
 }

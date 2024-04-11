@@ -55,9 +55,10 @@ namespace Electron {
         this->decoderTask = nullptr;
         this->terminateDecoderTask = false;
         this->decodingFinished = false;
+        this->readyToBePresented = false;
     }
 
-    GPUExtendedHandle AssetDecoder::GetGPUTexture(TextureUnion* asset) {
+    GPUExtendedHandle AssetDecoder::GetGPUTexture(TextureUnion* asset, GPUExtendedHandle context) {
         if (!asset->ready) return 0;
         if (asset->type == TextureUnionType::Texture || asset->type == TextureUnionType::Audio) {
             if (!id) id = seedrand();
@@ -70,6 +71,7 @@ namespace Electron {
                 this->width = video.width;
                 this->height = video.height;
                 Destroy();
+                transferBufferIndex = 0;
                 image = new uint8_t[width * height * 4];
 
                 video_reader_open(&vr, asset->path.c_str(), Shared::deviceName.c_str(), !Shared::configMap["UseVideoGPUAcceleration"]);
@@ -97,12 +99,13 @@ namespace Electron {
                 }, this);
 
                 for (int i = 0; i < DriverCore::FramesInFlightCount(); i++) {
-                    transferBuffers.push_back(DriverCore::GenerateGPUTexture(width, height, true));
+                    transferBuffers.push_back(DriverCore::GenerateGPUTexture(context, width, height, true));
                     float blackPtr[4] = {
                         0, 0, 0, 1
                     };
-                    DriverCore::ClearTextureImage(transferBuffers[i], 0, blackPtr);
                 }
+                readyToBePresented = true;
+                decodingFinished = false;
                 this->id = seedrand();
             }
             if (frame == 0) {
@@ -145,7 +148,7 @@ namespace Electron {
 
                 commandBuffer.push_back(AssetDecoderCommand(image));
                 if (decodingFinished) transferBufferIndex = (transferBufferIndex + 1) % DriverCore::FramesInFlightCount();
-                if (decodingFinished) DriverCore::UpdateTextureData(transferBuffers[transferBufferIndex], width, height, image);
+                if (decodingFinished) DriverCore::UpdateTextureData(context, transferBuffers[transferBufferIndex], width, height, image);
                 if (decodingFinished) decodingFinished = false;
                 return frame == 0 ? asset->pboGpuTexture : transferBuffers[transferBufferIndex];
             }
@@ -171,6 +174,7 @@ namespace Electron {
 
     void AssetDecoder::Destroy() {
         id = 0;
+        readyToBePresented = false;
         UnloadHandles();
         for (auto& transferBuffer : transferBuffers) {
             DriverCore::DestroyGPUTexture(transferBuffer);
@@ -225,9 +229,9 @@ namespace Electron {
 
     /* Managed Asset Decoder */
 
-    GPUExtendedHandle ManagedAssetDecoder::GetGPUTexture(TextureUnion* asset) {
+    GPUExtendedHandle ManagedAssetDecoder::GetGPUTexture(TextureUnion* asset, GPUExtendedHandle context) {
         if (!asset) return 0;
-        return decoder.GetGPUTexture(asset);
+        return decoder.GetGPUTexture(asset, context);
     }
 
     GPUExtendedHandle ManagedAssetDecoder::GetImageHandle(TextureUnion* asset) {

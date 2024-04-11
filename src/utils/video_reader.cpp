@@ -18,12 +18,9 @@ static AVPixelFormat correct_for_deprecated_pixel_format(AVPixelFormat pix_fmt) 
     }
 }
 
-static std::vector<AVHWDeviceType> availableDeviceTypes = {
-    AV_HWDEVICE_TYPE_CUDA,
-    AV_HWDEVICE_TYPE_VULKAN,
-    AV_HWDEVICE_TYPE_VDPAU
-};
+static AVHWDeviceType lastSuccessfullDeviceType = AV_HWDEVICE_TYPE_NONE;
 
+static std::vector<AVHWDeviceType> availableDeviceTypes = {};
 static int hw_decoder_init(VideoReaderState* state, AVCodecContext *ctx, const enum AVHWDeviceType type, const char* deviceName)
 {
     auto& hw_device_ctx = state->hw_device_ctx;
@@ -38,7 +35,7 @@ static int hw_decoder_init(VideoReaderState* state, AVCodecContext *ctx, const e
         return err;
     }
     device_type = type;
-    ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+    ctx->hw_device_ctx = av_buffer_ref(state->hw_device_ctx);
 
     return err;
 }
@@ -130,9 +127,12 @@ bool video_reader_open(VideoReaderState* state, const char* filename, const char
 
     if (!hw_device_ctx && state->useHardwareDecoding) {
         for (auto& deviceType : availableDeviceTypes) {
-            int err = hw_decoder_init(state, av_codec_ctx, deviceType, deviceName);
+            int err = hw_decoder_init(state, av_codec_ctx, lastSuccessfullDeviceType == AV_HWDEVICE_TYPE_NONE ? deviceType : lastSuccessfullDeviceType, deviceName);
             if (err < 0) continue;
-            if (err == 0) break;
+            if (err == 0) {
+                lastSuccessfullDeviceType = deviceType;
+                break;
+            }
         }
         std::cout << "ffmpeg hardware device type: " << av_hwdevice_get_type_name(device_type) << std::endl;
         if (device_type == AV_HWDEVICE_TYPE_NONE) {
@@ -338,6 +338,6 @@ void video_reader_close(VideoReaderState* state) {
     av_frame_free(&state->hw_frame);
     av_frame_free(&state->av_frame);
     av_packet_free(&state->av_packet);
-    if (state->useHardwareDecoding) av_buffer_unref(&state->av_codec_ctx->hw_device_ctx);
+    if (state->useHardwareDecoding) av_buffer_unref(&state->hw_device_ctx);
     avcodec_free_context(&state->av_codec_ctx);
 }

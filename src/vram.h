@@ -3,12 +3,10 @@
 #include "pixel_buffer.h"
 #include "driver_core.h"
 
-#define PERSISTENT_FLAG GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT
-
 namespace Electron {
 
     struct VRAM {
-        static GPUExtendedHandle GenerateGPUTexture(int width, int height);
+        static GPUExtendedHandle GenerateGPUTexture(GPUExtendedHandle contextPtr, int width, int height);
     };
 
     // A set of GPU textures that represents color/depth/uv buffers
@@ -18,7 +16,7 @@ namespace Electron {
         GPUExtendedHandle uvBuffer;
         int width, height;
 
-        RenderBuffer(int width, int height);
+        RenderBuffer(GPUExtendedHandle context, int width, int height);
         RenderBuffer() {
             this->width = 0;
             this->height = 0;
@@ -34,10 +32,10 @@ namespace Electron {
         GPUExtendedHandle texture;
         int width, height;
 
-        ResizableGPUTexture(int width, int height);
+        ResizableGPUTexture(GPUExtendedHandle context, int width, int height);
         ResizableGPUTexture() {}
 
-        void CheckForResize(RenderBuffer* rbo);
+        void CheckForResize(GPUExtendedHandle context, RenderBuffer* rbo);
         void Destroy();
     };
 
@@ -45,10 +43,10 @@ namespace Electron {
     struct ResizableRenderBuffer {
         ResizableGPUTexture color, uv;
 
-        ResizableRenderBuffer(int width, int height);
+        ResizableRenderBuffer(GPUExtendedHandle context, int width, int height);
         ResizableRenderBuffer() {}
 
-        void CheckForResize(RenderBuffer* rbo);
+        void CheckForResize(GPUExtendedHandle context, RenderBuffer* rbo);
         void Destroy();
     };
 
@@ -59,7 +57,7 @@ namespace Electron {
         int id;
         static int counter;
 
-        PipelineFrameBuffer(int width, int height);
+        PipelineFrameBuffer(GPUExtendedHandle context, int width, int height);
         PipelineFrameBuffer(GPUExtendedHandle color, GPUExtendedHandle uv);
         PipelineFrameBuffer() {
             this->id = 0;

@@ -17,6 +17,8 @@
 #include "build_number.h"
 
 
+#include "async_rendering.h"
+
 namespace Electron {
     namespace UI {
         void Begin(const char* name, Signal signal, ImGuiWindowFlags flags);

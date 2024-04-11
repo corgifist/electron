@@ -17,8 +17,6 @@
 
 static DylibRegistry dylibRegistry{};
 
-#define COMPOSITOR_MAX_TEXTURES 64
-
 namespace Electron {
 
     enum PreviewOutputBufferType {
@@ -60,20 +58,13 @@ namespace Electron {
     struct CompositorPushConstants {
         glm::vec2 viewport;
     };
-    
+
     // Responsible of some GPU manipulations
     struct GraphicsCore {
-        static PipelineFrameBuffer renderBuffer;
         static PreviewOutputBufferType outputBufferType;
         static std::vector<RenderLayer> layers;
         static bool isPlaying;
         static std::vector<PipelineFrameBuffer> compositorQueue;
-
-        static struct CompositorPipeline {
-            GPUExtendedHandle compositorVertex, compositorFragment;
-            GPUExtendedHandle compositorLayout;
-            GPUExtendedHandle compositorPipeline;
-        } compositorPipeline;
 
         static float renderFrame;
         static int renderLength, renderFramerate;
@@ -86,18 +77,14 @@ namespace Electron {
 
         static DylibRegistry GetImplementationsRegistry();
 
-        static void PrecompileEssentialShaders();
-
         static RenderLayer* GetLayerByID(int id);
         static int GetLayerIndexByID(int id);
 
-        static void RequestRenderBufferCleaningWithinRegion();
-        static void RequestTextureCollectionCleaning(PipelineFrameBuffer frb, float multiplier = 1.0f);
-        static std::vector<float> RequestRenderWithinRegion();
-        static void ResizeRenderBuffer(int width, int height);
+        static void RequestRenderBufferCleaningWithinRegion(GPUExtendedHandle context);
+        static void RequestTextureCollectionCleaning(GPUExtendedHandle context, PipelineFrameBuffer frb, float multiplier = 1.0f);
         static GLuint GetPreviewGPUTexture();
 
-        static void DrawArrays(int size);
+        static void DrawArrays(GPUExtendedHandle context, int size);
         static GPUExtendedHandle CompileComputeShader(std::string path);
         static PipelineShader CompilePipelineShader(std::string path, ShaderType type = ShaderType::VertexFragment);
         static void UseShader(ShaderType type, GPUExtendedHandle shader);
@@ -109,7 +96,7 @@ namespace Electron {
         static void FirePlaybackChange();
 
         static void CallCompositor(PipelineFrameBuffer frb);
-        static void PerformComposition();
+        static void PerformComposition(GPUExtendedHandle context);
         
     };
 }

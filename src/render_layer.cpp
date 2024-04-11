@@ -34,7 +34,7 @@ namespace Electron {
 
     void RenderLayer::FetchImplementation() {
 
-        this->layerProcedure = TryGetLayerImplF("LayerRender");
+        this->layerProcedure = TryGetLayerRenderImplF("LayerRender");
         this->destructionProcedure = TryGetLayerImplF("LayerDestroy");
         this->onPlaybackChangeProcedure = TryGetLayerImplF("LayerOnPlaybackChange");
         this->onTimelineSeek = TryGetLayerImplF("LayerOnTimelineSeek");
@@ -56,19 +56,17 @@ namespace Electron {
             throw std::runtime_error("bad layer procedure!");
     }
 
-    void RenderLayer::Render() {
+    void RenderLayer::Render(RenderLayerRenderDescription description) {
         if (!visible)
             return;
         float timeShift = 0.0;
         if (properties.find("InternalTimeShift") != properties.end()) {
             timeShift = JSON_AS_TYPE(properties["InternalTimeShift"], float);
         }
-        float oldRenderFrame = GraphicsCore::renderFrame;
         bool inBounds = IsInBounds(GraphicsCore::renderFrame, beginFrame, endFrame);
         if (inBounds) {
-            GraphicsCore::renderFrame += timeShift;
-            layerProcedure(this);
-            GraphicsCore::renderFrame = oldRenderFrame;
+            description.frame += description.frame;
+            layerProcedure(this, description);
         }
     }
 
@@ -524,6 +522,14 @@ namespace Electron {
         return previewPropertiesProcedure(this);
     }
 
+    Electron_LayerRenderImplF RenderLayer::TryGetLayerRenderImplF(std::string key) {
+        try {
+            return Libraries::GetFunction<void(RenderLayer *, RenderLayerRenderDescription)>(layerLibrary, key);
+        } catch (internalDylib::symbol_error err) {
+            return LayerRenderImplPlaceholder;
+        }
+    }
+
     Electron_LayerImplF RenderLayer::TryGetLayerImplF(std::string key) {
         try {
             return Libraries::GetFunction<void(RenderLayer *)>(layerLibrary, key);
@@ -556,6 +562,7 @@ namespace Electron {
         }
     }
 
+    void LayerRenderImplPlaceholder(Electron::RenderLayer* layer, RenderLayerRenderDescription desc) {}
     void LayerImplPlaceholder(RenderLayer *layer) {}
     json_t LayerPropertiesImplPlaceholder(RenderLayer *layer) { return {}; }
     PipelineFrameBuffer LayerFramebufferImplPlaceholder(RenderLayer* layer) { return {}; }

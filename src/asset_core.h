@@ -77,12 +77,13 @@ namespace Electron {
         int width, height;
         int lastLoadedFrame, frame, id;
         uint8_t* image;
+        bool readyToBePresented;
 
         VideoReaderState vr;
 
         AssetDecoder();
 
-        GPUExtendedHandle GetGPUTexture(TextureUnion* asset);
+        GPUExtendedHandle GetGPUTexture(TextureUnion* asset, GPUExtendedHandle context = 0);
 
         void LoadHandle(TextureUnion* asset);
         void UnloadHandles();
@@ -106,7 +107,7 @@ namespace Electron {
         }
 
         GPUExtendedHandle GetImageHandle(TextureUnion* asset);
-        GPUExtendedHandle GetGPUTexture(TextureUnion* asset);
+        GPUExtendedHandle GetGPUTexture(TextureUnion* asset, GPUExtendedHandle context = 0);
         void Update(TextureUnion* asset);
         bool IsDisposed();
 

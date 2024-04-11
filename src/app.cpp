@@ -120,7 +120,8 @@ namespace Electron {
 
         Servers::Initialize();
         GraphicsCore::FetchAllLayers();
-        GraphicsCore::PrecompileEssentialShaders();
+
+        AsyncRendering::Initialize();
 
         DUMP_VAR(DriverCore::renderer.renderer);
         DUMP_VAR(DriverCore::renderer.vendor);
@@ -158,7 +159,6 @@ namespace Electron {
         while (!DriverCore::ShouldClose()) {
             try {
                 AppCore::context = ImGui::GetCurrentContext();
-                
                 // very smart and elegant... smart and elegant...
                 if (Shared::frameID % 2 == 0) 
                     Shared::timelineSeekFired = false;
@@ -360,6 +360,11 @@ namespace Electron {
                     }
                     
                     if (AppCore::projectOpened) {
+                            Shared::backgroundColor = glm::vec3(
+                                JSON_AS_TYPE(Shared::project.propertiesMap["BackgroundColor"].at(0) ,float),
+                                JSON_AS_TYPE(Shared::project.propertiesMap["BackgroundColor"].at(1), float),
+                                JSON_AS_TYPE(Shared::project.propertiesMap["BackgroundColor"].at(2), float)
+                            );
                         json_t AssetCore = {};
                         auto &_assets = AssetCore::assets;
                         for (int i = 0; i < _assets.size(); i++) {
@@ -395,6 +400,14 @@ namespace Electron {
                             Shared::configMap["LastProject"] = "null";
                         }
                     }
+                }
+                if (Shared::frameID % 10 == 0) {
+                    AsyncRendering::AllowRendering(projectOpened);
+                    /* if (GraphicsCore::layers.size() == 0 && projectOpened && AsyncRendering::renderBuffer.width != 0) {
+                        for (int i = 0; i < 50; i++) {
+                            GraphicsCore::AddRenderLayer(RenderLayer("sdf2d_layer"));
+                        }
+                    } */
                 }
                 goto render_success;
             no_ffmpeg: {
@@ -436,6 +449,7 @@ namespace Electron {
 
     void AppCore::Terminate() {
         AppCore::running = false;
+        AsyncRendering::Terminate();
         GraphicsCore::Destroy();
         Servers::Destroy();
         DriverCore::ImGuiShutdown();
