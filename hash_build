@@ -54,13 +54,9 @@ scenario build_imgui {
         $imgui_targets,
         $build_arch
     )
-    if eq(get_platform(), windows) {
-        deps = [opengl32, glfw]
-    } else {
-        deps = [glfw]
-    }
+    deps = [glfw]
 
-    link_executable($imgui_objects, cat($dylib_id, cat("imgui", $dylib_prefix)), $deps, shared, imgui, "libs")
+    link_executable($imgui_objects, cat($dylib_id, cat("imgui", $dylib_prefix)), $deps, shared, imgui, "libs", "./libs")
     move_shared_libs()
 }
 
@@ -83,7 +79,7 @@ scenario build_core {
     ]
 
     object_add_link_options("rdynamic")
-    link_executable($objects, cat($dylib_id, cat($base_exec_name, $dylib_prefix)), $deps, shared, electron, "libs")
+    link_executable($objects, cat($dylib_id, cat($base_exec_name, $dylib_prefix)), $deps, shared, electron, "libs", "./libs")
     move_shared_libs()
 }
 
@@ -104,19 +100,14 @@ scenario build_impl {
     impl_objects = object_compile(cat(cat("impl/", $impl_target_file), ".cpp"), $build_arch, [], "libs")
 
     impl_deps = list()
-    if eq(get_platform(), windows) {
-        impl_deps = [
-            pthread, dbgeng, backtrace, bfd, dbghelp, imgui, electron
-        ]
-    } else {
-        impl_deps = [
-            dl, pthread, backtrace, bfd, unwind dl
-        ]
-    }
+
+    impl_deps = [
+        dl, pthread, backtrace, bfd, unwind, dl
+    ]
     if eq($impl_target_file, audio_server) {
         impl_deps = cat($impl_deps, [openal])
     }
-    link_executable($impl_objects, $shared_library_name, $impl_deps, shared, "implib", "libs")
+    link_executable($impl_objects, $shared_library_name, $impl_deps, shared, "implib", "libs", "./libs")
     move_shared_libs()
 }
 
