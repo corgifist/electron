@@ -122,7 +122,7 @@ extern "C" {
         ImGui::RenderFrame(bb.Min, bb.Max, col, true, style.FrameRounding);
 
         ImGui::SetCursorPos(oldCursor);
-            layer->timelineRenderProcedure(layer, desc);
+            if (layer->initialized) layer->timelineRenderProcedure(layer, desc);
         ImGui::RenderTextClipped(bb.Min + style.FramePadding, bb.Max - style.FramePadding, label, NULL, &label_size, style.ButtonTextAlign, &bb);
 
         TimelineRenderDragNDrop(layerIndex);

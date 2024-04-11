@@ -22,10 +22,23 @@ extern "C" {
         Triangle = 3
     };
 
+    struct SDF2DSyncConstants {
+        glm::vec2 position;
+        glm::vec2 size;
+        glm::vec4 color;
+        glm::vec2 uvOffset;
+        float angle;
+        bool texturingEnabled;
+        std::string textureID;
+        SDFShape sdfShape;
+        float sdfRadius;
+    };
+
     struct SDF2DUserData {
         PipelineFrameBuffer frb;
         ManagedAssetDecoder decoder;
         GPUExtendedHandle ubo;
+        SDF2DSyncConstants sync;
 
         SDF2DUserData() {
         }
@@ -92,7 +105,7 @@ extern "C" {
 
         owner->userData = new SDF2DUserData();
         SDF2DUserData* userData = (SDF2DUserData*) owner->userData;
-        userData->frb =  PipelineFrameBuffer(GraphicsCore::renderBuffer.width, GraphicsCore::renderBuffer.height);
+        userData->frb =  PipelineFrameBuffer(0, AsyncRendering::renderBuffer.width, AsyncRendering::renderBuffer.height);
         userData->ubo = DriverCore::GenerateUniformBuffers(sizeof(SDF2DUniformBuffer));
 
         if (sdf2d_pipeline == 0) {
@@ -106,7 +119,7 @@ extern "C" {
             DescriptorSetLayoutBinding uniformBufferBinding;
             uniformBufferBinding.bindingPoint = 1;
             uniformBufferBinding.descriptorType = DescriptorType::UniformBuffer;
-            uniformBufferBinding.shaderType = ShaderType::VertexFragment;
+            uniformBufferBinding.shaderType = ShaderType::Fragment;
             
             DescriptorSetLayoutBuilder descriptorSetBuilder;
             descriptorSetBuilder.AddBinding(texturePoolBinding);
@@ -149,8 +162,8 @@ extern "C" {
         }
     }
 
-    ELECTRON_EXPORT void LayerRender(RenderLayer* owner) {
-        PipelineFrameBuffer* pbo = &GraphicsCore::renderBuffer;
+    ELECTRON_EXPORT void LayerRender(RenderLayer* owner, RenderLayerRenderDescription desc) {
+        PipelineFrameBuffer* pbo = &AsyncRendering::renderBuffer;
 
         SDF2DUserData* userData = (SDF2DUserData*) owner->userData;
         ManagedAssetDecoder* decoder = &userData->decoder;
@@ -160,34 +173,18 @@ extern "C" {
             frb = PipelineFrameBuffer(pbo->width, pbo->height);
         }
 
-        GraphicsCore::RequestTextureCollectionCleaning(frb, 0.0f);
+        GraphicsCore::RequestTextureCollectionCleaning(desc.context, frb, 0.0f);
 
-        auto position = vec2();
-        auto size = vec2(0.5f);
-        auto color = vec4(1.0f);
-        auto uvOffset = vec2();
-        auto angle = 0.0f; {
-            auto positionVector = owner->InterpolateProperty(owner->properties["Position"]);
-            auto sizeVector = owner->InterpolateProperty(owner->properties["Size"]);
-            auto colorVector = owner->InterpolateProperty(owner->properties["Color"]);
-            auto angleFloat = owner->InterpolateProperty(owner->properties["Angle"]);
-            auto uvOffsetVector = owner->InterpolateProperty(owner->properties["UvOffset"]);
-            position = vec2(positionVector[0], positionVector[1]);
-            size = vec2(sizeVector[0], sizeVector[1]); 
-            color = vec4(colorVector[0], colorVector[1], colorVector[2], colorVector[3]);
-            angle = angleFloat[0];
-            uvOffset = vec2(uvOffsetVector[0], uvOffsetVector[1]);
-        }
+        auto position = userData->sync.position;
+        auto size = userData->sync.size;
+        auto color = userData->sync.color;
+        auto uvOffset = userData->sync.uvOffset;
+        auto angle = userData->sync.angle;
 
-        bool texturingEnabled = JSON_AS_TYPE(owner->properties["EnableTexturing"], bool);
-        std::string textureID = JSON_AS_TYPE(owner->properties["TextureID"], std::string);
+        bool texturingEnabled = userData->sync.texturingEnabled;
+        std::string textureID = userData->sync.textureID;
         TextureUnion* asset = AssetCore::GetAsset(textureID);
-        if (asset != nullptr) {
-            owner->internalData["StatusText"] = asset->name;
-        } else {
-            owner->internalData["StatusText"] = "";
-        }
-
+ 
         bool canTexture = (asset != nullptr && texturingEnabled);
 
         mat4 transform = glm::identity<mat4>();
@@ -205,35 +202,18 @@ extern "C" {
         uniformBuffer.uColor = color;
         uniformBuffer.uTextureOffset = uvOffset;
         uniformBuffer.uSize = size;
-        uniformBuffer.uSdfEnabled = JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int);
-        switch ((SDFShape) JSON_AS_TYPE(owner->properties["SelectedSDFShape"], int)) {
-            case SDFShape::None: {
-                break;
-            };
-            case SDFShape::Circle: {
-                uniformBuffer.uSdfRadius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["CircleRadius"]).at(0), float);
-                break;
-            }
-            case SDFShape::RoundedRect: {
-                uniformBuffer.uSdfRadius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["BoxRadius"]).at(0), float);
-                break;
-            }
-            case SDFShape::Triangle: {
-                uniformBuffer.uSdfRadius = JSON_AS_TYPE(owner->InterpolateProperty(owner->properties["TriangleRadius"]).at(0), float);
-                break;
-            }
-        } 
+        uniformBuffer.uSdfEnabled = (int) (userData->sync.sdfShape != SDFShape::None);
         
         if (canTexture && asset->type == TextureUnionType::Video) {
             VideoMetadata video = std::get<VideoMetadata>(asset->as);
             decoder->decoder.frame = std::ceil(double((GraphicsCore::renderFrame - owner->beginFrame) / GraphicsCore::renderFramerate) * (video.framerate));
         }
 
-        auto sdfTexture = decoder->GetGPUTexture(asset);
+        auto sdfTexture = decoder->GetGPUTexture(asset, desc.context);
 
-        DriverCore::UpdateUniformBuffers(userData->ubo, &uniformBuffer);
+        DriverCore::UpdateUniformBuffers(desc.context, userData->ubo, &uniformBuffer);
 
-        DriverCore::BeginRendering(frb.fbo);
+        DriverCore::BeginRendering(desc.context, frb.fbo);
 
             if (canTexture) {
                 DescriptorWriteBinding textureBinding;
@@ -246,20 +226,20 @@ extern "C" {
                 uboBinding.resource = userData->ubo;
                 uboBinding.type = DescriptorType::UniformBuffer;
 
-                DriverCore::PushDescriptors({textureBinding, uboBinding}, sdf2d_layout, 0);    
+                DriverCore::PushDescriptors(desc.context, {textureBinding, uboBinding}, sdf2d_layout, 0);    
             }
 
-            DriverCore::BindPipeline(sdf2d_pipeline);
-            DriverCore::SetRenderingViewport(frb.width, frb.height);
-            DriverCore::PushConstants(sdf2d_layout, ShaderType::VertexFragment, 0, sizeof(SDF2DPushConstant), &pushConstants);
-            GraphicsCore::DrawArrays(fsQuadVertices.size() / 2);
-        DriverCore::EndRendering();
+            DriverCore::BindPipeline(desc.context, sdf2d_pipeline);
+            DriverCore::SetRenderingViewport(desc.context, frb.width, frb.height);
+            DriverCore::PushConstants(desc.context, sdf2d_layout, ShaderType::VertexFragment, 0, sizeof(SDF2DPushConstant), &pushConstants);
+            GraphicsCore::DrawArrays(desc.context, fsQuadVertices.size() / 2);
+        DriverCore::EndRendering(desc.context);
 
         GraphicsCore::CallCompositor(frb);
     }
 
     ELECTRON_EXPORT void LayerPropertiesRender(RenderLayer* layer) {
-        PipelineFrameBuffer* pbo = &GraphicsCore::renderBuffer;
+        PipelineFrameBuffer* pbo = &AsyncRendering::renderBuffer;
         SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
         bool texturingEnabled = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
         ImGui::Checkbox("Enable texturing", &texturingEnabled);
@@ -361,6 +341,7 @@ extern "C" {
     }
 
     ELECTRON_EXPORT void LayerSortKeyframes(RenderLayer* layer) {
+        SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
         json_t& position = layer->properties["Position"];
         layer->SortKeyframes(position);
 
@@ -372,12 +353,57 @@ extern "C" {
 
         json_t& angle = layer->properties["Angle"];
         layer->SortKeyframes(angle);
+
+        TextureUnion* asset = AssetCore::GetAsset(layer->properties["TextureID"]);
+        if (asset != nullptr) {
+            layer->internalData["StatusText"] = asset->name;
+        } else {
+            layer->internalData["StatusText"] = "";
+        }
+
+        if (IsInBounds(GraphicsCore::renderFrame, layer->beginFrame, layer->endFrame)) {
+            SDF2DSyncConstants sync; {
+                auto positionVector = layer->InterpolateProperty(layer->properties["Position"]);
+                auto sizeVector = layer->InterpolateProperty(layer->properties["Size"]);
+                auto colorVector = layer->InterpolateProperty(layer->properties["Color"]);
+                auto angleFloat = layer->InterpolateProperty(layer->properties["Angle"]);
+                auto uvOffsetVector = layer->InterpolateProperty(layer->properties["UvOffset"]);
+                sync.position = vec2(positionVector[0], positionVector[1]);
+                sync.size = vec2(sizeVector[0], sizeVector[1]); 
+                sync.color = vec4(colorVector[0], colorVector[1], colorVector[2], colorVector[3]);
+                sync.angle = angleFloat[0];
+                sync.uvOffset = vec2(uvOffsetVector[0], uvOffsetVector[1]);
+                sync.texturingEnabled = JSON_AS_TYPE(layer->properties["EnableTexturing"], bool);
+                sync.textureID = JSON_AS_TYPE(layer->properties["TextureID"], std::string);
+
+                switch ((SDFShape) JSON_AS_TYPE(layer->properties["SelectedSDFShape"], int)) {
+                    case SDFShape::None: {
+                        break;
+                    };
+                    case SDFShape::Circle: {
+                        sync.sdfRadius = JSON_AS_TYPE(layer->InterpolateProperty(layer->properties["CircleRadius"]).at(0), float);
+                        break;
+                    }
+                    case SDFShape::RoundedRect: {
+                        sync.sdfRadius = JSON_AS_TYPE(layer->InterpolateProperty(layer->properties["BoxRadius"]).at(0), float);
+                        break;
+                    }
+                    case SDFShape::Triangle: {
+                        sync.sdfRadius = JSON_AS_TYPE(layer->InterpolateProperty(layer->properties["TriangleRadius"]).at(0), float);
+                        break;
+                    }
+                } 
+            }
+
+            userData->sync = sync;
+        }
     }
 
     ELECTRON_EXPORT void LayerDestroy(RenderLayer* layer) {
         SDF2DUserData* userData = (SDF2DUserData*) layer->userData;
         PipelineFrameBuffer frb = userData->frb;
         frb.Destroy();
+        DriverCore::DestroyUniformBuffers(userData->ubo);
         userData->decoder.Destroy();
         delete userData;
     }
@@ -410,8 +436,11 @@ extern "C" {
             userData->decoder.Dispose();
             return;
         }
+        if (asset->type == TextureUnionType::Video && !userData->decoder.decoder.readyToBePresented)
+            return;
         if (asset && userData->decoder.IsDisposed()) {
             userData->decoder.Reinitialize(asset);
+            return;
         }
         glm::vec2 assetDimensions = asset->GetDimensions();
         ImVec2 previewSize = {desc.layerSizeY * (assetDimensions.x / assetDimensions.y), desc.layerSizeY};

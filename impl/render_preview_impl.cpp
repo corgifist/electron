@@ -1,5 +1,6 @@
 #include "editor_core.h"
 #include "app.h"
+#include "async_rendering.h"
 #include "utils/drag_utils.h"
 #define CSTR(x) ((x).c_str())
 
@@ -38,16 +39,7 @@ extern "C" {
         ImGui::GetWindowDrawList()->AddRectFilled(bounds.UL, bounds.BR, ImGui::ColorConvertFloat4ToU32(color));
     }
 
-    GPUExtendedHandle renderBufferColorHandle = 0, renderBufferUVHandle = 0;
     ResolutionVariant resolutionVariants[9];
-
-    static void RebuildRenderBufferHandles() {
-        if (renderBufferColorHandle) DriverCore::DestroyImageHandleUI(renderBufferColorHandle);
-        if (renderBufferUVHandle) DriverCore::DestroyImageHandleUI(renderBufferUVHandle);
-
-        renderBufferColorHandle = DriverCore::GetImageHandleUI(GraphicsCore::renderBuffer.rbo.colorBuffer);
-        renderBufferUVHandle = DriverCore::GetImageHandleUI(GraphicsCore::renderBuffer.rbo.uvBuffer);
-    }
 
     ELECTRON_EXPORT void UIRender() {
         ImGui::SetCurrentContext(AppCore::context);
@@ -67,13 +59,12 @@ extern "C" {
         static DragStructure imagePreviewDrag{};
         static ImVec2 imageOffset{0, 0};
 
-        PipelineFrameBuffer* rbo = &GraphicsCore::renderBuffer;
+        PipelineFrameBuffer* rbo = &AsyncRendering::renderBuffer;
         static int selectedResolutionVariant = 0;
 
         if (firstSetup && AppCore::projectOpened) {
             selectedResolutionVariant = JSON_AS_TYPE(Shared::project.propertiesMap["PreviewResolution"], int);
             RebuildPreviewResolutions(resolutionVariants, {(float) rbo->width, (float) rbo->height});
-            RebuildRenderBufferHandles();
             GraphicsCore::isPlaying = JSON_AS_TYPE(Shared::project.propertiesMap["Playing"], bool);
             GraphicsCore::renderFrame = JSON_AS_TYPE(Shared::project.propertiesMap["TimelineValue"], int);
             std::vector<float> imageOffsetVector = Shared::project.propertiesMap["RenderPreviewOffset"];
@@ -115,19 +106,15 @@ extern "C" {
                 currentVariant = resolutionVariants[selectedResolutionVariant];
             }
             if (AppCore::projectOpened && (currentVariant.width != rbo->width || currentVariant.height != rbo->height)) {
-                GraphicsCore::ResizeRenderBuffer(currentVariant.width, currentVariant.height);
-                RebuildRenderBufferHandles();
+                AsyncRendering::ResizeRenderBuffer(currentVariant.width, currentVariant.height);
             }
             if (AppCore::projectOpened && (resolutionVariants[0].width != projectResolution[0] || resolutionVariants[0].height != projectResolution[1])) {
-                GraphicsCore::ResizeRenderBuffer(projectResolution[0], projectResolution[1]);
-                RebuildRenderBufferHandles();
+                AsyncRendering::ResizeRenderBuffer(projectResolution[0], projectResolution[1]);
 
                 RebuildPreviewResolutions(resolutionVariants, {(float) projectResolution[0], (float) projectResolution[1]});
                 
                 ResolutionVariant selectedVariant = resolutionVariants[selectedResolutionVariant];
-                GraphicsCore::ResizeRenderBuffer(selectedVariant.width, selectedVariant.height);
-
-                RebuildRenderBufferHandles();
+                AsyncRendering::ResizeRenderBuffer(selectedVariant.width, selectedVariant.height);
             }
             static int selectedChannel = JSON_AS_TYPE(Shared::project.propertiesMap["LastColorBuffer"], int);
             Shared::project.propertiesMap["LastColorBuffer"] = selectedChannel;
@@ -174,8 +161,6 @@ extern "C" {
 
             Shared::project.propertiesMap["Playing"] = GraphicsCore::isPlaying;
             
-            GPUExtendedHandle previewTexture = GraphicsCore::outputBufferType == PreviewOutputBufferType_Color ? 
-                                        renderBufferColorHandle : renderBufferUVHandle;
             Shared::project.propertiesMap["LoopPlayback"] = looping;
             Shared::project.propertiesMap["TimelineValue"] = GraphicsCore::renderFrame;
             Shared::project.propertiesMap["PreviewResolution"] = selectedResolutionVariant;
@@ -186,9 +171,9 @@ extern "C" {
             ImVec2 previewTextureSize = FitRectInRect(windowSize, {(float) resolutionVariants[0].width, (float) resolutionVariants[0].height}) * previewScale;
             GraphicsCore::renderFramerate = JSON_AS_TYPE(Shared::project.propertiesMap["Framerate"], int);
             
-            std::vector<float> renderTimes{};
-            GraphicsCore::RequestRenderBufferCleaningWithinRegion();
-            renderTimes = GraphicsCore::RequestRenderWithinRegion();
+            std::vector<float> renderTimes(100);
+
+            AsyncRendering::RequestFrame(GraphicsCore::renderFrame);
 
             static float propertiesHeight = 50;
             static ImVec2 previousWindowPos = ImGui::GetWindowPos();
@@ -224,7 +209,9 @@ extern "C" {
                 if (selectedChannel == 2) tint = {0, 0, 1, 1};
 
                 ImGui::SetCursorPos(ImVec2{windowSize.x / 2.0f - previewTextureSize.x / 2.0f, windowSize.y / 2.0f - previewTextureSize.y / 2.0f} + imageOffset);
-                ImGui::Image((ImTextureID) previewTexture, previewTextureSize, ImVec2(0, 0), ImVec2(1, 1), tint);
+                GPUExtendedHandle renderPreviewHandle = AsyncRendering::GetRenderBufferImageHandle();
+                if (renderPreviewHandle) 
+                    ImGui::Image((ImTextureID) renderPreviewHandle, previewTextureSize, ImVec2(0, 0), ImVec2(1, 1), tint);
 
                 if (renderTimelineSeekQuickText) {
                     std::string timelineSeekQuickText = string_format("%s -> %s", formatToTimestamp(reservedRenderFrame, GraphicsCore::renderFramerate).c_str(), formatToTimestamp(GraphicsCore::renderFrame, GraphicsCore::renderFramerate).c_str());
