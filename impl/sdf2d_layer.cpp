@@ -59,6 +59,7 @@ extern "C" {
     
 
     ELECTRON_EXPORT void LayerInitialize(RenderLayer* owner) {
+        sizeof(SDF2DUniformBuffer);
         owner->properties["Position"] = {
             GeneralizedPropertyType::Vec2,
             {0, 0, 0}
@@ -118,7 +119,7 @@ extern "C" {
 
             DescriptorSetLayoutBinding uniformBufferBinding;
             uniformBufferBinding.bindingPoint = 1;
-            uniformBufferBinding.descriptorType = DescriptorType::UniformBuffer;
+            uniformBufferBinding.descriptorType = DescriptorType::ShaderStorageBuffer;
             uniformBufferBinding.shaderType = ShaderType::Fragment;
             
             DescriptorSetLayoutBuilder descriptorSetBuilder;
@@ -170,7 +171,7 @@ extern "C" {
         PipelineFrameBuffer& frb = userData->frb;
         if (frb.width != pbo->width || frb.height != pbo->height) {
             if (frb.id) frb.Destroy();
-            frb = PipelineFrameBuffer(pbo->width, pbo->height);
+            frb = PipelineFrameBuffer(desc.context, pbo->width, pbo->height);
         }
 
         GraphicsCore::RequestTextureCollectionCleaning(desc.context, frb, 0.0f);
@@ -203,6 +204,7 @@ extern "C" {
         uniformBuffer.uTextureOffset = uvOffset;
         uniformBuffer.uSize = size;
         uniformBuffer.uSdfEnabled = (int) (userData->sync.sdfShape != SDFShape::None);
+        uniformBuffer.uSdfRadius = userData->sync.sdfRadius;
         
         if (canTexture && asset->type == TextureUnionType::Video) {
             VideoMetadata video = std::get<VideoMetadata>(asset->as);
@@ -224,7 +226,7 @@ extern "C" {
                 DescriptorWriteBinding uboBinding;
                 uboBinding.binding = 1;
                 uboBinding.resource = userData->ubo;
-                uboBinding.type = DescriptorType::UniformBuffer;
+                uboBinding.type = DescriptorType::ShaderStorageBuffer;
 
                 DriverCore::PushDescriptors(desc.context, {textureBinding, uboBinding}, sdf2d_layout, 0);    
             }
