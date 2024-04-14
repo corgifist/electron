@@ -12,7 +12,7 @@
 #include "utils/vk_mem_alloc.h"
 #include <span>
 
-#define MAX_FRAMES_IN_FLIGHT 3
+#define MAX_FRAMES_IN_FLIGHT 2
 #define SWAPCHAIN_FORMAT VK_FORMAT_B8G8R8A8_UNORM
 #define COLOR_SPACE_FORMAT VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
 #define DESCRIPTOR_POOL_SIZE 256
@@ -113,7 +113,7 @@ namespace Electron {
     };  
     
     enum class DescriptorType {
-        UniformBuffer, Sampler
+        UniformBuffer, Sampler, ShaderStorageBuffer
     };
 
 
@@ -251,6 +251,8 @@ namespace Electron {
 
         static void UpdateTextureData(GPUExtendedHandle context, GPUExtendedHandle texture, int width, int height, uint8_t* data);
         
+        static void* MapTransferBuffer(GPUExtendedHandle texture);
+
         static void OptimizeTextureForRendering(GPUExtendedHandle context, GPUExtendedHandle texture);
 
         static GPUExtendedHandle GenerateShaderProgram(ShaderType type, std::vector<uint8_t> binary);

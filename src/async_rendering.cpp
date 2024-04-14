@@ -3,6 +3,7 @@
 namespace Electron {
     AsyncRenderingData AsyncRendering::data = {};
     PipelineFrameBuffer AsyncRendering::renderBuffer;
+    bool AsyncRendering::presentSuccessfull = false;
 
     static struct CompositorPipeline {
         GPUExtendedHandle compositorVertex, compositorFragment;
@@ -68,6 +69,8 @@ namespace Electron {
 
         compositorPipeline.compositorPipeline = compositorPipelineBuilder.Build();
 
+        presentSuccessfull = false;
+
         data.terminateRendererTask = false;
         data.allowRendering = false;
         data.requestedRenderFrame = 0.0f;
@@ -80,6 +83,8 @@ namespace Electron {
 
     void AsyncRendering::RenderFrame() {
         if (!data.allowRendering) return;
+        while (!presentSuccessfull) {}
+        presentSuccessfull = false;
         int firstMillisecondsTime = DriverCore::GetTime() * 1000;
         GPUExtendedHandle currentContext = data.renderContext;
         RenderLayerRenderDescription renderDescription = {};
@@ -88,10 +93,9 @@ namespace Electron {
 
         AsyncRendering::SwapRenderBuffers();
         DriverCore::WaitContextFence(currentContext);
-        DriverCore::BeginContext(currentContext);
+
         resizeCommandsMutex.lock();
-        if (data.resizeCommands.size() != 0) {
-            ResizeRenderBufferDescription resize = data.resizeCommands.at(data.resizeCommands.size() - 1);
+        for (auto& resize : data.resizeCommands) {
             for (auto& renderBufferImage : data.renderBuffers) {
                 DriverCore::DestroyImageHandleUI(renderBufferImage.colorHandle);
                 if (renderBufferImage.frameBuffer.id != 0) renderBufferImage.frameBuffer.Destroy();
@@ -103,9 +107,12 @@ namespace Electron {
                 renderBufferImage.colorHandle = DriverCore::GetImageHandleUI(renderBufferImage.frameBuffer.rbo.colorBuffer);
                 data.renderBuffers.push_back(renderBufferImage);
             }
-            data.resizeCommands.clear();
+            AsyncRendering::renderBuffer = data.renderBuffers[0].frameBuffer;
         } 
+        data.resizeCommands.clear();
         resizeCommandsMutex.unlock();
+
+        DriverCore::BeginContext(currentContext);
         if (data.renderBuffers.size() <= 0) return;
         GraphicsCore::RequestTextureCollectionCleaning(currentContext, data.renderBuffers[1].frameBuffer);
         int layerIndex = 0;

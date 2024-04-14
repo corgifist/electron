@@ -623,6 +623,9 @@ namespace Electron {
             case DescriptorType::UniformBuffer: {
                 return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             }
+            case DescriptorType::ShaderStorageBuffer: {
+                return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            }
         }
         return (VkDescriptorType) 0;
     }
@@ -1166,7 +1169,7 @@ namespace Electron {
                 writeSet.pImageInfo = writeImageInfo;
 
                 destructionTargets.push_back(writeImageInfo);
-            } else if (binding.type == DescriptorType::UniformBuffer) {
+            } else if (binding.type == DescriptorType::UniformBuffer || binding.type == DescriptorType::ShaderStorageBuffer) {
                 VulkanAllocatedUniformBuffer* buffer = (VulkanAllocatedUniformBuffer*) binding.resource;
                 VkDescriptorBufferInfo* bufferInfo = new VkDescriptorBufferInfo();
                 bufferInfo->buffer = buffer->buffers[Shared::frameID % MAX_FRAMES_IN_FLIGHT].buffer;
@@ -1359,6 +1362,11 @@ namespace Electron {
         copyRegion.imageExtent = {(uint32_t) width, (uint32_t) height, 1};
 
         vkCmdCopyBufferToImage(context.mainCommandBuffer, texture->stagingBuffer.buffer, texture->image, texture->imageLayout, 1, &copyRegion);
+    }
+
+    void* DriverCore::MapTransferBuffer(GPUExtendedHandle ptr) {
+        VulkanAllocatedTexture* texture =(VulkanAllocatedTexture*) ptr;
+        return texture->stagingBuffer.allocationInfo.pMappedData;
     }
 
     void DriverCore::OptimizeTextureForRendering(GPUExtendedHandle contextPtr, GPUExtendedHandle texture) {

@@ -178,34 +178,32 @@ namespace Electron {
                 }
                 Shared::configMap["CacheIndex"] = Cache::cacheIndex;
 
-                float renderLengthCandidate = 0;
-                for (auto &layer : GraphicsCore::layers) {
-                    renderLengthCandidate =
-                        glm::max(renderLengthCandidate, layer.endFrame);
+                if (Shared::frameID % 60 == 0) {
+                    float renderLengthCandidate = 0;
+                    for (auto &layer : GraphicsCore::layers) {
+                        renderLengthCandidate =
+                            glm::max(renderLengthCandidate, layer.endFrame);
 
-                    layer.beginFrame =
-                        glm::clamp(layer.beginFrame, 0.0f, layer.endFrame);
-                }
-                GraphicsCore::renderLength = renderLengthCandidate;
-                GraphicsCore::renderFrame =
-                    glm::clamp((float)GraphicsCore::renderFrame, 0.0f,
-                            (float)GraphicsCore::renderLength);
-
-                for (auto& layer : GraphicsCore::layers) {
-                    try {
-                        if (layer.layerLockID != -1) {
-                            auto parentLayer = GraphicsCore::GetLayerByID(layer.layerLockID);
-                            layer.beginFrame = parentLayer->beginFrame;
-                            layer.endFrame = parentLayer->endFrame;
+                        layer.beginFrame =
+                            glm::clamp(layer.beginFrame, 0.0f, layer.endFrame);
+                    }
+                    GraphicsCore::renderLength = renderLengthCandidate;
+                    GraphicsCore::renderFrame =
+                        glm::clamp((float)GraphicsCore::renderFrame, 0.0f,
+                                (float)GraphicsCore::renderLength);
+                    for (auto& layer : GraphicsCore::layers) {
+                        try {
+                            if (layer.layerLockID != -1) {
+                                auto parentLayer = GraphicsCore::GetLayerByID(layer.layerLockID);
+                                layer.beginFrame = parentLayer->beginFrame;
+                                layer.endFrame = parentLayer->endFrame;
+                            }
+                        } catch (std::runtime_error err) {
+                            layer.layerLockID = -1;
                         }
-                    } catch (std::runtime_error err) {
-                        layer.layerLockID = -1;
                     }
                 }
 
-                PixelBuffer::filtering =
-                    Shared::configMap["TextureFiltering"] == "linear" ? GL_LINEAR
-                                                                    : GL_NEAREST;
                 if (projectOpened) {
                     Shared::project.propertiesMap["LastSelectedLayer"] =
                         Shared::selectedRenderLayer;
@@ -423,6 +421,7 @@ namespace Electron {
 
             render_success:
                 DriverCore::ImGuiRender();
+                AsyncRendering::presentSuccessfull = true;
                 DriverCore::SwapBuffers();
 
                 Shared::deltaTime = ImGui::GetIO().DeltaTime;

@@ -78,6 +78,7 @@ namespace Electron {
         int lastLoadedFrame, frame, id;
         uint8_t* image;
         bool readyToBePresented;
+        std::mutex* commandBufferMutex;
 
         VideoReaderState vr;
 

@@ -27,6 +27,7 @@ namespace Electron {
     struct AsyncRendering {
         static AsyncRenderingData data;
         static PipelineFrameBuffer renderBuffer; // front buffer
+        static bool presentSuccessfull;
 
         static void Initialize();
         static void RenderFrame();

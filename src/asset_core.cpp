@@ -56,6 +56,7 @@ namespace Electron {
         this->terminateDecoderTask = false;
         this->decodingFinished = false;
         this->readyToBePresented = false;
+        this->commandBufferMutex = new std::mutex();
     }
 
     GPUExtendedHandle AssetDecoder::GetGPUTexture(TextureUnion* asset, GPUExtendedHandle context) {
@@ -76,6 +77,10 @@ namespace Electron {
 
                 video_reader_open(&vr, asset->path.c_str(), Shared::deviceName.c_str(), !Shared::configMap["UseVideoGPUAcceleration"]);
 
+                for (int i = 0; i < DriverCore::FramesInFlightCount(); i++) {
+                    transferBuffers.push_back(DriverCore::GenerateGPUTexture(context, width, height, true));
+                }
+
                 decoderTask = new std::thread([](AssetDecoder* decoder) {
                     while (true) {
                         if (decoder->terminateDecoderTask) break;
@@ -83,8 +88,12 @@ namespace Electron {
                             if (decoder->terminateDecoderTask) break;
                         }
                         if (decoder->terminateDecoderTask) break;
-                        auto commandBuffer = decoder->commandBuffer;
-                        decoder->commandBuffer.clear();
+                        std::vector<AssetDecoderCommand> commandBuffer = {}; {
+                            decoder->commandBufferMutex->lock();
+                                commandBuffer = decoder->commandBuffer;
+                                decoder->commandBuffer.clear();
+                            decoder->commandBufferMutex->unlock();
+                        }
                         for (auto& command : commandBuffer) {
                             if (decoder->terminateDecoderTask) break;
                             if (command.type == AssetDecoderCommandType::Decode) {
@@ -98,20 +107,9 @@ namespace Electron {
                     }
                 }, this);
 
-                for (int i = 0; i < DriverCore::FramesInFlightCount(); i++) {
-                    transferBuffers.push_back(DriverCore::GenerateGPUTexture(context, width, height, true));
-                    float blackPtr[4] = {
-                        0, 0, 0, 1
-                    };
-                }
                 readyToBePresented = true;
                 decodingFinished = false;
                 this->id = seedrand();
-            }
-            if (frame == 0) {
-                lastLoadedFrame = 0;
-                commandBuffer.push_back(AssetDecoderCommand((int64_t) 0));
-                return asset->pboGpuTexture;
             }
             if (lastLoadedFrame != frame) {
                 int frameDifference = frame - lastLoadedFrame;
@@ -131,12 +129,15 @@ namespace Electron {
                     } else {
                         frameDifference--;
                         while (frameDifference-- > 0) {
-                            commandBuffer.push_back(AssetDecoderCommand(nullptr));
+                            commandBufferMutex->lock();
+                                commandBuffer.push_back(AssetDecoderCommand(nullptr));
+                            commandBufferMutex->unlock();
                         }
                     }
                 }
 
                 if (hardcoreDecode) {
+                    commandBufferMutex->lock();
                     commandBuffer.clear();
                     int64_t currentKeyframePts = int64_t((double) currentKeyframe / video.framerate) * (double) vr.time_base.den / (double) vr.time_base.num;
                     commandBuffer.push_back(AssetDecoderCommand(currentKeyframePts));
@@ -144,11 +145,14 @@ namespace Electron {
                     while (framesToDecode-- > 0) {
                         commandBuffer.push_back(AssetDecoderCommand(nullptr));
                     }
+                    commandBufferMutex->unlock();
+                } {
+                    commandBufferMutex->lock();
+                        commandBuffer.push_back(AssetDecoderCommand((uint8_t*) DriverCore::MapTransferBuffer(transferBuffers[transferBufferIndex])));
+                    commandBufferMutex->unlock();
                 }
-
-                commandBuffer.push_back(AssetDecoderCommand(image));
                 if (decodingFinished) transferBufferIndex = (transferBufferIndex + 1) % DriverCore::FramesInFlightCount();
-                if (decodingFinished) DriverCore::UpdateTextureData(context, transferBuffers[transferBufferIndex], width, height, image);
+                if (decodingFinished) DriverCore::UpdateTextureData(context, transferBuffers[transferBufferIndex], width, height, nullptr);
                 if (decodingFinished) decodingFinished = false;
                 return frame == 0 ? asset->pboGpuTexture : transferBuffers[transferBufferIndex];
             }
@@ -192,6 +196,18 @@ namespace Electron {
         terminateDecoderTask = false;
         delete image;
         image = nullptr;
+
+        this->transferBuffers = {};
+        this->imageHandles = {};
+        this->lastLoadedFrame = -1;
+        this->transferBufferIndex = 0;
+        this->frame = 0;
+        this->id = 0;
+        this->image = nullptr;
+        this->decoderTask = nullptr;
+        this->terminateDecoderTask = false;
+        this->decodingFinished = false;
+        this->readyToBePresented = false;
     }
 
     void AssetDecoder::LoadHandle(TextureUnion* asset) {
@@ -222,7 +238,7 @@ namespace Electron {
 
     GPUExtendedHandle AssetDecoder::GetImageHandle(TextureUnion* asset) {
         if (asset->type == TextureUnionType::Video && lastLoadedFrame == 0) {
-            return imageHandles[3];
+            return imageHandles[DriverCore::FramesInFlightCount()];
         } 
         return asset->type == TextureUnionType::Texture ? imageHandles[0] : imageHandles[transferBufferIndex];
     }
@@ -445,7 +461,7 @@ AssetCore::LoadAssetFromPath(std::string path) {
         targetAssetType = TextureUnionType::Texture;
     } else if (hasEnding(lowerPath, ".ogg") || hasEnding(lowerPath, ".mp3") || hasEnding(lowerPath, ".wav") || hasEnding(lowerPath, ".m4a")) {
         targetAssetType = TextureUnionType::Audio;
-    } else if (hasEnding(lowerPath, ".mp4") || hasEnding(lowerPath, ".wmv") || hasEnding(lowerPath, ".mkv") || hasEnding(lowerPath, ".mov")) {
+    } else if (hasEnding(lowerPath, ".mp4") || hasEnding(lowerPath, ".wmv") || hasEnding(lowerPath, ".mkv") || hasEnding(lowerPath, ".mov") || hasEnding(lowerPath, ".webm")) {
         targetAssetType = TextureUnionType::Video;
     } else {
         retMessage = "Unsupported File Format '" + path + "'";

@@ -25,11 +25,9 @@ static std::vector<AVHWDeviceType> availableDeviceTypes = {
     AV_HWDEVICE_TYPE_VULKAN,
     AV_HWDEVICE_TYPE_VDPAU
 };
-
-static AVBufferRef* hw_device_ctx;
-
 static int hw_decoder_init(VideoReaderState* state, AVCodecContext *ctx, const enum AVHWDeviceType type, const char* deviceName)
 {
+    auto& hw_device_ctx = state->hw_device_ctx;
     auto& hw_pix_fmt = state->hw_pix_fmt;
     auto& device_type = state->device_type;
     int err = 0;
@@ -41,7 +39,7 @@ static int hw_decoder_init(VideoReaderState* state, AVCodecContext *ctx, const e
         return err;
     }
     device_type = type;
-    ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+    ctx->hw_device_ctx = av_buffer_ref(state->hw_device_ctx);
 
     return err;
 }
@@ -74,6 +72,7 @@ bool video_reader_open(VideoReaderState* state, const char* filename, const char
     auto& av_frame = state->av_frame;
     auto& av_packet = state->av_packet;
     auto& hw_frame = state->hw_frame;
+    auto& hw_device_ctx = state->hw_device_ctx;
     auto& hw_pix_fmt = state->hw_pix_fmt;
     auto& device_type = state->device_type;
 
@@ -153,6 +152,7 @@ bool video_reader_open(VideoReaderState* state, const char* filename, const char
             if (!config) {
                 std::cout << "Decoder " << av_codec->name << " does not support device type " << av_hwdevice_get_type_name(device_type) << std::endl;
                 state->useHardwareDecoding = false;
+                av_buffer_unref(&av_codec_ctx->hw_device_ctx);
                 av_codec_ctx->hw_device_ctx = nullptr;
                 break;
             }
@@ -229,6 +229,7 @@ bool video_reader_read_frame(VideoReaderState* state, uint8_t* frame_buffer, int
     auto& hw_frame = state->hw_frame;
     auto& av_packet = state->av_packet;
     auto& sws_scaler_ctx = state->sws_scaler_ctx;    
+    auto& hw_device_ctx = state->hw_device_ctx;
     auto& hw_pix_fmt = state->hw_pix_fmt;
     auto& device_type = state->device_type;
     cached_hw_pix_fmt = hw_pix_fmt;
@@ -341,5 +342,6 @@ void video_reader_close(VideoReaderState* state) {
     av_frame_free(&state->hw_frame);
     av_frame_free(&state->av_frame);
     av_packet_free(&state->av_packet);
+    if (state->useHardwareDecoding) av_buffer_unref(&state->hw_device_ctx);
     avcodec_free_context(&state->av_codec_ctx);
 }
