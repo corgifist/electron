@@ -58,7 +58,7 @@ layout(push_constant) uniform PushConstants {
 
 layout(set = 0, binding = 0) uniform sampler2D textureSampler;
 
-layout(set = 0, binding = 1) uniform SDF2DUniformBuffer {
+layout(set = 0, binding = 1, std430) readonly buffer SDF2DBuffer {
     vec4 color;
     vec2 uvOffset;
     vec2 size;
@@ -86,7 +86,7 @@ float sdEquilateralTriangle(vec2 p,float r ) {
 
 
 void main() {
-    gColor = vec4(1.0);
+    gColor = ubo.color;
     if (pcs.canTexture == 1.0) {
         gColor *= texture(textureSampler, vUV + ubo.uvOffset);
     }
@@ -104,6 +104,6 @@ void main() {
         if (d > 0.0) {
             gColor *= 0.0;
         }
-    } */ 
+    } */
     gUV = vec4(vUV, 0.0, 1.0);
 }
