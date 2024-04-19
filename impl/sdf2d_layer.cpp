@@ -5,7 +5,7 @@
 using namespace Electron;
 using namespace glm;
 
-#define TEXTURE_POOL_SIZE 128
+#define TIMESHIFT(layer) (JSON_AS_TYPE(layer->properties["InternalTimeShift"], float))
 
 extern "C" {
 
@@ -208,7 +208,7 @@ extern "C" {
         
         if (canTexture && asset->type == TextureUnionType::Video) {
             VideoMetadata video = std::get<VideoMetadata>(asset->as);
-            decoder->decoder.frame = std::ceil(double((GraphicsCore::renderFrame - owner->beginFrame) / GraphicsCore::renderFramerate) * (video.framerate));
+            decoder->decoder.frame = std::ceil(double((GraphicsCore::renderFrame - owner->beginFrame + TIMESHIFT(owner)) / GraphicsCore::renderFramerate) * (video.framerate));
         }
 
         auto sdfTexture = decoder->GetGPUTexture(asset, desc.context);
@@ -398,6 +398,12 @@ extern "C" {
             }
 
             userData->sync = sync;
+        } else {
+            int beginningFrame = TIMESHIFT(layer);
+            if (userData->decoder.decoder.frame != beginningFrame) {
+                userData->decoder.decoder.frame = beginningFrame + 1;
+                userData->decoder.GetGPUTexture(asset, 0);
+            }
         }
     }
 

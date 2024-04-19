@@ -1,64 +1,45 @@
-#include <AL/al.h>
-#include <AL/alc.h>
 #include <set>
+#define MINIAUDIO_IMPLEMENTATION
+#include "utils/miniaudio.h"
 
 #include "editor_core.h"
-#include "utils/AudioFile.h"
 
 #define THREAD_POOL_SIZE 50
+
+#define SAMPLE_RATE 48000
+#define CHANNEL_COUNT 2
+#define SAMPLE_FORMAT ma_format_f32
 
 using namespace Electron;
 
 extern "C" {
+
+    typedef void (*Electron_AudioDataT)(float*, int, void*);
+
     struct AudioBundle {
-        AudioFile<float> data;
-        ALuint buffer;
+        std::string path;
 
         AudioBundle() {}
+    };
 
-        void Destroy() {
-            alDeleteBuffers(1, &buffer);
+    struct AudioDecoder {
+        ma_decoder decoder;
+        Electron_AudioDataT audioDataProc;
+        void* pUserData;
+
+        bool pause;
+        bool ready;
+        AudioDecoder() {
+            this->ready = false;
         }
-    };  
-
-    static inline ALenum GetALFormat(short channels, short samples) {
-        bool stereo = (channels > 1);
-
-        switch (samples) {
-            case 16:
-                    if (stereo)
-                            return AL_FORMAT_STEREO16;
-                    else
-                            return AL_FORMAT_MONO16;
-            case 8:
-                    if (stereo)
-                            return AL_FORMAT_STEREO8;
-                    else
-                            return AL_FORMAT_MONO8;
-            default:
-                    return -1;
-        }
-    }
-
-    std::vector<std::string> ListALDevices() {
-        const ALCchar* devices = alcGetString(NULL, ALC_DEVICE_SPECIFIER);
-        const ALCchar *device = devices, *next = devices + 1;
-        size_t len = 0;
-        std::vector<std::string> result;
-
-        while (device && *device != '\0' && next && *next != '\0') {
-                result.push_back(device);
-                len = strlen(device);
-                device += (len + 1);
-                next += (len + 2);
-        }
-        return result;
-    }
-
+    };
 
     int loadIndex = 0;
-    ALCdevice* alDevice = nullptr;
-    ALCcontext* alContext;
+
+    ma_device device;
+    ma_decoder_config decoderConfig;
+
+    std::vector<AudioDecoder> decoders;
     std::unordered_map<std::string, AudioBundle> wavRegistry;
     std::unordered_map<int, std::string> playRegistry;
     std::vector<bool> loadInfo;
@@ -66,6 +47,8 @@ extern "C" {
     std::set<std::string> loadedRegistry;
 
     std::mutex wavRegistryMutex;
+
+    bool currentlyMixing = false;
 
     void JoinThreads() {
         for (auto& thread : threadRegistry) {
@@ -75,31 +58,76 @@ extern "C" {
         loadInfo.clear();
     }
 
+    ma_uint32 read_and_mix_pcm_frames_f32(ma_decoder* pDecoder, float* pOutputF32, ma_uint32 frameCount, Electron_AudioDataT audioProc, void* pUserData) {
+        ma_result result;
+        float temp[4096];
+        ma_uint32 tempCapInFrames = ma_countof(temp) / CHANNEL_COUNT;
+        ma_uint32 totalFramesRead = 0;
+
+        while (totalFramesRead < frameCount) {
+            ma_uint64 iSample;
+            ma_uint64 framesReadThisIteration;
+            ma_uint32 totalFramesRemaining = frameCount - totalFramesRead;
+            ma_uint32 framesToReadThisIteration = tempCapInFrames;
+            if (framesToReadThisIteration > totalFramesRemaining) {
+                framesToReadThisIteration = totalFramesRemaining;
+            }
+
+            result = ma_decoder_read_pcm_frames(pDecoder, temp, framesToReadThisIteration, &framesReadThisIteration);
+            if (result != MA_SUCCESS || framesReadThisIteration == 0) {
+                break;
+            }
+
+            if (audioProc) {
+                audioProc(temp, framesReadThisIteration, pUserData);
+            }
+
+            /* Mix the frames together. */
+            for (iSample = 0; iSample < framesReadThisIteration*CHANNEL_COUNT; ++iSample) {
+                pOutputF32[totalFramesRead*CHANNEL_COUNT + iSample] += temp[iSample];
+            }
+
+            totalFramesRead += (ma_uint32)framesReadThisIteration;
+
+            if (framesReadThisIteration < (ma_uint32)framesToReadThisIteration) {
+                break;  /* Reached EOF. */
+            }
+        }
+        
+        return totalFramesRead;
+    }
+
+
+    void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 framesCount) {
+        currentlyMixing = true;
+        float* pOutputF32 = (float*) pOutput;
+        for (auto& decoderBundle : decoders) {
+            ma_decoder* decoder = &decoderBundle.decoder;
+            if (!decoderBundle.ready) continue;
+            if (decoderBundle.pause) continue;
+            read_and_mix_pcm_frames_f32(decoder, pOutputF32, framesCount, decoderBundle.audioDataProc, decoderBundle.pUserData);
+        }
+        currentlyMixing = false;
+    }
 
     ELECTRON_EXPORT void ServerInit() {
-        auto devices = ListALDevices();
-        for (auto& device : devices) {
-            print("OpenAL Device: " << device);
+        ma_device_config deviceConfig = ma_device_config_init(ma_device_type_playback);
+        deviceConfig.playback.format = SAMPLE_FORMAT;
+        deviceConfig.playback.channels = CHANNEL_COUNT;
+        deviceConfig.sampleRate = SAMPLE_RATE;
+        deviceConfig.pUserData = nullptr;
+        deviceConfig.dataCallback = (ma_device_data_proc) data_callback;
+
+        if (ma_device_init(nullptr, &deviceConfig, &device) != MA_SUCCESS) {
+            throw std::runtime_error("cannot initialize miniaudio device!");
         }
 
-        alDevice = alcOpenDevice(devices[0].c_str());
-        if (!alDevice) 
-            throw std::runtime_error("(audio-server) cannot open audio device!");
+        decoderConfig = ma_decoder_config_init(SAMPLE_FORMAT, CHANNEL_COUNT, SAMPLE_RATE);
 
-        ALCint attrList[] = {
-            ALC_FREQUENCY, 44100,
-            ALC_MONO_SOURCES, 512,
-            ALC_STEREO_SOURCES, 512,
-            0
-        };
-        alContext = alcCreateContext(alDevice, attrList);
-        if (!alContext) 
-            throw std::runtime_error("(audio-server) cannot create audio context!");
-        if (!alcMakeContextCurrent(alContext)) 
-            throw std::runtime_error("(audio-server) cannot set current audio context!");
+        ma_device_start(&device);
 
-        DUMP_VAR(alGetString(AL_VERSION));
         loadInfo.push_back(true); // always true
+        decoders.push_back(AudioDecoder());
     }
 
     ELECTRON_EXPORT void ServerTerminate() {
@@ -114,105 +142,82 @@ extern "C" {
         }
         if (action == "load_sample") {
             std::string path = JSON_AS_TYPE(body["path"], std::string);
-            if (!hasEnding(path, ".wav")) {
-                return {{"id", -1}};
-            }
             if (threadRegistry.size() > THREAD_POOL_SIZE) {
                 JoinThreads();
             }
-            if (!file_exists(path) && body.find("fake_name") == body.end()) return {{"id", -1}};
             if (loadedRegistry.find(path) == loadedRegistry.end() || body.count("override") != 0) {
                 loadedRegistry.insert(path);
-                if (wavRegistry.find(path) != wavRegistry.end()) {
-                    wavRegistry[path].Destroy();
-                }
                 loadInfo.push_back(false);
                 int infoIndex = loadInfo.size() - 1;
-                bool overrideBufferInitialized = false;
-                AudioFile<float> bufferPtr;
-                if (body.find("buffer_ptr") != body.end() && JSON_AS_TYPE(body["buffer_ptr"], uint64_t) != 0) {
-                    bufferPtr = *((AudioFile<float>*) JSON_AS_TYPE(body["buffer_ptr"], uint64_t));
-                    overrideBufferInitialized = true;
-                }
-
                 threadRegistry.push_back(
-                    std::thread([](std::string path, int infoIndex, json_t body, AudioFile<float> bufferPtr, bool overrideBufferInitialized) {
+                    std::thread([](std::string path, int infoIndex) {
                         AudioBundle bundle;
-                        int samplesStartIndex, sampleRate, numChannels, bitDepth;
-                        std::vector<uint8_t> audioBytes;
-                        if (overrideBufferInitialized) {
-                            bundle.data = bufferPtr;
-                            audioBytes = bundle.data.saveWavToMemory();
-                        } else {
-                            std::string audioFile = read_file(path);
-                            for (int i = 0; i < audioFile.size(); i++) {
-                                audioBytes.push_back((uint8_t) audioFile[i]);
-                            }
-                            bundle.data.loadFromMemory(audioBytes);
-                        }
-                        const std::lock_guard<std::mutex> wavRegistryGuard(wavRegistryMutex);
-                        sampleRate = bundle.data.getSampleRate();
-                        numChannels = bundle.data.getNumChannels();
-                        samplesStartIndex = bundle.data.samplesStartIndex;
-                        bitDepth = bundle.data.getBitDepth();
-                        alGenBuffers(1, &bundle.buffer);
-                        alBufferData(bundle.buffer, GetALFormat(numChannels, bitDepth), 
-                                                    audioBytes.data() + samplesStartIndex, audioBytes.size() - samplesStartIndex, sampleRate);
+                        bundle.path = path;
                         wavRegistry[path] = bundle;
                         loadInfo[infoIndex] = true; 
-                    }, path, infoIndex, body, bufferPtr, overrideBufferInitialized)
+                    }, path, infoIndex)
                 );
                 result["id"] = infoIndex;
             }
         }
-        if (action == "load_raw_buffer") {
-            const std::lock_guard<std::mutex> wavRegistryGuard(wavRegistryMutex);
-            std::string path = JSON_AS_TYPE(body["path"], std::string);
-            if (wavRegistry.find(path) != wavRegistry.end()) {
-                wavRegistry[path].Destroy();
-            } 
-            AudioBundle bundle;
-            AudioFile<float> audioCopy = *((AudioFile<float>*) JSON_AS_TYPE(body["buffer_ptr"], uint64_t));
-            std::vector<uint8_t> audioBytes = audioCopy.saveWavToMemory();
-            bundle.data.loadFromMemory(audioBytes);
-            alGenBuffers(1, &bundle.buffer);
-            alBufferData(bundle.buffer, GetALFormat(bundle.data.getNumChannels(), bundle.data.getBitDepth()),
-                                            audioBytes.data() + bundle.data.samplesStartIndex, audioBytes.size() - bundle.data.samplesStartIndex, bundle.data.getSampleRate());
-            wavRegistry[path] = bundle;
-        }
         if (action == "play_sample") {
-            ALuint source;
-            AudioBundle& bundle = wavRegistry[JSON_AS_TYPE(body["path"], std::string)];
-            playRegistry[source] = JSON_AS_TYPE(body["path"], std::string);
-            alGenSources(1, &source);
-            alSourcef(source, AL_PITCH, 1.0f);
-            alSourcef(source, AL_GAIN, 1.0f);
-            alSourcei(source, AL_LOOPING, AL_FALSE);
-            alSourcei(source, AL_BUFFER, bundle.buffer);
-            result["handle"] = source;
+            decoders.push_back(AudioDecoder());
+            AudioDecoder& decoder = decoders.at(decoders.size() - 1);
+            int decoderIndex = decoders.size() - 1;
+            Electron_AudioDataT audioProc = body.contains("audio_proc") ? (Electron_AudioDataT) (uint64_t) body["audio_proc"] : nullptr;
+            void* userData = body.contains("user_data") ? (void*) (uint64_t) body["user_data"] : nullptr;
+            decoder.audioDataProc = audioProc;
+            decoder.pUserData = userData;
+            decoder.pause = false;
+
+            ma_decoder_init_file(JSON_AS_TYPE(body["path"], std::string).c_str(), &decoderConfig, &decoder.decoder);
+            decoder.ready = true;
+
+            playRegistry[decoderIndex] = JSON_AS_TYPE(body["path"], std::string);
+
+            result["handle"] = decoderIndex;
+        }
+        if (action == "create_decoder") {
+            ma_decoder* decoder = new ma_decoder();
+            ma_decoder_init_file(JSON_AS_TYPE(body["path"], std::string).c_str(), &decoderConfig, decoder);
+            result["decoder"] = (uint64_t) decoder;
+        }
+        if (action == "read_decoder") {
+            float* pOutputF32 = (float*) (uint64_t) body["dest"];
+            ma_decoder* decoder = (ma_decoder*) (uint64_t) body["decoder"];
+            ma_uint64 framesToRead = body["frames_to_read"];
+            ma_uint64 framesRead;
+            ma_decoder_read_pcm_frames(decoder, pOutputF32, framesToRead, &framesRead);
+            result["frames_read"] = framesRead;
+        }
+        if (action == "destroy_decoder") {
+            delete (ma_decoder*) (uint64_t) body["decoder"];
         }
         if (action == "pause_sample") {
-            bool playing = !JSON_AS_TYPE(body["pause"], bool);
-            ALenum state;
-            alGetSourcei(JSON_AS_TYPE(body["handle"], int), AL_SOURCE_STATE, &state);
-            if (playing && state != AL_PLAYING) alSourcePlay(JSON_AS_TYPE(body["handle"], int));
-            else if (!playing && state != AL_PAUSED) alSourcePause(JSON_AS_TYPE(body["handle"], int));
+            bool pause = JSON_AS_TYPE(body["pause"], bool);
+            AudioDecoder& decoder = decoders.at(body["handle"]);
+            decoder.pause = pause;
         }
         if (action == "stop_sample") {
-            int source = JSON_AS_TYPE(body["handle"], int);
+            int source = body["handle"];
+            if (source >= decoders.size()) return {};
             playRegistry.erase(source);
-            alSourceStop(JSON_AS_TYPE(body["handle"], int));
-            alDeleteSources(1, (ALuint*) &source);
+            AudioDecoder& decoder = decoders.at(source);
+            while (currentlyMixing) {}
+            if (decoder.ready) {
+                ma_decoder_uninit(&decoder.decoder);
+            }
+            decoder.ready = false;
         }
         if (action == "destroy_sample") {
             AudioBundle& bundle = wavRegistry[JSON_AS_TYPE(body["path"], std::string)];
-            bundle.Destroy();
             wavRegistry.erase(JSON_AS_TYPE(body["path"], std::string));
             loadedRegistry.erase(JSON_AS_TYPE(body["path"], std::string));
         }
         if (action == "seek_sample") {
             double seek = JSON_AS_TYPE(body["seek"], double);
-            alSourcef(JSON_AS_TYPE(body["handle"], int), AL_SEC_OFFSET, seek);
+            AudioDecoder& decoder = decoders.at(body["handle"]);
+            ma_decoder_seek_to_pcm_frame(&decoder.decoder, SAMPLE_RATE * seek);
         }
         if (action == "is_loaded") {
             result["loaded"] = (wavRegistry.find(JSON_AS_TYPE(body["path"], std::string)) != wavRegistry.end());
@@ -223,8 +228,6 @@ extern "C" {
             result["status"] = loadInfo.at(JSON_AS_TYPE(body["id"], int));
         }
         if (action == "audio_buffer_ptr") {
-            if (wavRegistry.find(body["path"]) == wavRegistry.end()) return {{"ptr", 0}};
-            result["ptr"] = (uint64_t) &wavRegistry[JSON_AS_TYPE(body["path"], std::string)].data;
         }
         return result;
     }
