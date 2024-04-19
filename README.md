@@ -12,17 +12,17 @@ The Only Supported Platform for now is Linux.
 
 Dependencies (Ubuntu apt packages):
 * `python3-ply`, `python3-colorama` (for build system)
-* `libglm-dev`, `libopenal-dev`, `binutils-dev`, `libcurl-dev` (for editor & subsystems)
+* `libglm-dev`, `binutils-dev` (for editor & subsystems)
 
 Build manual:
 * `python HashBuild/hash_build.py` to build project
 * `python HashBuild/hash_build.py -dclean` to clean compilation objects
 
 Run manual:
-* `LD_LIBARY_PATH=libs ./electron`
+* `./electron`
 
 Read `HashBuild/README.md` to get more info about HashBuild
 
 
 ## Screenshot Library
-![Screenshot 1](gallery/Image2.png "")
+![Screenshot](gallery/GalleryImage4.png "")
