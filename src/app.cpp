@@ -421,8 +421,8 @@ namespace Electron {
 
             render_success:
                 DriverCore::ImGuiRender();
-                AsyncRendering::presentSuccessfull = true;
                 DriverCore::SwapBuffers();
+                AsyncRendering::presentSuccessfull = true;
 
                 Shared::deltaTime = ImGui::GetIO().DeltaTime;
                 std::string windowTitle = "Electron " + std::string(" - Build Number ") + std::to_string(BUILD_NUMBER) + "";

@@ -51,12 +51,11 @@ namespace Electron {
         this->transferBufferIndex = 0;
         this->frame = 0;
         this->id = 0;
-        this->image = nullptr;
         this->decoderTask = nullptr;
         this->terminateDecoderTask = false;
         this->decodingFinished = false;
         this->readyToBePresented = false;
-        this->commandBufferMutex = new std::mutex();
+        this->commandBufferInUse = false;
     }
 
     GPUExtendedHandle AssetDecoder::GetGPUTexture(TextureUnion* asset, GPUExtendedHandle context) {
@@ -73,7 +72,6 @@ namespace Electron {
                 this->height = video.height;
                 Destroy();
                 transferBufferIndex = 0;
-                image = new uint8_t[width * height * 4];
 
                 video_reader_open(&vr, asset->path.c_str(), Shared::deviceName.c_str(), !Shared::configMap["UseVideoGPUAcceleration"]);
 
@@ -87,13 +85,13 @@ namespace Electron {
                         while (decoder->decodingFinished) {
                             if (decoder->terminateDecoderTask) break;
                         }
+                        while (decoder->commandBufferInUse) {}
+                        std::vector<AssetDecoderCommand> commandBuffer = decoder->commandBuffer;
+                        while (decoder->commandBufferInUse) {}
+                        decoder->commandBuffer.clear();
+                        while (decoder->commandBufferInUse) {}
                         if (decoder->terminateDecoderTask) break;
-                        std::vector<AssetDecoderCommand> commandBuffer = {}; {
-                            decoder->commandBufferMutex->lock();
-                                commandBuffer = decoder->commandBuffer;
-                                decoder->commandBuffer.clear();
-                            decoder->commandBufferMutex->unlock();
-                        }
+
                         for (auto& command : commandBuffer) {
                             if (decoder->terminateDecoderTask) break;
                             if (command.type == AssetDecoderCommandType::Decode) {
@@ -121,6 +119,7 @@ namespace Electron {
 
                 bool hardcoreDecode = false;
 
+                commandBufferInUse = true;
                 if (frameDifference < 0 && frameDifference != 1) {
                     hardcoreDecode = true;
                 } else if (frameDifference > 1) {
@@ -129,15 +128,12 @@ namespace Electron {
                     } else {
                         frameDifference--;
                         while (frameDifference-- > 0) {
-                            commandBufferMutex->lock();
-                                commandBuffer.push_back(AssetDecoderCommand(nullptr));
-                            commandBufferMutex->unlock();
+                            commandBuffer.push_back(AssetDecoderCommand(nullptr));
                         }
                     }
                 }
 
                 if (hardcoreDecode) {
-                    commandBufferMutex->lock();
                     commandBuffer.clear();
                     int64_t currentKeyframePts = int64_t((double) currentKeyframe / video.framerate) * (double) vr.time_base.den / (double) vr.time_base.num;
                     commandBuffer.push_back(AssetDecoderCommand(currentKeyframePts));
@@ -145,12 +141,9 @@ namespace Electron {
                     while (framesToDecode-- > 0) {
                         commandBuffer.push_back(AssetDecoderCommand(nullptr));
                     }
-                    commandBufferMutex->unlock();
-                } {
-                    commandBufferMutex->lock();
-                        commandBuffer.push_back(AssetDecoderCommand((uint8_t*) DriverCore::MapTransferBuffer(transferBuffers[transferBufferIndex])));
-                    commandBufferMutex->unlock();
-                }
+                } 
+                commandBuffer.push_back(AssetDecoderCommand((uint8_t*) DriverCore::MapTransferBuffer(transferBuffers[transferBufferIndex])));
+                commandBufferInUse = false;
                 if (decodingFinished) transferBufferIndex = (transferBufferIndex + 1) % DriverCore::FramesInFlightCount();
                 if (decodingFinished) DriverCore::UpdateTextureData(context, transferBuffers[transferBufferIndex], width, height, nullptr);
                 if (decodingFinished) decodingFinished = false;
@@ -194,8 +187,6 @@ namespace Electron {
             video_reader_close(&vr);
         }
         terminateDecoderTask = false;
-        delete image;
-        image = nullptr;
 
         this->transferBuffers = {};
         this->imageHandles = {};
@@ -203,11 +194,11 @@ namespace Electron {
         this->transferBufferIndex = 0;
         this->frame = 0;
         this->id = 0;
-        this->image = nullptr;
         this->decoderTask = nullptr;
         this->terminateDecoderTask = false;
         this->decodingFinished = false;
         this->readyToBePresented = false;
+        this->commandBufferInUse = false;
     }
 
     void AssetDecoder::LoadHandle(TextureUnion* asset) {

@@ -37,6 +37,7 @@ struct VideoReaderState {
     AVBufferRef* hw_device_ctx;
     AVPixelFormat hw_pix_fmt;
     AVHWDeviceType device_type;
+    AVDictionary* opts;
 
     bool useHardwareDecoding;
 

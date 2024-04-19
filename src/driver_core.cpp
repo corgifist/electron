@@ -1123,11 +1123,7 @@ namespace Electron {
 
     GPUExtendedHandle DriverCore::GetImageHandleUI(GPUExtendedHandle ptr) {
         if (!ptr) return 0;
-        if (!IsTexture(ptr)) return 0;
         VulkanAllocatedTexture* texture = (VulkanAllocatedTexture*) ptr;
-        if (textureRegistry.find(ptr) == textureRegistry.end()) {
-            textureRegistry.insert(ptr);
-        }
         ImTextureID handle = ImGui_ImplVulkan_AddTexture(texture->imageSampler, texture->imageView, texture->imageLayout);
         imageHandles.insert((GPUExtendedHandle) handle);
 
@@ -1136,8 +1132,8 @@ namespace Electron {
 
     void DriverCore::DestroyImageHandleUI(GPUExtendedHandle handle) {
         if (!handle) return;
-        if (imageHandles.find(handle) == imageHandles.end()) return;
         imageHandles.erase(handle);
+        print("erasing handle " << std::to_string(handle));
         PushDeferredFunction([handle]() {
             ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet) handle);
         });
@@ -1438,9 +1434,6 @@ namespace Electron {
 
         vkResetCommandBuffer(frameInfo->mainCommandBuffer, 0);
 
-        if (frameInfo->deferredExecutionQueue.size() != 0) {
-            vkDeviceWaitIdle(vk->device.device);
-        }
         for (auto& f : frameInfo->deferredExecutionQueue) {
             f();
         }
@@ -1477,6 +1470,9 @@ namespace Electron {
     
 
         vkEndCommandBuffer(frameInfo->mainCommandBuffer);
+
+        DUMP_VAR(imageHandles.size());
+    
     }
 
     void DriverCore::ImGuiShutdown() {

@@ -83,8 +83,6 @@ namespace Electron {
 
     void AsyncRendering::RenderFrame() {
         if (!data.allowRendering) return;
-        while (!presentSuccessfull) {}
-        presentSuccessfull = false;
         int firstMillisecondsTime = DriverCore::GetTime() * 1000;
         GPUExtendedHandle currentContext = data.renderContext;
         RenderLayerRenderDescription renderDescription = {};
@@ -93,6 +91,8 @@ namespace Electron {
 
         AsyncRendering::SwapRenderBuffers();
         DriverCore::WaitContextFence(currentContext);
+        while (!presentSuccessfull) {}
+        presentSuccessfull = false;
 
         resizeCommandsMutex.lock();
         for (auto& resize : data.resizeCommands) {

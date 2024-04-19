@@ -76,6 +76,7 @@ bool video_reader_open(VideoReaderState* state, const char* filename, const char
     auto& hw_frame = state->hw_frame;
     auto& hw_pix_fmt = state->hw_pix_fmt;
     auto& device_type = state->device_type;
+    auto& opts = state->opts;
 
     state->useHardwareDecoding = !forceSoftwareDecoding;
 
@@ -183,7 +184,11 @@ bool video_reader_open(VideoReaderState* state, const char* filename, const char
         return false;
     }
 
-    if (avcodec_open2(av_codec_ctx, av_codec, NULL) < 0) {
+    opts = nullptr;
+    av_codec_ctx->thread_type = FF_THREAD_SLICE;
+    av_codec_ctx->thread_count = std::thread::hardware_concurrency() / 2;
+
+    if (avcodec_open2(av_codec_ctx, av_codec, &opts) < 0) {
         printf("Couldn't open codec\n");
         return false;
     }
