@@ -1,5 +1,5 @@
 # <h1><p align="center">Electron [Heavy Work in Progress]</p></h1>
-<p align="center">Kinda Deperecated, Please Use corgifist/raster</p>
+<p align="center">Kinda Deperecated (because of the shitty codebase), Please Use corgifist/raster</p>
 
 Advantages over other editors:
 * Electron is Modular. Every part of editor (e.g. editor windows, audio backends, layers/effects) can be replaced/modified!
