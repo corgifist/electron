@@ -1,7 +1,7 @@
 # <h1><p align="center">Electron</p></h1>
 <h1 align="center">! Deprecation Notice !</h1>
 
-This video editor was deprecated in favor of [Raster](github.com/corgifist/raster). Raster's codebase is much more organized and written with durability and crash-safety in mind.
+This video editor was deprecated in favor of [Raster](https://github.com/corgifist/raster). Raster's codebase is much more organized and written with durability and crash-safety in mind.
 
 Why?
 * Raster has a flexible serialization system. Electron doesn't know what serialization is 
@@ -10,7 +10,7 @@ Why?
 
 
 <h2 align="center">
-   <a href="github.com/corgifist/raster">Just Use Raster</a>
+   <a href="https://github.com/corgifist/raster">Just Use Raster</a>
 </h2>
 
 
