@@ -1,5 +1,15 @@
-# <h1><p align="center">Electron [Heavy Work in Progress]</p></h1>
-<p align="center">Kinda Deperecated (because of the shitty codebase), Please Use corgifist/raster</p>
+# <h1><p align="center">Electron</p></h1>
+<h1 align="center">! Deprecation Notice !</h1>
+
+* This vidoe editor was deprecated in favor of [Raster](github.com/corgifist/raster). It's codebase is much more organized and written with durability and crash-safety in mind.
+* Raster has a flexible serialization system. Electron doesn't know what serialization is 
+* Raster has organized project structure. Electron's one is a mess
+
+
+<h2 align="center">
+   <a href="github.com/corgifist/raster">Just Use Raster</a>
+</h2>
+
 
 Advantages over other editors:
 * Electron is Modular. Every part of editor (e.g. editor windows, audio backends, layers/effects) can be replaced/modified!
