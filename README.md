@@ -1,9 +1,12 @@
 # <h1><p align="center">Electron</p></h1>
 <h1 align="center">! Deprecation Notice !</h1>
 
-* This vidoe editor was deprecated in favor of [Raster](github.com/corgifist/raster). It's codebase is much more organized and written with durability and crash-safety in mind.
+This video editor was deprecated in favor of [Raster](github.com/corgifist/raster). Raster's codebase is much more organized and written with durability and crash-safety in mind.
+
+Why?
 * Raster has a flexible serialization system. Electron doesn't know what serialization is 
 * Raster has organized project structure. Electron's one is a mess
+* Raster is much easier to maintain and add new features to
 
 
 <h2 align="center">
